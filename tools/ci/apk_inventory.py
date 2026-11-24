@@ -31,11 +31,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("apk")
     parser.add_argument("--baseline")
+    parser.add_argument("--baseline-report", help="Previous inventory JSON")
     args = parser.parse_args()
+    if args.baseline and args.baseline_report:
+        parser.error("Choose only one baseline")
     current = inventory(args.apk)
     result = {"entries": current}
     if args.baseline:
         result["comparison"] = compare(inventory(args.baseline), current)
+    if args.baseline_report:
+        with open(args.baseline_report, encoding="utf-8") as stream:
+            previous = json.load(stream)["entries"]
+        result["comparison"] = compare(previous, current)
     print(json.dumps(result, indent=2, sort_keys=True))
 
 if __name__ == "__main__":
