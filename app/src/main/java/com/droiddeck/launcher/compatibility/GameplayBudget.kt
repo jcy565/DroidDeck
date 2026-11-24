@@ -17,6 +17,18 @@ internal object GameplayBudget {
         SessionState.running || SessionState.phase != SessionPhase.IDLE ||
             SessionState.installing != null || SessionState.stopRequested)
 
+    enum class MemoryAdvice { UNKNOWN, NORMAL, DEFER_OPTIONAL_WORK }
+
+    fun memoryAdvice(snapshot: MemorySnapshot?): MemoryAdvice = when {
+        snapshot == null || snapshot.totalBytes <= 0 || snapshot.availableBytes < 0 ||
+            snapshot.availableBytes > snapshot.totalBytes || snapshot.thresholdBytes < 0 -> MemoryAdvice.UNKNOWN
+        snapshot.lowMemory || snapshot.availableBytes <= snapshot.thresholdBytes -> MemoryAdvice.DEFER_OPTIONAL_WORK
+        else -> MemoryAdvice.NORMAL
+    }
+
+    fun allowsOptionalAnalysis(context: Context): Boolean =
+        allows(Work.ANALYSIS) && memoryAdvice(memory(context)) == MemoryAdvice.NORMAL
+
     /** On demand only: no polling, process enumeration or process killing. */
     fun memory(context: Context): MemorySnapshot? {
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return null
