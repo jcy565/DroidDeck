@@ -164,6 +164,7 @@ fun FileManagerScreen(
     var entries by remember { mutableStateOf(listOf<File>()) }
     var selectedEntry by remember { mutableStateOf<File?>(null) }
     var showMenuFor by remember { mutableStateOf<File?>(null) }
+    var patchTarget by remember { mutableStateOf<File?>(null) }
     var clipboardFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var isCutOperation by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
@@ -577,6 +578,10 @@ fun FileManagerScreen(
             onDismiss = { propertiesTarget = null },
             onChanged = { loadDirectory(currentDir, resetScroll = false) },
         )
+    }
+
+    patchTarget?.let { file ->
+        GamePatchDialog(file) { patchTarget = null }
     }
 
     if (selectedEntry != null && selectedEntry != showMenuFor) {
@@ -1180,6 +1185,8 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in setOf("ini", "cfg")) {
+                                    patchTarget = file
                                 }
                             },
                             onMenu = { showMenuFor = file },
@@ -1259,6 +1266,8 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in setOf("ini", "cfg")) {
+                                    patchTarget = file
                                 }
                             },
                             onMenu = { showMenuFor = file },
