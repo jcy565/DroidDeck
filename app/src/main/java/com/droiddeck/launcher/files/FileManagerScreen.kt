@@ -698,11 +698,21 @@ fun FileManagerScreen(
     val compactToolbar = LocalConfiguration.current.screenWidthDp < 600
     Column(modifier = Modifier.fillMaxSize()) {
         editingTarget?.let { target ->
-            TextEditorScreen(
-                file = target,
-                onExit = { editingTarget = null },
-                modifier = Modifier.fillMaxSize(),
-            )
+                        var showPatch by remember(target) { mutableStateOf(false) }
+            if (target.extension.lowercase() in setOf("ini", "cfg")) {
+                TextButton(onClick = { showPatch = true }) {
+                    Text("Game configuration assistant")
+                }
+            }
+            if (showPatch) {
+                GamePatchDialog(target) { showPatch = false }
+            } else {
+                TextEditorScreen(
+                    file = target,
+                    onExit = { editingTarget = null },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             return@Column
         }
         if (pickMode && !pickerTitle.isNullOrEmpty()) {
