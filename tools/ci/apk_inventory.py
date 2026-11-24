@@ -20,7 +20,10 @@ def inventory(path):
     return entries
 
 def compare(old, new):
+    touched = (old.keys() ^ new.keys()) | {k for k in old.keys() & new.keys() if old[k] != new[k]}
+    review = sorted(k for k in touched if k == "AndroidManifest.xml" or k.startswith(("lib/", "assets/")) or k.endswith((".dex", ".so")))
     return {
+        "review_required": review,
         "added": sorted(new.keys() - old.keys()),
         "removed": sorted(old.keys() - new.keys()),
         "changed": sorted(k for k in old.keys() & new.keys() if old[k] != new[k]),
