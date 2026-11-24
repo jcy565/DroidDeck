@@ -213,7 +213,8 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
         var movedAt = 0L
         var dirSpecs: List<Edge> = List(4) { follow() }
         var delays = LongArray(4)
-        var lastMove = 0L
+        var lastMove: Long? = null
+        var frameTime = 0L
         fun go(i: Int, v: Float, spec: Edge, wait: Long) {
             if (jobs[5]?.isActive == true || solid.targetValue > 0f) {
                 jobs[5]?.cancel()
@@ -225,7 +226,7 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
             if (!chasing) for (j in 0..3) if (jobs[j]?.isActive != true) vel[j] = edges[j].velocity
             target[i] = v
             springs[i] = spec
-            startAt[i] = System.nanoTime() + Motion.ms(wait.toInt()) * 1_000_000L
+            startAt[i] = frameTime + Motion.ms(wait.toInt()) * 1_000_000L
             if (chasing) return
             jobs[7] = scope.launch {
                 var last = withFrameNanos { it }
@@ -233,7 +234,7 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
                     val frame = withFrameNanos { it }
                     val dt = ((frame - last) / 1e9f).coerceAtMost(0.1f) / Motion.scale.coerceAtLeast(0.01f)
                     last = frame
-                    val now = System.nanoTime()
+                    val now = frame
                     var settled = true
                     for (j in 0..3) {
                         if (now < startAt[j]) { settled = false; continue }
@@ -324,13 +325,14 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
                 return@collectLatest
             }
             var first = src !== shown
-            val start = System.nanoTime()
+            val start = withFrameNanos { it }
+            frameTime = start
             var last: Rect? = null
             var seen: Rect? = null
             var stillSince = start
             while (true) {
                 val b = glide.boundsOf(src)
-                if (b != seen) { seen = b; stillSince = System.nanoTime() }
+                if (b != seen) { seen = b; stillSince = frameTime }
                 if (b == null) {
                     if (first) scope.launch { alpha.animateTo(0f, Motion.tw(140)) }
                 } else if (first) {
@@ -354,8 +356,8 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
                         val horizontal = abs(dx) >= abs(dy)
                         val leadIdx = if (horizontal) (if (dx >= 0) 2 else 0) else (if (dy >= 0) 3 else 1)
                         val trailIdx = (leadIdx + 2) % 4
-                        val now = System.nanoTime()
-                        val held = (now - lastMove) / 1_000_000 < REPEAT_MS
+                        val now = frameTime
+                        val held = lastMove?.let { (now - it) / 1_000_000 < REPEAT_MS } ?: false
                         lastMove = now
                         scope.launch { alpha.animateTo(1f, Motion.tw(120)) }
                         dropped = !held && hypot(dx, dy) > with(density) { FAR.toPx() }
@@ -367,19 +369,19 @@ private fun Modifier.focusGlideOverlay(glide: FocusGlide): Modifier {
                             cornerTo(src, b, snap = false)
                         }
                     }
-                    movedAt = System.nanoTime()
+                    movedAt = frameTime
                     if (!dropped) listOf(b.left, b.top, b.right, b.bottom).forEachIndexed { i, v -> go(i, v, dirSpecs[i], delays[i]) }
                     last = b
                 } else if (b != last && jobs[5]?.isActive != true) {
-                    val fresh = (System.nanoTime() - movedAt) / 1_000_000 < SETTLE_MS
+                    val fresh = (frameTime - movedAt) / 1_000_000 < SETTLE_MS
                     listOf(b.left, b.top, b.right, b.bottom).forEachIndexed { i, v -> go(i, v, if (fresh) dirSpecs[i] else follow(), 0L) }
                     if (last == null) scope.launch { alpha.animateTo(1f, Motion.tw(120)) }
                     last = b
                 }
-                val now = System.nanoTime()
+                val now = frameTime
                 val settled = (now - start) / 1_000_000 > SETTLE_MS && (now - stillSince) / 1_000_000 > STILL_MS
                 if (settled || (now - start) / 1_000_000 > TRACK_MAX_MS) break
-                withFrameNanos { }
+                frameTime = withFrameNanos { it }
             }
         }
     }
