@@ -23,6 +23,11 @@ class InventoryTests(unittest.TestCase):
             self.assertEqual(result["changed"], ["AndroidManifest.xml"])
             self.assertTrue(result["manifest_changed"])
 
+    def test_review_categories(self):
+        old = {"classes.dex": {"sha256": "a"}, "res/a": {"sha256": "a"}}
+        new = {"classes.dex": {"sha256": "b"}, "res/a": {"sha256": "b"}, "lib/a.so": {"sha256": "c"}}
+        self.assertEqual(module.compare(old, new)["review_required"], ["classes.dex", "lib/a.so"])
+
     def test_duplicate_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "duplicate.apk"
