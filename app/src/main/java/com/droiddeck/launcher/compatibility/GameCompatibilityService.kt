@@ -25,7 +25,22 @@ internal class GameCompatibilityService(context: Context) {
         }
     }
 
+    data class LogReport(val history: Report, val logDiagnosis: String, val limitation: String)
+
+    /** Caller must explicitly associate the supplied log with the selected game. */
+    suspend fun reportWithLog(gameId: String, log: String, limit: Int = 20): LogReport =
+        withContext(Dispatchers.IO) {
+            combine(report(gameId, limit), log)
+        }
+
     companion object {
+        internal fun combine(history: Report, log: String): LogReport {
+            require(log.length <= 1_048_576) { "로그 분석 범위를 초과했습니다." }
+            return LogReport(history,
+                com.droiddeck.launcher.files.LocalGameAdvisor.diagnose(log),
+                "로그 신호와 실행 기록은 별개 증거입니다. 동일 실행의 오류인지 확인해야 하며 원인을 확정하지 않습니다.")
+        }
+
         /** Input is newest first, as returned by GameRunHistory.recent. */
         internal fun analyze(observations: List<GameRunHistory.Observation>): Report {
             require(observations.map { it.gameId }.distinct().size <= 1)
