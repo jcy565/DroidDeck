@@ -47,6 +47,9 @@ internal object GamePatchStore {
         val temp = Files.createTempFile(file.parentFile!!.toPath(), ".ddpatch-", ".tmp")
         try {
             Files.write(temp, bytes)
+            if (Files.getFileStore(file.toPath()).supportsFileAttributeView("posix")) {
+                Files.setPosixFilePermissions(temp, Files.getPosixFilePermissions(file.toPath(), NOFOLLOW_LINKS))
+            }
             require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
             require(read(file).contentEquals(expected)) { "File changed; preview again" }
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
@@ -85,8 +88,14 @@ internal object GamePatchStore {
             .firstOrNull { backup ->
                 runCatching {
                     java.io.DataInputStream(backup.inputStream()).use {
-                        it.readUTF() == root.canonicalPath &&
+                        val matches = it.readUTF() == root.canonicalPath &&
                             it.readUTF() == relative && it.readUTF() == currentHash
+                        if (!matches) false else {
+                            val size = it.readInt()
+                            require(size in 0..LIMIT)
+                            it.readFully(ByteArray(size))
+                            it.read() == -1
+                        }
                     }
                 }.getOrDefault(false)
             }
