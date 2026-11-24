@@ -704,6 +704,25 @@ jobs:
           grep -qi "CN=Android, OU=Android, O=Android" /tmp/sig.txt \
             || { echo "::error::apk is not signed with the AOSP testkey"; exit 1; }
 
+      - name: Generate APK inventory report
+        run: |
+          set -euo pipefail
+          python3 tools/ci/test_apk_inventory.py
+          mkdir -p app/build/apk-inventory
+          for apk in app/build/outputs/apk/release/*.apk; do
+            test -f "$apk"
+            python3 tools/ci/apk_inventory.py "$apk" > "app/build/apk-inventory/$(basename "$apk").json"
+            sha256sum "$apk" >> app/build/apk-inventory/apk-sha256.txt
+          done
+          git rev-parse HEAD > app/build/apk-inventory/source-commit.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-inventory
+          path: app/build/apk-inventory/
+          if-no-files-found: error
+          retention-days: 30
+
       - uses: actions/upload-artifact@v4
         id: apk-upload
         with:
