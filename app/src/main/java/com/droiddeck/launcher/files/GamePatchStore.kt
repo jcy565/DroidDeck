@@ -74,6 +74,25 @@ internal object GamePatchStore {
     }
 
     @Synchronized
+    fun findMatchingBackup(root: File, relative: String, backupDir: File): File? {
+        val file = target(root, relative)
+        val currentHash = hash(read(file))
+        if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return null
+        return backupDir.listFiles().orEmpty()
+            .filter { it.name.startsWith("ddpatch-") && it.extension == "bak" &&
+                Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= LIMIT + 196608 }
+            .sortedByDescending { it.lastModified() }
+            .firstOrNull { backup ->
+                runCatching {
+                    java.io.DataInputStream(backup.inputStream()).use {
+                        it.readUTF() == root.canonicalPath &&
+                            it.readUTF() == relative && it.readUTF() == currentHash
+                    }
+                }.getOrDefault(false)
+            }
+    }
+
+    @Synchronized
     fun restore(root: File, backup: File) {
         require(Files.isRegularFile(backup.toPath(), NOFOLLOW_LINKS)) { "Invalid backup file" }
         require(backup.length() <= LIMIT + 196608)
