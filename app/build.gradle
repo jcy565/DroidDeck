@@ -234,7 +234,9 @@ android {
                 outputs.doNotCacheIf('CI executes the test suite on every run') { true }
             }
             maxHeapSize = '2g'
-            maxParallelForks = 2
+            maxParallelForks = ciBuild ? 1 : 2
+            // Use the canonical Maven Central endpoint for Robolectric runtime artifacts.
+            systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
             def logTarget = providers.systemProperty('robolectric.logging').orNull
             if (logTarget != null) systemProperty 'robolectric.logging', logTarget
         }
