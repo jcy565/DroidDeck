@@ -25,6 +25,19 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var message by remember(file) { mutableStateOf("") }
     var busy by remember(file) { mutableStateOf(false) }
     var backup by remember(file) { mutableStateOf<File?>(null) }
+    LaunchedEffect(file) {
+        busy = true
+        try {
+            backup = withContext(Dispatchers.IO) {
+                GamePatchStore.findMatchingBackup(file.parentFile!!, file.name, File(context.filesDir, "game-patch-backups"))
+            }
+            if (backup != null) message = "Saved backup available."
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            message = e.message ?: "Backup lookup failed"
+        } finally { busy = false }
+    }
     AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, title = { Text("Game configuration: ${file.name}") }, text = {
         Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
             OutlinedTextField(section, { section = it; preview = null }, label = { Text("INI section (optional)") }, enabled = !busy, singleLine = true)
