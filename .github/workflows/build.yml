@@ -626,7 +626,7 @@ jobs:
         id: build
         env:
           DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
-          SGDB_API_KEY: ${{ secrets.SGDB_API_KEY }}
+          SGDB_API_KEY: ${{ github.ref_name != 'ai-assistant-stable' && secrets.SGDB_API_KEY || '' }}
         run: |
           set -o pipefail
           python3 tools/powervr/fetch.py
@@ -657,7 +657,7 @@ jobs:
         id: unit-tests
         env:
           DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
-          SGDB_API_KEY: ${{ secrets.SGDB_API_KEY }}
+          SGDB_API_KEY: ${{ github.ref_name != 'ai-assistant-stable' && secrets.SGDB_API_KEY || '' }}
         run: |
           set -o pipefail
           mkdir -p app/build
@@ -754,6 +754,17 @@ jobs:
           find app/build/packs -type f -name '*.tar.zst' -print0 | sort -z | xargs -0 -r sha256sum > app/build/apk-inventory/packs-sha256.txt
           git ls-files -z -- '*Cargo.lock' '*gradle.lockfile' '*release.env' 'tools/quest/build-driver.py' | xargs -0 -r sha256sum > app/build/apk-inventory/source-inputs-sha256.txt
 
+
+      - name: Compare independent build with pinned official 0.7.1
+        if: github.ref_name == 'ai-assistant-stable'
+        run: |
+          set -euo pipefail
+          official="$RUNNER_TEMP/droiddeck-official-0.7.1.apk"
+          curl --fail --silent --show-error --location --retry 3 --output "$official" \
+            https://github.com/Droid-Deck/DroidDeck/releases/download/0.7.1/DroidDeck-0.7.1.apk
+          tools=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)
+          python3 tools/ci/compare_official_apk.py "$official" app/build/outputs/apk/release/app-release.apk \
+            --aapt "$tools/aapt" --apksigner "$tools/apksigner" > app/build/apk-inventory/official-comparison.json
 
       - uses: actions/upload-artifact@v4
         with:

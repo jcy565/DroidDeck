@@ -27,3 +27,5 @@ bash tools/release/sign-ai-apk.sh app-release.apk DroidDeck-AI.apk ~/droiddeck-a
 ```
 
 업데이트는 동일한 개인 키로 서명한다. 테스트 APK와 개인 서명 APK의 인증서는 다르므로 장기 사용할 기기에서는 처음부터 개인 서명 APK로 설치한다. Android가 차단하면 경고 문구를 확인하고 중단한다.
+
+이전 개발 APK에서 변경된 네이티브 14개의 ELF DT_NEEDED 목록도 대조했다. 런타임 라이브러리 이름의 추가·삭제는 없었다. 이는 기계어 수준 동작 검증과 구분한다. 공식 최신 main과 시험 병합한 결과와 검사 대상은 AI_DEVELOPMENT_STATUS.md에 기록했다.

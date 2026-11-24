@@ -167,4 +167,13 @@ class GamePatchTest {
             }
         }
     }
+
+    @Test fun balancedAndBatteryPlansTouchOnlyTheirRequestedGroup() {
+        val ini = "[/Script/Engine.GameUserSettings]\nResolutionSizeX=1920\nResolutionSizeY=1080\nFrameRateLimit=0.0"
+        val balanced = LocalGameAdvisor.optimize(ini, "900p 균형")
+        assertEquals(listOf("1600", "900"), balanced.changes.map { it.after })
+        val capped = LocalGameAdvisor.optimize(ini, "배터리 30 FPS")
+        assertEquals(listOf("FrameRateLimit"), capped.changes.map { it.key })
+        assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.optimize(ini.replace("=0.0", "=24"), "배터리") }
+    }
 }

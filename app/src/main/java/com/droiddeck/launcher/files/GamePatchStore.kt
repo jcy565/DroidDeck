@@ -145,8 +145,9 @@ internal object GamePatchStore {
     }
 
     @Synchronized
-    fun restore(root: File, backup: File) {
+    fun restore(root: File, backup: File, selected: String? = null) {
         val record = readBackup(root, backup)
+        require(selected == null || selected == record.relativePath) { "Backup target changed" }
         val file = target(root, record.relativePath)
         val current = read(file)
         require(hash(current) == record.appliedHash) { "File changed since patch" }

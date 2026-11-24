@@ -35,9 +35,9 @@ object GameStorage {
         val root = File(path)
         val steamapps = File(root, "steamapps")
         if (!steamapps.isDirectory && !steamapps.mkdirs()) return context.getString(R.string.gstore_cannot_create, path)
-        val probe = File(steamapps, ".writable")
         return try {
-            if (!probe.createNewFile() && !probe.isFile) context.getString(R.string.gstore_cannot_write, path) else { probe.delete(); null }
+            val probe = File.createTempFile(".dd-ai-write-", ".tmp", steamapps)
+            if (probe.delete()) null else context.getString(R.string.gstore_cannot_write, path)
         } catch (e: Exception) {
             context.getString(R.string.gstore_cannot_write_detail, path, e.message)
         }

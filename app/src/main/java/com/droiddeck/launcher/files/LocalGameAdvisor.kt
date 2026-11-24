@@ -36,14 +36,38 @@ internal object LocalGameAdvisor {
             .ifBlank { "알려진 오류 신호가 없습니다. 검은 화면의 원인은 이 로그만으로 확정하기 어렵습니다." }
     }
 
-    fun optimize(original: String): GameConfigPreview.Preview {
-        val current = GameConfigPreview.preview(original, "Render", mapOf("Resolution" to "1280x720"))
-        val previous = current.changes.singleOrNull()?.before ?: return current
-        val size = Regex("([0-9]{2,5})x([0-9]{2,5})").matchEntire(previous)
-        require(size != null) { "해상도 형식을 확인할 수 없습니다." }
-        val w = size.groupValues[1].toInt()
-        val h = size.groupValues[2].toInt()
-        require(w > 1280 && h > 720 && w * 9 == h * 16) { "현재 해상도와 화면비에는 720p 제안을 적용할 수 없습니다." }
-        return current
+    private const val UNREAL = "/Script/Engine.GameUserSettings"
+
+    fun optimize(original: String, command: String = ""): GameConfigPreview.Preview {
+        val unreal = original.lineSequence().any { it.trim() == "[$UNREAL]" }
+        if (command.contains("30") || command.contains("배터리")) {
+            require(unreal) { "이 파일에서 지원하는 프레임 제한 설정을 찾지 못했습니다." }
+            val plan = GameConfigPreview.preview(original, UNREAL, mapOf("FrameRateLimit" to "30.000000"))
+            val value = plan.changes.singleOrNull()?.before?.toDoubleOrNull() ?: if (plan.changes.isEmpty()) 30.0 else Double.NaN
+            require(value == 0.0 || value in 30.0..1000.0) { "현재 프레임 제한을 높이거나 해석할 수 없는 값은 변경하지 않습니다." }
+            return plan
+        }
+        val height = if ("900" in command || "균형" in command) 900 else 720
+        val width = height * 16 / 9
+        val plan: GameConfigPreview.Preview
+        val w: Int?
+        val h: Int?
+        if (unreal) {
+            plan = GameConfigPreview.preview(original, UNREAL, mapOf("ResolutionSizeX" to width.toString(), "ResolutionSizeY" to height.toString()))
+            fun previous(key: String, same: Int) =
+                plan.changes.firstOrNull { it.key == key }?.let { it.before.toIntOrNull() ?: -1 } ?: same
+            w = previous("ResolutionSizeX", width)
+            h = previous("ResolutionSizeY", height)
+        } else {
+            plan = GameConfigPreview.preview(original, "Render", mapOf("Resolution" to "${width}x$height"))
+            val previous = plan.changes.singleOrNull()?.before ?: return plan
+            val size = Regex("([0-9]{2,5})x([0-9]{2,5})").matchEntire(previous)
+            w = size?.groupValues?.get(1)?.toInt()
+            h = size?.groupValues?.get(2)?.toInt()
+        }
+        require(w != null && h != null && w >= width && h >= height && w.toLong() * 9 == h.toLong() * 16) {
+            "현재 해상도와 화면비에는 이 제안을 적용할 수 없습니다."
+        }
+        return plan
     }
 }

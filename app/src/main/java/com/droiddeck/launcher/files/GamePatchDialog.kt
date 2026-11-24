@@ -87,15 +87,15 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             }
             if (config || log) {
                 OutlinedTextField(command, { command = it; preview = null }, enabled = !busy, singleLine = true,
-                    label = { Text(if (log) "예: 검은 화면 원인 분석" else "예: 해상도를 720p로 최적화") })
+                    label = { Text(if (log) "예: 검은 화면 원인 분석" else "예: 720p, 900p 균형, 배터리 30 FPS") })
                 TextButton(enabled = !busy, onClick = { runAction {
                     preview = null
                     val input = command.trim()
                     if (log && (input.isEmpty() || listOf("분석", "오류", "검은", "원인").any { it in input })) {
                         message = withContext(Dispatchers.IO) { LocalGameAdvisor.diagnose(LocalGameAdvisor.decode(GamePatchStore.readLog(file))) }
-                    } else if (config && (input.isEmpty() || listOf("720", "최적화", "해상도").any { it in input })) {
-                        preview = LocalGameAdvisor.optimize(original())
-                        message = "16:9 화면의 720p 비교 계획입니다. 적용 후 같은 장면에서 확인하세요."
+                    } else if (config && (input.isEmpty() || listOf("720", "900", "균형", "30", "배터리", "최적화", "해상도").any { it in input })) {
+                        preview = LocalGameAdvisor.optimize(original(), input)
+                        message = "설정 한 그룹의 비교 계획입니다. 적용 후 같은 장면에서 측정하세요."
                     } else message = "이 파일에서 지원하는 명령 예시를 확인하세요."
                 } }) { Text(if (log) "로그 분석" else "최적화 계획") }
             }
@@ -117,7 +117,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 TextButton(enabled = !busy, onClick = { runAction {
                     withContext(Dispatchers.IO) {
                         check(!SessionState.running && SessionState.phase in setOf(com.droiddeck.launcher.session.SessionPhase.IDLE, com.droiddeck.launcher.session.SessionPhase.FAILED)) { "게임 세션을 종료하세요." }
-                        GamePatchStore.restore(root, saved)
+                        GamePatchStore.restore(root, saved, file.name)
                     }
                     backup = withContext(Dispatchers.IO) { GamePatchStore.findMatchingBackup(root, file.name, backups) }
                     preview = null

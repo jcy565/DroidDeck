@@ -18,6 +18,15 @@ class GameStorageTest {
     private val app get() = RuntimeEnvironment.getApplication()
     @get:Rule val tmp = TemporaryFolder()
 
+    @Test fun preparingStoragePreservesExistingWritableMarker() {
+        val root = tmp.newFolder()
+        val apps = File(root, "steamapps").apply { mkdir() }
+        val previous = File(apps, ".writable").apply { writeText("existing data") }
+        assertNull(GameStorage.prepare(app, root.path))
+        assertEquals("existing data", previous.readText())
+        assertEquals(listOf(".writable"), apps.list()?.toList())
+    }
+
     @Test fun onlyAGamesFolderSteamInstalledIntoStaysALibrary() {
         val pc = tmp.newFolder("PC")
         File(pc, "steamapps").mkdirs()
