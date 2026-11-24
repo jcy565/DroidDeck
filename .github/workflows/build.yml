@@ -745,6 +745,10 @@ jobs:
             sha256sum "$apk" >> app/build/apk-inventory/apk-sha256.txt
           done
           git rev-parse HEAD > app/build/apk-inventory/source-commit.txt
+          git submodule status --recursive > app/build/apk-inventory/submodules.txt
+          find app/build/packs -type f -name '*.tar.zst' -print0 | sort -z | xargs -0 -r sha256sum > app/build/apk-inventory/packs-sha256.txt
+          git ls-files -z -- '*Cargo.lock' '*gradle.lockfile' '*release.env' 'tools/quest/build-driver.py' | xargs -0 -r sha256sum > app/build/apk-inventory/source-inputs-sha256.txt
+
 
       - uses: actions/upload-artifact@v4
         with:
