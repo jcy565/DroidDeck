@@ -53,6 +53,7 @@ internal fun FilePropertiesDialog(
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
     var attrs by remember(file.absolutePath) { mutableStateOf<FileAttrState?>(null) }
     var busy by remember(file.absolutePath) { mutableStateOf(false) }
+    var usage by remember(file) { mutableStateOf("") }
     LaunchedEffect(file.absolutePath) {
         attrs = withContext(Dispatchers.IO) { readFileAttrs(file) }
     }
@@ -84,6 +85,24 @@ internal fun FilePropertiesDialog(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(6.dp))
 
+                if (file.isDirectory) {
+                    TextButton(enabled = !busy, onClick = {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val r = withContext(Dispatchers.IO) { FolderUsage.inspect(file) }
+                                usage = buildString {
+                                    append("파일 ${r.files}개 · ${FileOps.formatBytes(context, r.bytes)}")
+                                    if (r.partial) append(" (부분 집계)")
+                                    append("\n캐시·임시 파일 후보 ${FileOps.formatBytes(context, r.temporaryBytes)}")
+                                    if (r.candidates.isNotEmpty()) append("\n이름과 크기가 같은 후보\n" + r.candidates.joinToString("\n"))
+                                }
+                            } catch (e: Exception) { usage = e.message ?: "폴더 분석 실패" }
+                            finally { busy = false }
+                        }
+                    }) { Text("폴더 사용량 분석") }
+                    if (usage.isNotEmpty()) Text(usage)
+                }
                 val state = attrs
                 AttributeToggleRow(
                     label = stringResource(R.string.fm_read_only),

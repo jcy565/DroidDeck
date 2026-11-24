@@ -15,7 +15,7 @@ object GameFiles {
     const val EXTENSION = "steam"
     private const val MAX_BYTES = 128
     private const val MAX_NAME_BYTES = 200
-    private const val INVENTORY = ".droiddeck-sync.json"
+    private const val INVENTORY = ".droiddeck-ai-sync.json"
     private const val FORMAT = "droiddeck-game-files-v1"
 
     fun readIntent(context: Context, request: Intent): String? = runCatching {

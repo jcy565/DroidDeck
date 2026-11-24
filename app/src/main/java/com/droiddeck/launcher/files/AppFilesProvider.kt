@@ -210,6 +210,7 @@ class AppFilesProvider : DocumentsProvider() {
         fun titleFor(context: Context): String {
             val name = context.getString(R.string.app_name)
             return when (context.packageName) {
+                "com.droiddeck.launcher.ai" -> context.getString(R.string.assistant_app_name)
                 "com.tencent.ig" -> "$name PUBG"
                 "com.antutu.benchmark.full" -> "$name AnTuTu"
                 "com.ludashi.benchmark" -> "$name Ludashi"

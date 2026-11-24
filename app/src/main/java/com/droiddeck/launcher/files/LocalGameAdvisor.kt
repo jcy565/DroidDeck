@@ -8,6 +8,22 @@ internal object LocalGameAdvisor {
             require(it.none { c -> c.isISOControl() && c !in "\t\r\n" }) { "UTF-8 텍스트 파일만 지원합니다." }
         }
 
+    fun replacement(target: String, source: String?, input: java.io.InputStream): String {
+        require(target.substringAfterLast('.').lowercase() in GamePatchStore.extensions)
+        val payload = GamePatchStore.readLimited(input)
+        if (target.equals(source, ignoreCase = true)) return decode(payload)
+        require(source?.endsWith(".zip", ignoreCase = true) == true) { "이름이 같은 텍스트 파일이나 단일 파일 ZIP을 선택하세요." }
+        return java.util.zip.ZipInputStream(payload.inputStream()).use { zip ->
+            val entry = zip.nextEntry ?: error("빈 ZIP 파일입니다.")
+            require(!entry.isDirectory && entry.name == target && '/' !in entry.name && '\\' !in entry.name) {
+                "ZIP 최상위에 대상과 이름이 같은 파일 하나만 지원합니다."
+            }
+            val text = decode(GamePatchStore.readLimited(zip))
+            require(zip.nextEntry == null) { "여러 파일을 포함한 ZIP은 지원하지 않습니다." }
+            text
+        }
+    }
+
     fun diagnose(log: String): String {
         val signals = listOf(
             "VK_ERROR_OUT_OF_DEVICE_MEMORY" to "GPU 메모리 할당 실패가 기록됐습니다. 같은 장면에서 텍스처 품질을 한 단계 낮춰 비교하세요.",

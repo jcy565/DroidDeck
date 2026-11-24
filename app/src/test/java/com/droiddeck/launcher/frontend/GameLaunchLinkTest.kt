@@ -29,18 +29,18 @@ class GameLaunchLinkTest {
 
     @Test fun rejectsAnythingOtherThanOneCanonicalGamePath() {
         listOf(
-            null, "", "droiddeck://game/0", "droiddeck://game/01", "droiddeck://game/+1",
-            "droiddeck://game/-1", "droiddeck://game/18446744073709551616",
-            "droiddeck://game/1?url=steam://rungameid/2", "droiddeck://game/1/../2",
-            "droiddeck://games/1", "droiddeck://game/1/", "DROIDDECK://game/1",
-            "droiddeck://game:4/1", "file:///game/1", "steam://rungameid/1",
+            null, "", "droiddeck://game/1", "droiddeck-ai://game/0", "droiddeck-ai://game/01", "droiddeck-ai://game/+1",
+            "droiddeck-ai://game/-1", "droiddeck-ai://game/18446744073709551616",
+            "droiddeck-ai://game/1?url=steam://rungameid/2", "droiddeck-ai://game/1/../2",
+            "droiddeck-ai://games/1", "droiddeck-ai://game/1/", "DROIDDECK://game/1",
+            "droiddeck-ai://game:4/1", "file:///game/1", "steam://rungameid/1",
         ).forEach { assertNull("should reject $it", GameLaunchLink.parse(it)) }
     }
 
     @Test fun convertsSignedStorageRepresentationToUnsignedShortcutUri() {
         assertEquals("18446744073709551615", Library.SteamGame(1, "Added", null, Library.ADDED, -1L).gameIdString)
         assertEquals("9223372036854775808", Library.SteamGame(1, "Added", null, Library.ADDED, Long.MIN_VALUE).gameIdString)
-        assertEquals("droiddeck://game/18446744073709551615", GameLaunchLink.uri(Library.SteamGame(1, "Added", null, Library.ADDED, -1L).gameIdString))
+        assertEquals("droiddeck-ai://game/18446744073709551615", GameLaunchLink.uri(Library.SteamGame(1, "Added", null, Library.ADDED, -1L).gameIdString))
     }
 }
 
@@ -53,7 +53,7 @@ class GameShortcutIntentTest {
         val intent = GameShortcuts.launchIntent(context, id)
 
         assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertEquals(Uri.parse("droiddeck://game/$id"), intent.data)
+        assertEquals(Uri.parse("droiddeck-ai://game/$id"), intent.data)
         assertEquals(FrontEndActivity::class.java.name, intent.component?.className)
         assertEquals(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP, intent.flags)
     }
@@ -72,7 +72,7 @@ class GameShortcutIntentTest {
         assertEquals("com.droiddeck.launcher.MainActivity", shortcut.activity?.className)
         assertEquals(FrontEndActivity::class.java.name, launch.component?.className)
         assertEquals(Intent.ACTION_VIEW, launch.action)
-        assertEquals(Uri.parse("droiddeck://game/8400"), launch.data)
+        assertEquals(Uri.parse("droiddeck-ai://game/8400"), launch.data)
         assertEquals(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP, launch.flags)
     }
 

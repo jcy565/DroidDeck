@@ -49,15 +49,14 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runAction {
             preview = null
+            require(uri.scheme == "content") { "Android 문서 선택기를 사용하세요." }
             val before = original()
             val after = withContext(Dispatchers.IO) {
                 val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
                     if (it.moveToFirst()) it.getString(0) else null
                 }
-                require(name.equals(file.name, ignoreCase = true)) { "대상과 이름이 같은 패치 파일을 선택하세요." }
-                val bytes = context.contentResolver.openInputStream(uri)?.use(GamePatchStore::readLimited)
+                context.contentResolver.openInputStream(uri)?.use { LocalGameAdvisor.replacement(file.name, name, it) }
                     ?: error("선택한 파일을 읽을 수 없습니다.")
-                LocalGameAdvisor.decode(bytes)
             }
             require(after.isNotBlank() && before != after) { "빈 파일이거나 변경 사항이 없습니다." }
             preview = GameConfigPreview.Preview(before, after, emptyList())
@@ -65,8 +64,12 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         }
     }
     LaunchedEffect(file) {
-        if (!log) backup = withContext(Dispatchers.IO) {
-            runCatching { GamePatchStore.findMatchingBackup(root, file.name, backups) }.getOrNull()
+        if (!log) {
+            val history = withContext(Dispatchers.IO) {
+                runCatching { GamePatchStore.history(root, file.name, backups) }.getOrNull()
+            }
+            backup = history?.restorable
+            message = history?.status.orEmpty()
         }
     }
     AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, title = { Text(file.name) }, text = {
@@ -96,19 +99,24 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     } else message = "이 파일에서 지원하는 명령 예시를 확인하세요."
                 } }) { Text(if (log) "로그 분석" else "최적화 계획") }
             }
-            if (!log) TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("모드·한글 패치 텍스트 선택") }
+            if (!log) TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("모드·한글 패치 선택") }
             preview?.let { plan ->
                 if (plan.changes.isEmpty() && plan.original != plan.proposed) {
-                    Text("원본\n" + plan.original.take(1600))
-                    Text("교체 내용\n" + plan.proposed.take(1600))
-                    if (maxOf(plan.original.length, plan.proposed.length) > 1600) Text("각 파일의 앞 1,600자만 표시합니다.")
+                    var page by remember(plan) { mutableIntStateOf(0) }
+                    val pages = (maxOf(plan.original.length, plan.proposed.length) + 1599) / 1600
+                    val offset = page * 1600
+                    Text("원본\n" + plan.original.drop(offset).take(1600))
+                    Text("교체 내용\n" + plan.proposed.drop(offset).take(1600))
+                    Text("${page + 1} / $pages")
+                    TextButton(enabled = page > 0, onClick = { page-- }) { Text("이전") }
+                    TextButton(enabled = page + 1 < pages, onClick = { page++ }) { Text("다음") }
                 } else plan.changes.forEach { Text("${it.key}: ${it.before} → ${it.after}") }
             }
             Text(message)
             backup?.let { saved ->
                 TextButton(enabled = !busy, onClick = { runAction {
                     withContext(Dispatchers.IO) {
-                        check(!SessionState.running) { "게임 세션을 종료하세요." }
+                        check(!SessionState.running && SessionState.phase in setOf(com.droiddeck.launcher.session.SessionPhase.IDLE, com.droiddeck.launcher.session.SessionPhase.FAILED)) { "게임 세션을 종료하세요." }
                         GamePatchStore.restore(root, saved)
                     }
                     backup = withContext(Dispatchers.IO) { GamePatchStore.findMatchingBackup(root, file.name, backups) }
@@ -122,7 +130,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         TextButton(enabled = !busy && plan != null && plan.original != plan.proposed, onClick = {
             if (plan != null) runAction {
                 backup = withContext(Dispatchers.IO) {
-                    check(!SessionState.running) { "게임 세션을 종료하세요." }
+                    check(!SessionState.running && SessionState.phase in setOf(com.droiddeck.launcher.session.SessionPhase.IDLE, com.droiddeck.launcher.session.SessionPhase.FAILED)) { "게임 세션을 종료하세요." }
                     GamePatchStore.apply(root, file.name, plan.original.toByteArray(), plan.proposed.toByteArray(), backups)
                 }
                 preview = null

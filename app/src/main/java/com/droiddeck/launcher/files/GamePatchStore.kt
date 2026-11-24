@@ -73,33 +73,54 @@ internal object GamePatchStore {
         require(backupDir.isDirectory || backupDir.mkdirs())
         require(!Files.isSymbolicLink(backupDir.toPath()))
         val backup = Files.createTempFile(backupDir.toPath(), "ddpatch-", ".bak").toFile()
-        java.io.DataOutputStream(backup.outputStream()).use {
-            it.writeUTF("DDPATCH2")
-            it.writeUTF(hash(expected))
-            it.writeUTF(root.canonicalPath)
-            it.writeUTF(relative)
-            it.writeUTF(hash(proposed))
-            it.writeInt(expected.size)
-            it.write(expected)
-            it.flush()
+        try {
+            backup.outputStream().use { raw ->
+                val record = java.io.DataOutputStream(raw)
+                record.writeUTF("DDPATCH2")
+                record.writeUTF(hash(expected))
+                record.writeUTF(root.canonicalPath)
+                record.writeUTF(relative)
+                record.writeUTF(hash(proposed))
+                record.writeInt(expected.size)
+                record.write(expected)
+                record.flush()
+                raw.fd.sync()
+            }
+            require(readBackup(root, backup).original.contentEquals(expected)) { "Backup verification failed" }
+        } catch (e: Exception) {
+            backup.delete()
+            throw e
         }
         replace(file, expected, proposed)
         return backup
     }
 
+    data class History(val restorable: File?, val status: String)
+
+    fun findMatchingBackup(root: File, relative: String, backupDir: File): File? =
+        history(root, relative, backupDir).restorable
+
     @Synchronized
-    fun findMatchingBackup(root: File, relative: String, backupDir: File): File? {
+    fun history(root: File, relative: String, backupDir: File): History {
         val file = target(root, relative)
         val currentHash = hash(read(file))
-        if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return null
-        return backupDir.listFiles().orEmpty()
+        if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return History(null, "")
+        val candidates = backupDir.listFiles().orEmpty()
             .filter { it.name.startsWith("ddpatch-") && it.extension == "bak" &&
                 Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= LIMIT + 196608 }
             .sortedByDescending { it.lastModified() }
-            .firstOrNull { backup ->
-                runCatching { readBackup(root, backup).let { it.relativePath == relative && it.appliedHash == currentHash } }
-                    .getOrDefault(false)
+        var status = ""
+        for (candidate in candidates) {
+            val record = runCatching { readBackup(root, candidate) }.getOrNull() ?: continue
+            if (record.relativePath != relative) continue
+            if (status.isEmpty()) status = when (currentHash) {
+                record.appliedHash -> "파일 내용이 최근 적용본과 일치합니다."
+                hash(record.original) -> "파일 내용이 최근 변경 전 원본과 일치합니다."
+                else -> "최근 적용 뒤 파일 내용이 바뀌었습니다. 변경 주체와 실행 시 적용값은 확인되지 않았습니다."
             }
+            if (currentHash == record.appliedHash) return History(candidate, status)
+        }
+        return History(null, status)
     }
 
     private fun readBackup(root: File, backup: File): Backup {

@@ -133,14 +133,14 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.CAR_LAUNCHER" />
-                <data android:scheme="droiddeck" android:host="game" />
+                <data android:scheme="droiddeck-ai" android:host="game" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.CREATE_SHORTCUT" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.droiddeck.launcher.LAUNCH_GAME" />
+                <action android:name="com.droiddeck.launcher.ai.LAUNCH_GAME" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.CAR_LAUNCHER" />
             </intent-filter>

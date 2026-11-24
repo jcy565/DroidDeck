@@ -115,4 +115,56 @@ class GamePatchTest {
         assertThrows(IllegalArgumentException::class.java) { GamePatchStore.readLimited(ByteArray(1048577).inputStream()) }
         assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.decode(byteArrayOf(0, 65)) }
     }
+
+    @Test fun folderAnalysisSkipsLinksAndFlagsCandidatesWithoutDeleting() {
+        val root = temp.newFolder()
+        root.resolve("cache").mkdir()
+        root.resolve("cache/game.txt").writeText("abc")
+        root.resolve("game.txt").writeText("xyz")
+        java.nio.file.Files.createSymbolicLink(root.resolve("loop").toPath(), root.toPath())
+        val report = FolderUsage.inspect(root)
+        assertEquals(2, report.files)
+        assertEquals(6L, report.bytes)
+        assertEquals(3L, report.temporaryBytes)
+        assertEquals(1, report.candidates.size)
+        assertTrue(FolderUsage.inspect(root, 1).partial)
+    }
+
+    @Test fun readsAnExistingLegacyBackup() {
+        val root = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=2") }
+        val backup = temp.newFile()
+        java.io.DataOutputStream(backup.outputStream()).use {
+            it.writeUTF(root.canonicalPath)
+            it.writeUTF(file.name)
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+            it.writeUTF(digest.joinToString("") { byte -> "%02x".format(byte) })
+            it.writeInt(3)
+            it.write("x=1".toByteArray())
+        }
+        GamePatchStore.restore(root, backup)
+        assertEquals("x=1", file.readText())
+    }
+
+    @Test fun importsOneBoundedTranslationAndRejectsOtherArchiveLayouts() {
+        fun zip(vararg entries: Pair<String, ByteArray>): ByteArray {
+            val buffer = java.io.ByteArrayOutputStream()
+            java.util.zip.ZipOutputStream(buffer).use { out ->
+                for ((name, bytes) in entries) {
+                    out.putNextEntry(java.util.zip.ZipEntry(name))
+                    out.write(bytes)
+                    out.closeEntry()
+                }
+            }
+            return buffer.toByteArray()
+        }
+        val entry = "ko.txt" to "번역".toByteArray()
+        assertEquals("번역", LocalGameAdvisor.replacement("ko.txt", "pack.zip", zip(entry).inputStream()))
+        for (bad in listOf(zip("../ko.txt" to entry.second), zip(entry, "a.exe" to byteArrayOf()),
+                zip("ko.txt" to ByteArray(1048577)), zip("ko.txt" to byteArrayOf(0, 10)))) {
+            assertThrows(IllegalArgumentException::class.java) {
+                LocalGameAdvisor.replacement("ko.txt", "pack.zip", bad.inputStream())
+            }
+        }
+    }
 }

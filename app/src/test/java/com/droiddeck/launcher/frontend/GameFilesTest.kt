@@ -44,16 +44,16 @@ class GameFilesTest {
 
     @Test fun rejectsCommandsMalformedIdsLargeFilesAndUnsupportedIntents() {
         listOf("", "0", "01", "-1", "18446744073709551616", "steam://rungameid/8400",
-            "8400\n8401", "droiddeck://game/8400", "droiddeck://game/8400?command=quit", "x".repeat(129)).forEach { value ->
+            "8400\n8401", "droiddeck-ai://game/8400", "droiddeck-ai://game/8400?command=quit", "x".repeat(129)).forEach { value ->
             assertNull(value, GameFiles.read(ByteArrayInputStream(value.toByteArray())))
         }
         assertEquals("8400", GameFiles.read(ByteArrayInputStream("8400\n".toByteArray())))
         val context = RuntimeEnvironment.getApplication()
-        assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_SEND, Uri.parse("droiddeck://game/8400"))))
+        assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_SEND, Uri.parse("droiddeck-ai://game/8400"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/8400.steam"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("file://remote/game.steam"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.fromFile(File(tmp.root, "missing.steam")))))
-        assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("droiddeck://game/8400"))))
+        assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("droiddeck-ai://game/8400"))))
     }
 
     @Test fun exportsGameIconBeforeCapsuleAndPreservesCustomArtwork() {
@@ -174,7 +174,7 @@ class GameFilesTest {
 
     @Test fun unrelatedInventoryIsPreserved() {
         val folder = tmp.newFolder()
-        val inventory = File(folder, ".droiddeck-sync.json").apply { writeText("{}") }
+        val inventory = File(folder, ".droiddeck-ai-sync.json").apply { writeText("{}") }
         assertThrows(IllegalArgumentException::class.java) { GameFiles.sync(app, folder, listOf(game())) }
         assertEquals("{}", inventory.readText())
         assertEquals(0, folder.listFiles()!!.count { it.extension == GameFiles.EXTENSION })
