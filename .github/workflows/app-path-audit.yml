@@ -1,0 +1,31 @@
+name: App storage path audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [ai-assistant-stable]
+    paths:
+      - 'tools/ci/audit_app_paths.py'
+      - '.github/workflows/app-path-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Audit tracked source paths
+        run: |
+          set -euo pipefail
+          mkdir -p audit-report
+          python3 tools/ci/audit_app_paths.py > audit-report/app-paths.json
+          python3 -m json.tool audit-report/app-paths.json > /dev/null
+          git rev-parse HEAD > audit-report/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-path-audit
+          path: audit-report/
+          if-no-files-found: error
+          retention-days: 14
