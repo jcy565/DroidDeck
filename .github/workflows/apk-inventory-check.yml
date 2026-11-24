@@ -1,0 +1,21 @@
+name: APK inventory checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [ai-assistant-stable]
+    paths:
+      - 'tools/ci/apk_inventory.py'
+      - 'tools/ci/test_apk_inventory.py'
+      - '.github/workflows/apk-inventory-check.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run inventory tests
+        run: python3 tools/ci/test_apk_inventory.py
