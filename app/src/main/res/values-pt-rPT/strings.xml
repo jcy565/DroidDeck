@@ -1340,9 +1340,9 @@
         <item quantity="other">%1$d ficheiros importados do %2$s para %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d ficheiro importado do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">%1$d ficheiros importados do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d ficheiros importados do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d ficheiro importado do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">%1$d ficheiros importados do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d ficheiros importados do %2$s para %3$s. Cópia de segurança dos dados guardados antigos em Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Feche primeiro a sessão, para que o jogo não use os addons durante a importação</string>
     <string name="main_addons_importing">A importar addons para %1$s</string>
@@ -1828,7 +1828,7 @@
     <string name="bottom_telemetry_send_close">Feche %1$s para alterar isto.</string>
     <string name="bottom_telemetry_send_failed">Não foi possível alterar as definições de %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: ative %2$s nas definições do jogo com o IP 127.0.0.1 e a porta %3$d.</string>
-    <string name="bottom_shots_where">Guardadas em Pictures/DroidDeck. As capturas de ecrã do Steam também aparecem aqui.</string>
+    <string name="bottom_shots_where">Guardadas em Pictures/DroidDeckAI. As capturas de ecrã do Steam também aparecem aqui.</string>
     <string name="bottom_shots_take">Fazer captura de ecrã</string>
     <string name="bottom_shots_saved">Captura de ecrã guardada.</string>
     <string name="bottom_shots_failed">Não foi possível fazer a captura de ecrã.</string>

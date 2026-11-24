@@ -1332,7 +1332,7 @@
         <item quantity="other">%1$d file diimpor dari %2$s ke %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">%1$d file diimpor dari %2$s ke %3$s. Save lama dicadangkan ke Download/DroidDeck/Saves/backups</item>
+        <item quantity="other">%1$d file diimpor dari %2$s ke %3$s. Save lama dicadangkan ke Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Tutup sesi dulu, agar game tidak memakai addon-nya saat impor</string>
     <string name="main_addons_importing">Mengimpor addon ke %1$s</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">Tutup %1$s untuk mengubah ini.</string>
     <string name="bottom_telemetry_send_failed">Tidak dapat mengubah setelan %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: aktifkan %2$s di setelan gim dengan IP 127.0.0.1 dan port %3$d.</string>
-    <string name="bottom_shots_where">Disimpan ke Pictures/DroidDeck. Tangkapan layar Steam juga muncul di sini.</string>
+    <string name="bottom_shots_where">Disimpan ke Pictures/DroidDeckAI. Tangkapan layar Steam juga muncul di sini.</string>
     <string name="bottom_shots_take">Ambil tangkapan layar</string>
     <string name="bottom_shots_saved">Tangkapan layar disimpan.</string>
     <string name="bottom_shots_failed">Tidak dapat mengambil tangkapan layar.</string>

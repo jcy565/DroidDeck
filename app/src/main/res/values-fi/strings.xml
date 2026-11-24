@@ -1340,8 +1340,8 @@
         <item quantity="other">Tuotiin %1$d tiedostoa %2$s-muodosta kohteeseen %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Tuotiin %1$d tiedosto %2$s-muodosta kohteeseen %3$s. Vanhat tallennukset varmuuskopioitu kansioon Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Tuotiin %1$d tiedostoa %2$s-muodosta kohteeseen %3$s. Vanhat tallennukset varmuuskopioitu kansioon Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Tuotiin %1$d tiedosto %2$s-muodosta kohteeseen %3$s. Vanhat tallennukset varmuuskopioitu kansioon Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Tuotiin %1$d tiedostoa %2$s-muodosta kohteeseen %3$s. Vanhat tallennukset varmuuskopioitu kansioon Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Sulje istunto ensin, jotta peli ei käytä lisäosiaan tuonnin aikana</string>
     <string name="main_addons_importing">Tuodaan lisäosia kohteeseen %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">Sulje %1$s muuttaaksesi tätä.</string>
     <string name="bottom_telemetry_send_failed">Pelin %1$s asetuksia ei voitu muuttaa.</string>
     <string name="bottom_telemetry_send_menu">%1$s: kytke pelin asetuksista päälle %2$s IP-osoitteella 127.0.0.1 ja portilla %3$d.</string>
-    <string name="bottom_shots_where">Tallennetaan kansioon Pictures/DroidDeck. Myös Steamin kuvakaappaukset näkyvät täällä.</string>
+    <string name="bottom_shots_where">Tallennetaan kansioon Pictures/DroidDeckAI. Myös Steamin kuvakaappaukset näkyvät täällä.</string>
     <string name="bottom_shots_take">Ota kuvakaappaus</string>
     <string name="bottom_shots_saved">Kuvakaappaus tallennettu.</string>
     <string name="bottom_shots_failed">Kuvakaappausta ei voitu ottaa.</string>

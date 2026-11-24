@@ -1348,9 +1348,9 @@
         <item quantity="other">%1$d fichiers importés (%2$s) dans %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d fichier importé (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">%1$d fichiers importés (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d fichiers importés (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d fichier importé (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">%1$d fichiers importés (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d fichiers importés (%2$s) dans %3$s. Anciennes sauvegardes copiées dans Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Fermez d\'abord la session, pour que le jeu n\'utilise pas ses addons pendant l\'importation</string>
     <string name="main_addons_importing">Importation des addons dans %1$s</string>
@@ -1836,7 +1836,7 @@
     <string name="bottom_telemetry_send_close">Fermez %1$s pour modifier ce réglage.</string>
     <string name="bottom_telemetry_send_failed">Impossible de modifier les paramètres de %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s : activez %2$s dans les paramètres du jeu avec l\'IP 127.0.0.1 et le port %3$d.</string>
-    <string name="bottom_shots_where">Enregistrées dans Pictures/DroidDeck. Les captures d\'écran Steam s\'affichent aussi ici.</string>
+    <string name="bottom_shots_where">Enregistrées dans Pictures/DroidDeckAI. Les captures d\'écran Steam s\'affichent aussi ici.</string>
     <string name="bottom_shots_take">Prendre une capture d\'écran</string>
     <string name="bottom_shots_saved">Capture d\'écran enregistrée.</string>
     <string name="bottom_shots_failed">Impossible de prendre une capture d\'écran.</string>

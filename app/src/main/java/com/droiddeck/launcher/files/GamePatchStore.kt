@@ -9,7 +9,7 @@ import java.security.MessageDigest
 
 internal object GamePatchStore {
     private const val LIMIT = 1024 * 1024
-    private val extensions = setOf("ini", "cfg", "json", "xml", "csv", "tsv", "txt", "po", "yaml", "yml")
+    val extensions = setOf("ini", "cfg", "json", "xml", "csv", "tsv", "txt", "po", "yaml", "yml")
     data class Backup(val relativePath: String, val original: ByteArray, val appliedHash: String)
     private fun hash(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
         .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -29,16 +29,25 @@ internal object GamePatchStore {
         return file
     }
 
-    private fun read(file: File): ByteArray = file.inputStream().use {
+    fun readLog(file: File): ByteArray {
+        require(file.extension.equals("log", true) && Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        return read(file)
+    }
+
+    fun readTarget(file: File): ByteArray = read(target(file.parentFile!!, file.name))
+
+    private fun read(file: File): ByteArray = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { readLimited(it) }
+
+    fun readLimited(input: java.io.InputStream): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         while (true) {
-            val n = it.read(buffer)
+            val n = input.read(buffer)
             if (n < 0) break
             require(out.size() + n <= LIMIT) { "File too large" }
             out.write(buffer, 0, n)
         }
-        out.toByteArray()
+        return out.toByteArray()
     }
 
     private fun replace(file: File, expected: ByteArray, bytes: ByteArray) {
@@ -65,6 +74,8 @@ internal object GamePatchStore {
         require(!Files.isSymbolicLink(backupDir.toPath()))
         val backup = Files.createTempFile(backupDir.toPath(), "ddpatch-", ".bak").toFile()
         java.io.DataOutputStream(backup.outputStream()).use {
+            it.writeUTF("DDPATCH2")
+            it.writeUTF(hash(expected))
             it.writeUTF(root.canonicalPath)
             it.writeUTF(relative)
             it.writeUTF(hash(proposed))
@@ -86,27 +97,20 @@ internal object GamePatchStore {
                 Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= LIMIT + 196608 }
             .sortedByDescending { it.lastModified() }
             .firstOrNull { backup ->
-                runCatching {
-                    java.io.DataInputStream(backup.inputStream()).use {
-                        val matches = it.readUTF() == root.canonicalPath &&
-                            it.readUTF() == relative && it.readUTF() == currentHash
-                        if (!matches) false else {
-                            val size = it.readInt()
-                            require(size in 0..LIMIT)
-                            it.readFully(ByteArray(size))
-                            it.read() == -1
-                        }
-                    }
-                }.getOrDefault(false)
+                runCatching { readBackup(root, backup).let { it.relativePath == relative && it.appliedHash == currentHash } }
+                    .getOrDefault(false)
             }
     }
 
-    @Synchronized
-    fun restore(root: File, backup: File) {
+    private fun readBackup(root: File, backup: File): Backup {
         require(Files.isRegularFile(backup.toPath(), NOFOLLOW_LINKS)) { "Invalid backup file" }
         require(backup.length() <= LIMIT + 196608)
-        val record = java.io.DataInputStream(backup.inputStream()).use {
-            require(it.readUTF() == root.canonicalPath)
+        return java.io.DataInputStream(Files.newInputStream(backup.toPath(), NOFOLLOW_LINKS)).use {
+            val first = it.readUTF()
+            val versioned = first == "DDPATCH2"
+            val digest = if (versioned) it.readUTF() else null
+            val path = if (versioned) it.readUTF() else first
+            require(path == root.canonicalPath)
             val relative = it.readUTF()
             val applied = it.readUTF()
             val size = it.readInt()
@@ -114,8 +118,14 @@ internal object GamePatchStore {
             val original = ByteArray(size)
             it.readFully(original)
             require(it.read() == -1)
+            require(digest == null || digest == hash(original)) { "Damaged backup" }
             Backup(relative, original, applied)
         }
+    }
+
+    @Synchronized
+    fun restore(root: File, backup: File) {
+        val record = readBackup(root, backup)
         val file = target(root, record.relativePath)
         val current = read(file)
         require(hash(current) == record.appliedHash) { "File changed since patch" }

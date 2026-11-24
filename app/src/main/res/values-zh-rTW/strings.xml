@@ -1332,7 +1332,7 @@
         <item quantity="other">已從 %2$s 匯入 %1$d 個檔案到 %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">已從 %2$s 匯入 %1$d 個檔案到 %3$s。舊存檔已備份到 Download/DroidDeck/Saves/backups</item>
+        <item quantity="other">已從 %2$s 匯入 %1$d 個檔案到 %3$s。舊存檔已備份到 Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">請先關閉工作階段，以免遊戲在匯入期間使用外掛</string>
     <string name="main_addons_importing">正在匯入外掛到 %1$s</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">請先關閉 %1$s 再變更此項。</string>
     <string name="bottom_telemetry_send_failed">無法變更 %1$s 的設定。</string>
     <string name="bottom_telemetry_send_menu">%1$s：請在遊戲設定中開啟 %2$s，IP 設為 127.0.0.1，連接埠設為 %3$d。</string>
-    <string name="bottom_shots_where">儲存至 Pictures/DroidDeck。Steam 螢幕擷取畫面也會顯示在這裡。</string>
+    <string name="bottom_shots_where">儲存至 Pictures/DroidDeckAI。Steam 螢幕擷取畫面也會顯示在這裡。</string>
     <string name="bottom_shots_take">擷取螢幕畫面</string>
     <string name="bottom_shots_saved">已儲存螢幕擷取畫面。</string>
     <string name="bottom_shots_failed">無法擷取螢幕畫面。</string>

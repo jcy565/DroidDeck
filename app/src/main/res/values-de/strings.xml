@@ -1332,8 +1332,8 @@
         <item quantity="other">%1$d Dateien aus %2$s in %3$s importiert</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d Datei aus %2$s in %3$s importiert. Alte Spielstände gesichert unter Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d Dateien aus %2$s in %3$s importiert. Alte Spielstände gesichert unter Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d Datei aus %2$s in %3$s importiert. Alte Spielstände gesichert unter Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d Dateien aus %2$s in %3$s importiert. Alte Spielstände gesichert unter Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Schließe zuerst die Sitzung, damit das Spiel seine Addons während des Imports nicht verwendet</string>
     <string name="main_addons_importing">Addons werden in %1$s importiert</string>
@@ -1804,7 +1804,7 @@
     <string name="bottom_telemetry_send_close">Schließe %1$s, um dies zu ändern.</string>
     <string name="bottom_telemetry_send_failed">Die Einstellungen von %1$s konnten nicht geändert werden.</string>
     <string name="bottom_telemetry_send_menu">%1$s: Aktiviere %2$s in den Spieleinstellungen mit IP 127.0.0.1 und Port %3$d.</string>
-    <string name="bottom_shots_where">Gespeichert in Pictures/DroidDeck. Steam-Screenshots werden hier ebenfalls angezeigt.</string>
+    <string name="bottom_shots_where">Gespeichert in Pictures/DroidDeckAI. Steam-Screenshots werden hier ebenfalls angezeigt.</string>
     <string name="bottom_shots_take">Screenshot aufnehmen</string>
     <string name="bottom_shots_saved">Screenshot gespeichert.</string>
     <string name="bottom_shots_failed">Screenshot konnte nicht aufgenommen werden.</string>

@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ai-assistant-stable ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -32,7 +32,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: build-${{ github.event.pull_request.number || (github.event_name == 'push' && 'main') || github.run_id }}
+  group: build-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref_name) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
@@ -705,13 +705,13 @@ jobs:
             || { echo "::error::apk is not signed with the AOSP testkey"; exit 1; }
 
       - name: Find previous successful inventory
-        if: github.event_name == 'workflow_dispatch' && github.ref_name == 'ai-assistant-stable'
+        if: github.ref_name == 'ai-assistant-stable'
         id: previous-inventory
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          runs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs" -f branch=ai-assistant-stable -f event=workflow_dispatch -f status=success -F per_page=30 --jq '.workflow_runs[].id')
+          runs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs" -f branch=ai-assistant-stable -f status=success -F per_page=30 --jq '.workflow_runs[].id')
           for id in $runs; do
             [ "$id" != "$GITHUB_RUN_ID" ] || continue
             count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "apk-inventory" and .expired == false)] | length')
@@ -738,6 +738,11 @@ jobs:
             AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
             test -n "$AAPT"
             "$AAPT" dump permissions "$apk" > "app/build/apk-inventory/$(basename "$apk").permissions.txt"
+            "$AAPT" dump xmltree "$apk" AndroidManifest.xml > "app/build/apk-inventory/$(basename "$apk").manifest.txt"
+            cp /tmp/sig.txt app/build/apk-inventory/signature.txt
+            if [[ "$GITHUB_REF_NAME" == ai-assistant-stable ]]; then
+              grep -Fx "package: com.droiddeck.launcher.ai" "app/build/apk-inventory/$(basename "$apk").permissions.txt"
+            fi
             previous="$RUNNER_TEMP/previous-apk-inventory/$(basename "$apk").permissions.txt"
             if [ -f "$previous" ]; then
               diff -u "$previous" "app/build/apk-inventory/$(basename "$apk").permissions.txt" > "app/build/apk-inventory/$(basename "$apk").permissions.diff" || test "$?" -eq 1

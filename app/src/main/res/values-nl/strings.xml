@@ -1340,8 +1340,8 @@
         <item quantity="other">%1$d bestanden uit de %2$s geïmporteerd in %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d bestand uit de %2$s geïmporteerd in %3$s. Oude savegames als back-up bewaard in Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d bestanden uit de %2$s geïmporteerd in %3$s. Oude savegames als back-up bewaard in Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d bestand uit de %2$s geïmporteerd in %3$s. Oude savegames als back-up bewaard in Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d bestanden uit de %2$s geïmporteerd in %3$s. Oude savegames als back-up bewaard in Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Sluit eerst de sessie, zodat de game tijdens de import geen addons gebruikt</string>
     <string name="main_addons_importing">Addons importeren in %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">Sluit %1$s om dit te wijzigen.</string>
     <string name="bottom_telemetry_send_failed">Kan de instellingen van %1$s niet wijzigen.</string>
     <string name="bottom_telemetry_send_menu">%1$s: zet %2$s aan in de instellingen van de game met IP 127.0.0.1 en poort %3$d.</string>
-    <string name="bottom_shots_where">Opgeslagen in Pictures/DroidDeck. Steam-screenshots verschijnen hier ook.</string>
+    <string name="bottom_shots_where">Opgeslagen in Pictures/DroidDeckAI. Steam-screenshots verschijnen hier ook.</string>
     <string name="bottom_shots_take">Screenshot maken</string>
     <string name="bottom_shots_saved">Screenshot opgeslagen.</string>
     <string name="bottom_shots_failed">Kan geen screenshot maken.</string>

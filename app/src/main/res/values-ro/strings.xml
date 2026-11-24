@@ -1348,9 +1348,9 @@
         <item quantity="other">S-au importat %1$d de fișiere din %2$s în %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">S-a importat %1$d fișier din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeck/Saves/backups</item>
-        <item quantity="few">S-au importat %1$d fișiere din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">S-au importat %1$d de fișiere din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">S-a importat %1$d fișier din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="few">S-au importat %1$d fișiere din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">S-au importat %1$d de fișiere din %2$s în %3$s. Salvările vechi au fost copiate de rezervă în Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Închide mai întâi sesiunea, ca jocul să nu folosească suplimentele în timpul importului</string>
     <string name="main_addons_importing">Se importă suplimente în %1$s</string>
@@ -1836,7 +1836,7 @@
     <string name="bottom_telemetry_send_close">Închide %1$s pentru a schimba asta.</string>
     <string name="bottom_telemetry_send_failed">Nu s-au putut modifica setările pentru %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: activează %2$s în setările jocului, cu IP-ul 127.0.0.1 și portul %3$d.</string>
-    <string name="bottom_shots_where">Salvate în Pictures/DroidDeck. Capturile de ecran Steam apar și ele aici.</string>
+    <string name="bottom_shots_where">Salvate în Pictures/DroidDeckAI. Capturile de ecran Steam apar și ele aici.</string>
     <string name="bottom_shots_take">Fă o captură de ecran</string>
     <string name="bottom_shots_saved">Captură de ecran salvată.</string>
     <string name="bottom_shots_failed">Nu s-a putut face o captură de ecran.</string>

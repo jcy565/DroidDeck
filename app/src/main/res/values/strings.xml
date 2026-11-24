@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="assistant_app_name" translatable="false">DroidDeck AI</string>
     <string name="gog_maintenance">Manage GOG installation</string>
     <string name="gog_check">Check for updates</string>
     <string name="gog_repair">Verify/Repair</string>
@@ -1500,8 +1501,8 @@
         <item quantity="other">Imported %1$d files from the %2$s into %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Imported %1$d file from the %2$s into %3$s. Old saves backed up to Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Imported %1$d files from the %2$s into %3$s. Old saves backed up to Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Imported %1$d file from the %2$s into %3$s. Old saves backed up to Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Imported %1$d files from the %2$s into %3$s. Old saves backed up to Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Close the session first, so the game isn\'t using its addons during the import</string>
     <string name="main_addons_importing">Importing addons into %1$s</string>
@@ -2014,7 +2015,7 @@
     <string name="bottom_telemetry_send_close">Close %1$s to change this.</string>
     <string name="bottom_telemetry_send_failed">Could not change the settings of %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: turn on %2$s in the game\'s settings with IP 127.0.0.1 and port %3$d.</string>
-    <string name="bottom_shots_where">Saved to Pictures/DroidDeck. Steam screenshots show here too.</string>
+    <string name="bottom_shots_where">Saved to Pictures/DroidDeckAI. Steam screenshots show here too.</string>
     <string name="bottom_shots_take">Take screenshot</string>
     <string name="bottom_shots_saved">Screenshot saved.</string>
     <string name="bottom_shots_failed">Could not take a screenshot.</string>

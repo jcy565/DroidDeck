@@ -1332,7 +1332,7 @@
         <item quantity="other">%2$sから%1$d個のファイルを%3$sにインポートしました</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">%2$sから%1$d個のファイルを%3$sにインポートしました。以前のセーブデータはDownload/DroidDeck/Saves/backupsにバックアップされました</item>
+        <item quantity="other">%2$sから%1$d個のファイルを%3$sにインポートしました。以前のセーブデータはDownload/DroidDeckAI/Saves/backupsにバックアップされました</item>
     </plurals>
     <string name="main_addons_close_session">インポート中にゲームがアドオンを使用しないよう、先にセッションを終了してください</string>
     <string name="main_addons_importing">%1$sにアドオンをインポート中</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">変更するには%1$sを終了してください。</string>
     <string name="bottom_telemetry_send_failed">%1$sの設定を変更できませんでした。</string>
     <string name="bottom_telemetry_send_menu">%1$s：ゲームの設定で%2$sをオンにし、IP 127.0.0.1、ポート%3$dを指定してください。</string>
-    <string name="bottom_shots_where">Pictures/DroidDeckに保存されます。Steamのスクリーンショットもここに表示されます。</string>
+    <string name="bottom_shots_where">Pictures/DroidDeckAIに保存されます。Steamのスクリーンショットもここに表示されます。</string>
     <string name="bottom_shots_take">スクリーンショットを撮る</string>
     <string name="bottom_shots_saved">スクリーンショットを保存しました。</string>
     <string name="bottom_shots_failed">スクリーンショットを撮れませんでした。</string>

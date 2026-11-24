@@ -1340,8 +1340,8 @@
         <item quantity="other">%2$s से %1$d फ़ाइलें %3$s में इंपोर्ट हुईं</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%2$s से %1$d फ़ाइल %3$s में इंपोर्ट हुई। पुराने सेव Download/DroidDeck/Saves/backups में बैकअप हो गए</item>
-        <item quantity="other">%2$s से %1$d फ़ाइलें %3$s में इंपोर्ट हुईं। पुराने सेव Download/DroidDeck/Saves/backups में बैकअप हो गए</item>
+        <item quantity="one">%2$s से %1$d फ़ाइल %3$s में इंपोर्ट हुई। पुराने सेव Download/DroidDeckAI/Saves/backups में बैकअप हो गए</item>
+        <item quantity="other">%2$s से %1$d फ़ाइलें %3$s में इंपोर्ट हुईं। पुराने सेव Download/DroidDeckAI/Saves/backups में बैकअप हो गए</item>
     </plurals>
     <string name="main_addons_close_session">पहले सेशन बंद करें, ताकि इंपोर्ट के दौरान गेम अपने ऐडऑन का उपयोग न करे</string>
     <string name="main_addons_importing">%1$s में ऐडऑन इंपोर्ट हो रहे हैं</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">इसे बदलने के लिए %1$s बंद करें।</string>
     <string name="bottom_telemetry_send_failed">%1$s की सेटिंग बदली नहीं जा सकीं।</string>
     <string name="bottom_telemetry_send_menu">%1$s: गेम की सेटिंग में IP 127.0.0.1 और पोर्ट %3$d के साथ %2$s चालू करें।</string>
-    <string name="bottom_shots_where">Pictures/DroidDeck में सेव होते हैं। Steam स्क्रीनशॉट भी यहां दिखते हैं।</string>
+    <string name="bottom_shots_where">Pictures/DroidDeckAI में सेव होते हैं। Steam स्क्रीनशॉट भी यहां दिखते हैं।</string>
     <string name="bottom_shots_take">स्क्रीनशॉट लें</string>
     <string name="bottom_shots_saved">स्क्रीनशॉट सेव हो गया।</string>
     <string name="bottom_shots_failed">स्क्रीनशॉट नहीं लिया जा सका।</string>

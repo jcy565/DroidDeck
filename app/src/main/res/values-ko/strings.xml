@@ -1332,7 +1332,7 @@
         <item quantity="other">%2$s에서 %3$s(으)로 파일 %1$d개를 가져왔습니다</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">%2$s에서 %3$s(으)로 파일 %1$d개를 가져왔습니다. 이전 저장 데이터는 Download/DroidDeck/Saves/backups에 백업되었습니다</item>
+        <item quantity="other">%2$s에서 %3$s(으)로 파일 %1$d개를 가져왔습니다. 이전 저장 데이터는 Download/DroidDeckAI/Saves/backups에 백업되었습니다</item>
     </plurals>
     <string name="main_addons_close_session">가져오는 동안 게임이 애드온을 사용하지 않도록 먼저 세션을 종료하세요</string>
     <string name="main_addons_importing">%1$s(으)로 애드온 가져오는 중</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">이 설정을 변경하려면 %1$s을(를) 종료하세요.</string>
     <string name="bottom_telemetry_send_failed">%1$s의 설정을 변경할 수 없습니다.</string>
     <string name="bottom_telemetry_send_menu">%1$s: 게임 설정에서 IP 127.0.0.1, 포트 %3$d(으)로 %2$s을(를) 켜세요.</string>
-    <string name="bottom_shots_where">Pictures/DroidDeck에 저장됩니다. Steam 스크린샷도 여기에 표시됩니다.</string>
+    <string name="bottom_shots_where">Pictures/DroidDeckAI에 저장됩니다. Steam 스크린샷도 여기에 표시됩니다.</string>
     <string name="bottom_shots_take">스크린샷 찍기</string>
     <string name="bottom_shots_saved">스크린샷이 저장되었습니다.</string>
     <string name="bottom_shots_failed">스크린샷을 찍을 수 없습니다.</string>

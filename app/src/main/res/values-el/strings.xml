@@ -1340,8 +1340,8 @@
         <item quantity="other">Έγινε εισαγωγή %1$d αρχείων από το %2$s στο %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Έγινε εισαγωγή %1$d αρχείου από το %2$s στο %3$s. Τα παλιά αρχεία αποθήκευσης κρατήθηκαν ως αντίγραφο ασφαλείας στο Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Έγινε εισαγωγή %1$d αρχείων από το %2$s στο %3$s. Τα παλιά αρχεία αποθήκευσης κρατήθηκαν ως αντίγραφο ασφαλείας στο Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Έγινε εισαγωγή %1$d αρχείου από το %2$s στο %3$s. Τα παλιά αρχεία αποθήκευσης κρατήθηκαν ως αντίγραφο ασφαλείας στο Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Έγινε εισαγωγή %1$d αρχείων από το %2$s στο %3$s. Τα παλιά αρχεία αποθήκευσης κρατήθηκαν ως αντίγραφο ασφαλείας στο Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Κλείστε πρώτα τη συνεδρία, ώστε το παιχνίδι να μη χρησιμοποιεί τα πρόσθετά του κατά την εισαγωγή</string>
     <string name="main_addons_importing">Εισαγωγή προσθέτων στο %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">Κλείστε το %1$s για να το αλλάξετε.</string>
     <string name="bottom_telemetry_send_failed">Δεν ήταν δυνατή η αλλαγή των ρυθμίσεων του %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: ενεργοποιήστε το %2$s στις ρυθμίσεις του παιχνιδιού με IP 127.0.0.1 και θύρα %3$d.</string>
-    <string name="bottom_shots_where">Αποθηκεύονται στο Pictures/DroidDeck. Εδώ εμφανίζονται και τα στιγμιότυπα του Steam.</string>
+    <string name="bottom_shots_where">Αποθηκεύονται στο Pictures/DroidDeckAI. Εδώ εμφανίζονται και τα στιγμιότυπα του Steam.</string>
     <string name="bottom_shots_take">Λήψη στιγμιότυπου</string>
     <string name="bottom_shots_saved">Το στιγμιότυπο αποθηκεύτηκε.</string>
     <string name="bottom_shots_failed">Δεν ήταν δυνατή η λήψη στιγμιότυπου.</string>

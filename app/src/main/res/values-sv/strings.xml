@@ -1340,8 +1340,8 @@
         <item quantity="other">Importerade %1$d filer från %2$s till %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Importerade %1$d fil från %2$s till %3$s. Gamla sparfiler säkerhetskopierades till Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Importerade %1$d filer från %2$s till %3$s. Gamla sparfiler säkerhetskopierades till Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Importerade %1$d fil från %2$s till %3$s. Gamla sparfiler säkerhetskopierades till Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Importerade %1$d filer från %2$s till %3$s. Gamla sparfiler säkerhetskopierades till Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Stäng sessionen först, så att spelet inte använder sina tillägg under importen</string>
     <string name="main_addons_importing">Importerar tillägg till %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">Stäng %1$s för att ändra detta.</string>
     <string name="bottom_telemetry_send_failed">Det gick inte att ändra inställningarna för %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: slå på %2$s i spelets inställningar med IP 127.0.0.1 och port %3$d.</string>
-    <string name="bottom_shots_where">Sparas i Pictures/DroidDeck. Steam-skärmbilder visas också här.</string>
+    <string name="bottom_shots_where">Sparas i Pictures/DroidDeckAI. Steam-skärmbilder visas också här.</string>
     <string name="bottom_shots_take">Ta skärmbild</string>
     <string name="bottom_shots_saved">Skärmbilden har sparats.</string>
     <string name="bottom_shots_failed">Det gick inte att ta en skärmbild.</string>

@@ -1332,8 +1332,8 @@
         <item quantity="other">%2$s içinden %1$d dosya %3$s oyununa aktarıldı</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%2$s içinden %1$d dosya %3$s oyununa aktarıldı. Eski kayıtlar Download/DroidDeck/Saves/backups klasörüne yedeklendi</item>
-        <item quantity="other">%2$s içinden %1$d dosya %3$s oyununa aktarıldı. Eski kayıtlar Download/DroidDeck/Saves/backups klasörüne yedeklendi</item>
+        <item quantity="one">%2$s içinden %1$d dosya %3$s oyununa aktarıldı. Eski kayıtlar Download/DroidDeckAI/Saves/backups klasörüne yedeklendi</item>
+        <item quantity="other">%2$s içinden %1$d dosya %3$s oyununa aktarıldı. Eski kayıtlar Download/DroidDeckAI/Saves/backups klasörüne yedeklendi</item>
     </plurals>
     <string name="main_addons_close_session">Önce oturumu kapatın; böylece oyun içe aktarma sırasında eklentilerini kullanmaz</string>
     <string name="main_addons_importing">Eklentiler içe aktarılıyor: %1$s</string>
@@ -1804,7 +1804,7 @@
     <string name="bottom_telemetry_send_close">Bunu değiştirmek için %1$s oyununu kapatın.</string>
     <string name="bottom_telemetry_send_failed">%1$s ayarları değiştirilemedi.</string>
     <string name="bottom_telemetry_send_menu">%1$s: oyunun ayarlarında IP 127.0.0.1 ve %3$d portuyla %2$s seçeneğini açın.</string>
-    <string name="bottom_shots_where">Pictures/DroidDeck klasörüne kaydedilir. Steam ekran görüntüleri de burada görünür.</string>
+    <string name="bottom_shots_where">Pictures/DroidDeckAI klasörüne kaydedilir. Steam ekran görüntüleri de burada görünür.</string>
     <string name="bottom_shots_take">Ekran görüntüsü al</string>
     <string name="bottom_shots_saved">Ekran görüntüsü kaydedildi.</string>
     <string name="bottom_shots_failed">Ekran görüntüsü alınamadı.</string>

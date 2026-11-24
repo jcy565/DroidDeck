@@ -1340,8 +1340,8 @@
         <item quantity="other">%1$d fájl importálva innen: %2$s, ide: %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d fájl importálva innen: %2$s, ide: %3$s. A régi mentések mentve itt: Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d fájl importálva innen: %2$s, ide: %3$s. A régi mentések mentve itt: Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d fájl importálva innen: %2$s, ide: %3$s. A régi mentések mentve itt: Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d fájl importálva innen: %2$s, ide: %3$s. A régi mentések mentve itt: Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Előbb zárja be a munkamenetet, hogy a játék ne használja a kiegészítőit az importálás alatt</string>
     <string name="main_addons_importing">Kiegészítők importálása ide: %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">A módosításhoz zárja be ezt: %1$s.</string>
     <string name="bottom_telemetry_send_failed">Nem sikerült módosítani a következő beállításait: %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: kapcsolja be a(z) %2$s opciót a játék beállításaiban, 127.0.0.1 IP-címmel és %3$d porttal.</string>
-    <string name="bottom_shots_where">Mentés helye: Pictures/DroidDeck. A Steam-képernyőképek is itt jelennek meg.</string>
+    <string name="bottom_shots_where">Mentés helye: Pictures/DroidDeckAI. A Steam-képernyőképek is itt jelennek meg.</string>
     <string name="bottom_shots_take">Képernyőkép készítése</string>
     <string name="bottom_shots_saved">Képernyőkép mentve.</string>
     <string name="bottom_shots_failed">Nem sikerült képernyőképet készíteni.</string>

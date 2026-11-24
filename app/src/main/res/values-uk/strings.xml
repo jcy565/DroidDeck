@@ -1356,10 +1356,10 @@
         <item quantity="other">Імпортовано %1$d файлу з %2$s у %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Імпортовано %1$d файл з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeck/Saves/backups</item>
-        <item quantity="few">Імпортовано %1$d файли з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">Імпортовано %1$d файлів з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Імпортовано %1$d файлу з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Імпортовано %1$d файл з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="few">Імпортовано %1$d файли з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">Імпортовано %1$d файлів з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Імпортовано %1$d файлу з %2$s у %3$s. Резервну копію старих збережень записано в Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Спершу закрийте сеанс, щоб гра не використовувала аддони під час імпорту</string>
     <string name="main_addons_importing">Імпорт аддонів у %1$s</string>
@@ -1860,7 +1860,7 @@
     <string name="bottom_telemetry_send_close">Закрийте %1$s, щоб змінити це.</string>
     <string name="bottom_telemetry_send_failed">Не вдалося змінити налаштування %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: увімкніть %2$s у налаштуваннях гри з IP 127.0.0.1 і портом %3$d.</string>
-    <string name="bottom_shots_where">Зберігаються в Pictures/DroidDeck. Знімки екрана Steam також показуються тут.</string>
+    <string name="bottom_shots_where">Зберігаються в Pictures/DroidDeckAI. Знімки екрана Steam також показуються тут.</string>
     <string name="bottom_shots_take">Зробити знімок екрана</string>
     <string name="bottom_shots_saved">Знімок екрана збережено.</string>
     <string name="bottom_shots_failed">Не вдалося зробити знімок екрана.</string>

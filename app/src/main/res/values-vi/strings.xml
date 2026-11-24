@@ -1332,7 +1332,7 @@
         <item quantity="other">Đã nhập %1$d tệp từ %2$s vào %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">Đã nhập %1$d tệp từ %2$s vào %3$s. Tệp lưu cũ đã được sao lưu vào Download/DroidDeck/Saves/backups</item>
+        <item quantity="other">Đã nhập %1$d tệp từ %2$s vào %3$s. Tệp lưu cũ đã được sao lưu vào Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Hãy đóng phiên trước, để game không dùng addon trong lúc nhập</string>
     <string name="main_addons_importing">Đang nhập addon vào %1$s</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">Hãy đóng %1$s để thay đổi mục này.</string>
     <string name="bottom_telemetry_send_failed">Không thể thay đổi thiết lập của %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: hãy bật %2$s trong thiết lập của game với IP 127.0.0.1 và cổng %3$d.</string>
-    <string name="bottom_shots_where">Được lưu vào Pictures/DroidDeck. Ảnh chụp màn hình Steam cũng hiện ở đây.</string>
+    <string name="bottom_shots_where">Được lưu vào Pictures/DroidDeckAI. Ảnh chụp màn hình Steam cũng hiện ở đây.</string>
     <string name="bottom_shots_take">Chụp màn hình</string>
     <string name="bottom_shots_saved">Đã lưu ảnh chụp màn hình.</string>
     <string name="bottom_shots_failed">Không thể chụp màn hình.</string>

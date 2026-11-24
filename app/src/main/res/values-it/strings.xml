@@ -1340,9 +1340,9 @@
         <item quantity="other">%1$d file importati (%2$s) in %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d file importato (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">%1$d file importati (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d file importati (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d file importato (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">%1$d file importati (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d file importati (%2$s) in %3$s. Backup dei vecchi salvataggi in Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Chiudi prima la sessione, così il gioco non usa i suoi addon durante l\'importazione</string>
     <string name="main_addons_importing">Importazione degli addon in %1$s</string>
@@ -1828,7 +1828,7 @@
     <string name="bottom_telemetry_send_close">Chiudi %1$s per modificarlo.</string>
     <string name="bottom_telemetry_send_failed">Impossibile modificare le impostazioni di %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: attiva %2$s nelle impostazioni del gioco con IP 127.0.0.1 e porta %3$d.</string>
-    <string name="bottom_shots_where">Salvati in Pictures/DroidDeck. Qui compaiono anche gli screenshot di Steam.</string>
+    <string name="bottom_shots_where">Salvati in Pictures/DroidDeckAI. Qui compaiono anche gli screenshot di Steam.</string>
     <string name="bottom_shots_take">Acquisisci screenshot</string>
     <string name="bottom_shots_saved">Screenshot salvato.</string>
     <string name="bottom_shots_failed">Impossibile acquisire uno screenshot.</string>

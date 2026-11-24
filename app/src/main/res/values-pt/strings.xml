@@ -1340,9 +1340,9 @@
         <item quantity="other">%1$d arquivos importados de %2$s para %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">%1$d arquivo importado de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">%1$d arquivos importados de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">%1$d arquivos importados de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">%1$d arquivo importado de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">%1$d arquivos importados de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">%1$d arquivos importados de %2$s para %3$s. Backup dos saves antigos em Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Feche a sessão primeiro, para que o jogo não use os addons durante a importação</string>
     <string name="main_addons_importing">Importando addons para %1$s</string>
@@ -1828,7 +1828,7 @@
     <string name="bottom_telemetry_send_close">Feche %1$s para alterar isso.</string>
     <string name="bottom_telemetry_send_failed">Não foi possível alterar as configurações de %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: ative %2$s nas configurações do jogo com o IP 127.0.0.1 e a porta %3$d.</string>
-    <string name="bottom_shots_where">Salvas em Pictures/DroidDeck. As capturas de tela da Steam também aparecem aqui.</string>
+    <string name="bottom_shots_where">Salvas em Pictures/DroidDeckAI. As capturas de tela da Steam também aparecem aqui.</string>
     <string name="bottom_shots_take">Fazer captura de tela</string>
     <string name="bottom_shots_saved">Captura de tela salva.</string>
     <string name="bottom_shots_failed">Não foi possível fazer a captura de tela.</string>

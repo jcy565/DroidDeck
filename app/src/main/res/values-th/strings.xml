@@ -1332,7 +1332,7 @@
         <item quantity="other">นำเข้า %1$d ไฟล์จาก %2$s สู่ %3$s แล้ว</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">นำเข้า %1$d ไฟล์จาก %2$s สู่ %3$s แล้ว เซฟเก่าสำรองไว้ที่ Download/DroidDeck/Saves/backups</item>
+        <item quantity="other">นำเข้า %1$d ไฟล์จาก %2$s สู่ %3$s แล้ว เซฟเก่าสำรองไว้ที่ Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">ปิดเซสชันก่อน เพื่อไม่ให้เกมใช้แอดออนระหว่างการนำเข้า</string>
     <string name="main_addons_importing">กำลังนำเข้าแอดออนสู่ %1$s</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">ปิด %1$s เพื่อเปลี่ยนการตั้งค่านี้</string>
     <string name="bottom_telemetry_send_failed">เปลี่ยนการตั้งค่าของ %1$s ไม่ได้</string>
     <string name="bottom_telemetry_send_menu">%1$s: เปิด %2$s ในการตั้งค่าของเกม โดยใช้ IP 127.0.0.1 และพอร์ต %3$d</string>
-    <string name="bottom_shots_where">บันทึกไว้ที่ Pictures/DroidDeck ภาพหน้าจอของ Steam จะแสดงที่นี่ด้วย</string>
+    <string name="bottom_shots_where">บันทึกไว้ที่ Pictures/DroidDeckAI ภาพหน้าจอของ Steam จะแสดงที่นี่ด้วย</string>
     <string name="bottom_shots_take">ถ่ายภาพหน้าจอ</string>
     <string name="bottom_shots_saved">บันทึกภาพหน้าจอแล้ว</string>
     <string name="bottom_shots_failed">ถ่ายภาพหน้าจอไม่ได้</string>

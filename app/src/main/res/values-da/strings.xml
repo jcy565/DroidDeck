@@ -1340,8 +1340,8 @@
         <item quantity="other">Importerede %1$d filer fra %2$s til %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Importerede %1$d fil fra %2$s til %3$s. Gamle gemte spil sikkerhedskopieret til Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Importerede %1$d filer fra %2$s til %3$s. Gamle gemte spil sikkerhedskopieret til Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Importerede %1$d fil fra %2$s til %3$s. Gamle gemte spil sikkerhedskopieret til Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Importerede %1$d filer fra %2$s til %3$s. Gamle gemte spil sikkerhedskopieret til Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Luk sessionen først, så spillet ikke bruger sine addons under importen</string>
     <string name="main_addons_importing">Importerer addons til %1$s</string>
@@ -1812,7 +1812,7 @@
     <string name="bottom_telemetry_send_close">Luk %1$s for at ændre dette.</string>
     <string name="bottom_telemetry_send_failed">Kunne ikke ændre indstillingerne for %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: slå %2$s til i spillets indstillinger med IP 127.0.0.1 og port %3$d.</string>
-    <string name="bottom_shots_where">Gemmes i Pictures/DroidDeck. Steam-skærmbilleder vises også her.</string>
+    <string name="bottom_shots_where">Gemmes i Pictures/DroidDeckAI. Steam-skærmbilleder vises også her.</string>
     <string name="bottom_shots_take">Tag skærmbillede</string>
     <string name="bottom_shots_saved">Skærmbillede gemt.</string>
     <string name="bottom_shots_failed">Kunne ikke tage et skærmbillede.</string>

@@ -17,7 +17,7 @@ data class BottomShot(val uri: Uri?, val file: File?, val takenAt: Long, val ste
 }
 
 object BottomScreenshots {
-    private const val FOLDER = "DroidDeck"
+    private const val FOLDER = "DroidDeckAI"
     private const val QUALITY = 95
     private const val LIMIT = 120
 

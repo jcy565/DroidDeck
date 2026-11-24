@@ -1402,10 +1402,10 @@
         <item quantity="other">Импортировано %1$d файла (%2$s) в %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Импортирован %1$d файл (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeck/Saves/backups</item>
-        <item quantity="few">Импортировано %1$d файла (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">Импортировано %1$d файлов (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Импортировано %1$d файла (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Импортирован %1$d файл (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="few">Импортировано %1$d файла (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">Импортировано %1$d файлов (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Импортировано %1$d файла (%2$s) в %3$s. Старые сохранения скопированы в Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Сначала закройте сессию, чтобы игра не использовала аддоны во время импорта</string>
     <string name="main_addons_importing">Импорт аддонов в %1$s</string>
@@ -1937,7 +1937,7 @@
     <string name="bottom_telemetry_send_close">Закройте %1$s, чтобы изменить это.</string>
     <string name="bottom_telemetry_send_failed">Не удалось изменить настройки %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: включите %2$s в настройках игры, указав IP 127.0.0.1 и порт %3$d.</string>
-    <string name="bottom_shots_where">Сохраняются в Pictures/DroidDeck. Скриншоты Steam тоже отображаются здесь.</string>
+    <string name="bottom_shots_where">Сохраняются в Pictures/DroidDeckAI. Скриншоты Steam тоже отображаются здесь.</string>
     <string name="bottom_shots_take">Сделать скриншот</string>
     <string name="bottom_shots_saved">Скриншот сохранен.</string>
     <string name="bottom_shots_failed">Не удалось сделать скриншот.</string>

@@ -78,4 +78,41 @@ class GamePatchTest {
         file.writeText("x=3")
         assertNull(GamePatchStore.findMatchingBackup(root, file.name, backups))
     }
+
+    @Test fun rejectsSameLengthBackupCorruption() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val backup = GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(), backups)
+        java.io.RandomAccessFile(backup, "rw").use { it.seek(it.length() - 1); it.write(65) }
+        assertNull(GamePatchStore.findMatchingBackup(root, file.name, backups))
+        assertThrows(IllegalArgumentException::class.java) { GamePatchStore.restore(root, backup) }
+        assertEquals("x=2", file.readText())
+    }
+
+    @Test fun preservesPosixModeOnApplyAndRestore() {
+        val root = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val mode = java.nio.file.attribute.PosixFilePermissions.fromString("rw-r-----")
+        java.nio.file.Files.setPosixFilePermissions(file.toPath(), mode)
+        val backup = GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(), temp.newFolder())
+        assertEquals(mode, java.nio.file.Files.getPosixFilePermissions(file.toPath()))
+        GamePatchStore.restore(root, backup)
+        assertEquals(mode, java.nio.file.Files.getPosixFilePermissions(file.toPath()))
+    }
+
+    @Test fun recognizesGraphicsFailureAndDoesNotGuessFromBlackScreen() {
+        assertTrue(LocalGameAdvisor.diagnose("VK_ERROR_DEVICE_LOST").contains("장치 연결 손실"))
+        assertTrue(LocalGameAdvisor.diagnose("black screen").contains("확정하기 어렵"))
+    }
+
+    @Test fun proposesOnlyOneLowerResolutionWithTheSameAspectRatio() {
+        assertEquals("1280x720", LocalGameAdvisor.optimize("[Render]\nResolution=1920x1080").changes.single().after)
+        assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.optimize("[Render]\nResolution=800x600") }
+    }
+
+    @Test fun refusesOversizeAndBinaryInputs() {
+        assertThrows(IllegalArgumentException::class.java) { GamePatchStore.readLimited(ByteArray(1048577).inputStream()) }
+        assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.decode(byteArrayOf(0, 65)) }
+    }
 }

@@ -30,7 +30,7 @@ public final class LinuxRuntime {
     public static final String GUEST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games";
     private static final String SYSTEM_FONTS = "/system/fonts";
     private static final String GUEST_SYSTEM_FONTS = "/usr/local/share/fonts/android";
-    public static final String DEBUG_LOG_DIR = "DroidDeck";
+    public static final String DEBUG_LOG_DIR = "DroidDeckAI";
 
     public static File logDir(Context context) {
         return new File(context.getFilesDir(), "logs");

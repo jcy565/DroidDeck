@@ -1372,12 +1372,12 @@
         <item quantity="other">تم استيراد %1$d ملف من %2$s إلى %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="zero">لم يتم استيراد أي ملف من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
-        <item quantity="one">تم استيراد ملف واحد من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
-        <item quantity="two">تم استيراد ملفين من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
-        <item quantity="few">تم استيراد %1$d ملفات من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">تم استيراد %1$d ملفًا من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">تم استيراد %1$d ملف من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeck/Saves/backups</item>
+        <item quantity="zero">لم يتم استيراد أي ملف من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="one">تم استيراد ملف واحد من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="two">تم استيراد ملفين من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="few">تم استيراد %1$d ملفات من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">تم استيراد %1$d ملفًا من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">تم استيراد %1$d ملف من %2$s إلى %3$s. تم نسخ ملفات الحفظ القديمة احتياطيًا إلى Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">أغلِق الجلسة أولاً حتى لا تستخدم اللعبة إضافاتها أثناء الاستيراد</string>
     <string name="main_addons_importing">استيراد الإضافات إلى %1$s</string>
@@ -1908,7 +1908,7 @@
     <string name="bottom_telemetry_send_close">أغلق %1$s لتغيير هذا.</string>
     <string name="bottom_telemetry_send_failed">تعذّر تغيير إعدادات %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: فعِّل %2$s في إعدادات اللعبة باستخدام IP 127.0.0.1 والمنفذ %3$d.</string>
-    <string name="bottom_shots_where">تُحفظ في Pictures/DroidDeck. تظهر لقطات شاشة Steam هنا أيضًا.</string>
+    <string name="bottom_shots_where">تُحفظ في Pictures/DroidDeckAI. تظهر لقطات شاشة Steam هنا أيضًا.</string>
     <string name="bottom_shots_take">التقاط لقطة شاشة</string>
     <string name="bottom_shots_saved">تم حفظ لقطة الشاشة.</string>
     <string name="bottom_shots_failed">تعذّر التقاط لقطة شاشة.</string>

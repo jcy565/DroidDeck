@@ -1356,10 +1356,10 @@
         <item quantity="other">Importováno %1$d souborů z %2$s do %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="one">Importován %1$d soubor z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeck/Saves/backups</item>
-        <item quantity="few">Importovány %1$d soubory z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeck/Saves/backups</item>
-        <item quantity="many">Importováno %1$d souborů z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeck/Saves/backups</item>
-        <item quantity="other">Importováno %1$d souborů z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeck/Saves/backups</item>
+        <item quantity="one">Importován %1$d soubor z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="few">Importovány %1$d soubory z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="many">Importováno %1$d souborů z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeckAI/Saves/backups</item>
+        <item quantity="other">Importováno %1$d souborů z %2$s do %3$s. Staré uložené pozice byly zálohovány do Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Nejprve zavřete relaci, aby hra během importu nepoužívala své doplňky.</string>
     <string name="main_addons_importing">Importování doplňků do %1$s</string>
@@ -1860,7 +1860,7 @@
     <string name="bottom_telemetry_send_close">Pro změnu zavřete %1$s.</string>
     <string name="bottom_telemetry_send_failed">Nastavení hry %1$s se nepodařilo změnit.</string>
     <string name="bottom_telemetry_send_menu">%1$s: zapněte %2$s v nastavení hry s IP 127.0.0.1 a portem %3$d.</string>
-    <string name="bottom_shots_where">Ukládá se do Pictures/DroidDeck. Zobrazují se zde i snímky obrazovky ze Steamu.</string>
+    <string name="bottom_shots_where">Ukládá se do Pictures/DroidDeckAI. Zobrazují se zde i snímky obrazovky ze Steamu.</string>
     <string name="bottom_shots_take">Pořídit snímek obrazovky</string>
     <string name="bottom_shots_saved">Snímek obrazovky uložen.</string>
     <string name="bottom_shots_failed">Snímek obrazovky se nepodařilo pořídit.</string>

@@ -1332,7 +1332,7 @@
         <item quantity="other">Mengimport %1$d fail daripada %2$s ke %3$s</item>
     </plurals>
     <plurals name="main_saves_imported_backup">
-        <item quantity="other">Mengimport %1$d fail daripada %2$s ke %3$s. Simpanan lama disandarkan ke Download/DroidDeck/Saves/backups</item>
+        <item quantity="other">Mengimport %1$d fail daripada %2$s ke %3$s. Simpanan lama disandarkan ke Download/DroidDeckAI/Saves/backups</item>
     </plurals>
     <string name="main_addons_close_session">Tutup sesi dahulu, supaya permainan tidak menggunakan addonnya semasa import</string>
     <string name="main_addons_importing">Mengimport addon ke %1$s</string>
@@ -1788,7 +1788,7 @@
     <string name="bottom_telemetry_send_close">Tutup %1$s untuk menukar ini.</string>
     <string name="bottom_telemetry_send_failed">Tidak dapat menukar tetapan %1$s.</string>
     <string name="bottom_telemetry_send_menu">%1$s: hidupkan %2$s dalam tetapan permainan dengan IP 127.0.0.1 dan port %3$d.</string>
-    <string name="bottom_shots_where">Disimpan ke Pictures/DroidDeck. Tangkapan skrin Steam juga dipaparkan di sini.</string>
+    <string name="bottom_shots_where">Disimpan ke Pictures/DroidDeckAI. Tangkapan skrin Steam juga dipaparkan di sini.</string>
     <string name="bottom_shots_take">Ambil tangkapan skrin</string>
     <string name="bottom_shots_saved">Tangkapan skrin disimpan.</string>
     <string name="bottom_shots_failed">Tidak dapat mengambil tangkapan skrin.</string>

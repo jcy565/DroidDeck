@@ -1185,7 +1185,7 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
-                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in setOf("ini", "cfg")) {
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in GamePatchStore.extensions + "log") {
                                     patchTarget = file
                                 }
                             },
@@ -1266,7 +1266,7 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
-                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in setOf("ini", "cfg")) {
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in GamePatchStore.extensions + "log") {
                                     patchTarget = file
                                 }
                             },
