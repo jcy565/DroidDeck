@@ -735,6 +735,13 @@ jobs:
             else
               python3 tools/ci/apk_inventory.py "$apk" > "app/build/apk-inventory/$(basename "$apk").json"
             fi
+            AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+            test -n "$AAPT"
+            "$AAPT" dump permissions "$apk" > "app/build/apk-inventory/$(basename "$apk").permissions.txt"
+            previous="$RUNNER_TEMP/previous-apk-inventory/$(basename "$apk").permissions.txt"
+            if [ -f "$previous" ]; then
+              diff -u "$previous" "app/build/apk-inventory/$(basename "$apk").permissions.txt" > "app/build/apk-inventory/$(basename "$apk").permissions.diff" || test "$?" -eq 1
+            fi
             sha256sum "$apk" >> app/build/apk-inventory/apk-sha256.txt
           done
           git rev-parse HEAD > app/build/apk-inventory/source-commit.txt
