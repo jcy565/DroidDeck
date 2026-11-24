@@ -43,9 +43,11 @@ internal object GamePatchStore {
 
     private fun replace(file: File, expected: ByteArray, bytes: ByteArray) {
         require(bytes.size <= LIMIT)
+        require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
         val temp = Files.createTempFile(file.parentFile!!.toPath(), ".ddpatch-", ".tmp")
         try {
             Files.write(temp, bytes)
+            require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
             require(read(file).contentEquals(expected)) { "File changed; preview again" }
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
         } finally { Files.deleteIfExists(temp) }
@@ -73,6 +75,7 @@ internal object GamePatchStore {
 
     @Synchronized
     fun restore(root: File, backup: File) {
+        require(Files.isRegularFile(backup.toPath(), NOFOLLOW_LINKS)) { "Invalid backup file" }
         require(backup.length() <= LIMIT + 196608)
         val record = java.io.DataInputStream(backup.inputStream()).use {
             require(it.readUTF() == root.canonicalPath)
