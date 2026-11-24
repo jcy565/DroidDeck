@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.droiddeck.launcher.session.SessionState
 import com.droiddeck.launcher.compatibility.GameplayBudget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -104,7 +103,14 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             }
                         }
                     } else if (config && (input.isEmpty() || listOf("720", "900", "균형", "30", "배터리", "최적화", "해상도").any { it in input })) {
-                        preview = LocalGameAdvisor.optimize(original(), input)
+                        check(withContext(Dispatchers.IO) { GameplayBudget.allowsOptionalAnalysis(context) }) {
+                            "게임 세션 종료 및 메모리 확보 후 다시 시도하세요."
+                        }
+                        preview = withContext(Dispatchers.IO) {
+                            val source = original()
+                            check(GameplayBudget.allowsOptionalAnalysis(context)) { "최적화 분석을 보류합니다." }
+                            LocalGameAdvisor.optimize(source, input)
+                        }
                         message = "설정 한 그룹의 비교 계획입니다. 적용 후 같은 장면에서 측정하세요."
                     } else message = "이 파일에서 지원하는 명령 예시를 확인하세요."
                 } }) { Text(if (log) "로그 분석" else "최적화 계획") }
@@ -126,7 +132,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             backup?.let { saved ->
                 TextButton(enabled = !busy, onClick = { runAction {
                     withContext(Dispatchers.IO) {
-                        check(!SessionState.running && SessionState.phase in setOf(com.droiddeck.launcher.session.SessionPhase.IDLE, com.droiddeck.launcher.session.SessionPhase.FAILED)) { "게임 세션을 종료하세요." }
+                        check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
                         GamePatchStore.restore(root, saved, file.name)
                     }
                     backup = withContext(Dispatchers.IO) { GamePatchStore.findMatchingBackup(root, file.name, backups) }
@@ -140,7 +146,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         TextButton(enabled = !busy && plan != null && plan.original != plan.proposed, onClick = {
             if (plan != null) runAction {
                 backup = withContext(Dispatchers.IO) {
-                    check(!SessionState.running && SessionState.phase in setOf(com.droiddeck.launcher.session.SessionPhase.IDLE, com.droiddeck.launcher.session.SessionPhase.FAILED)) { "게임 세션을 종료하세요." }
+                    check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
                     GamePatchStore.apply(root, file.name, plan.original.toByteArray(), plan.proposed.toByteArray(), backups)
                 }
                 preview = null
