@@ -704,6 +704,24 @@ jobs:
           grep -qi "CN=Android, OU=Android, O=Android" /tmp/sig.txt \
             || { echo "::error::apk is not signed with the AOSP testkey"; exit 1; }
 
+      - name: Find previous successful inventory
+        if: github.event_name == 'workflow_dispatch' && github.ref_name == 'ai-assistant-stable'
+        id: previous-inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs" -f branch=ai-assistant-stable -f event=workflow_dispatch -f status=success -F per_page=30 --jq '.workflow_runs[].id')
+          for id in $runs; do
+            [ "$id" != "$GITHUB_RUN_ID" ] || continue
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "apk-inventory" and .expired == false)] | length')
+            if [ "$count" = 1 ]; then
+              gh run download "$id" --repo "$GITHUB_REPOSITORY" --name apk-inventory --dir "$RUNNER_TEMP/previous-apk-inventory"
+              echo "run_id=$id" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done
+
       - name: Generate APK inventory report
         run: |
           set -euo pipefail
@@ -711,7 +729,12 @@ jobs:
           mkdir -p app/build/apk-inventory
           for apk in app/build/outputs/apk/release/*.apk; do
             test -f "$apk"
-            python3 tools/ci/apk_inventory.py "$apk" > "app/build/apk-inventory/$(basename "$apk").json"
+            baseline="$RUNNER_TEMP/previous-apk-inventory/$(basename "$apk").json"
+            if [ -f "$baseline" ]; then
+              python3 tools/ci/apk_inventory.py "$apk" --baseline-report "$baseline" > "app/build/apk-inventory/$(basename "$apk").json"
+            else
+              python3 tools/ci/apk_inventory.py "$apk" > "app/build/apk-inventory/$(basename "$apk").json"
+            fi
             sha256sum "$apk" >> app/build/apk-inventory/apk-sha256.txt
           done
           git rev-parse HEAD > app/build/apk-inventory/source-commit.txt
