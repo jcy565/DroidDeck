@@ -653,11 +653,40 @@ jobs:
           path: app/src/main/rust/stores/Cargo.lock
           if-no-files-found: ignore
 
-      - name: Cache Robolectric Android dependencies
-        uses: actions/cache@v4
+      - name: Restore Robolectric Android dependencies
+        id: robolectric-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/robolectric
-          key: robolectric-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
+          key: robolectric-prefetch-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
+
+      - name: Prepare Robolectric runtime dependencies
+        run: |
+          set -euo pipefail
+          for version in 9-robolectric-4913185-2-i7 13-robolectric-9030017-i7 14-robolectric-10818077-i7; do
+            artifact=android-all-instrumented
+            dir="$HOME/.m2/repository/org/robolectric/$artifact/$version"
+            mkdir -p "$dir"
+            base="https://repo.maven.apache.org/maven2/org/robolectric/$artifact/$version/$artifact-$version"
+            for ext in pom jar; do
+              file="$dir/$artifact-$version.$ext"
+              if [ -s "$file" ] && [ -s "$file.sha512" ] && (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512")" "$(basename "$file")" | sha512sum -c --status); then
+                continue
+              fi
+              curl --fail --silent --show-error --location --retry 8 --retry-all-errors --retry-max-time 600 --connect-timeout 30 --max-time 300 "$base.$ext.sha512" -o "$file.sha512.tmp"
+              curl --fail --silent --show-error --location --retry 8 --retry-all-errors --retry-max-time 600 --connect-timeout 30 --max-time 300 "$base.$ext" -o "$file.tmp"
+              (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512.tmp")" "$(basename "$file.tmp")" | sha512sum -c -)
+              mv "$file.tmp" "$file"
+              mv "$file.sha512.tmp" "$file.sha512"
+            done
+          done
+
+      - name: Save prepared Robolectric dependencies
+        if: steps.robolectric-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: ${{ steps.robolectric-cache.outputs.cache-primary-key }}
 
       - name: Unit tests
         id: unit-tests
