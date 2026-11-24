@@ -59,4 +59,23 @@ class GamePatchTest {
             GamePatchStore.apply(root, "../game.ini", byteArrayOf(), byteArrayOf(), backups)
         }
     }
+    @Test fun discoversPersistedBackupAndRejectsTruncatedRecord() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val backup = GamePatchStore.apply(root, file.name, "x=1".toByteArray(), "x=2".toByteArray(), backups)
+        assertEquals(backup, GamePatchStore.findMatchingBackup(root, file.name, backups))
+        java.io.RandomAccessFile(backup, "rw").use { it.setLength(it.length() - 1) }
+        assertNull(GamePatchStore.findMatchingBackup(root, file.name, backups))
+        assertEquals("x=2", file.readText())
+    }
+
+    @Test fun ignoresBackupAfterExternalChange() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        GamePatchStore.apply(root, file.name, "x=1".toByteArray(), "x=2".toByteArray(), backups)
+        file.writeText("x=3")
+        assertNull(GamePatchStore.findMatchingBackup(root, file.name, backups))
+    }
 }
