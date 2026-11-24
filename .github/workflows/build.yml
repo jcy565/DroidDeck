@@ -653,6 +653,12 @@ jobs:
           path: app/src/main/rust/stores/Cargo.lock
           if-no-files-found: ignore
 
+      - name: Cache Robolectric Android dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
+
       - name: Unit tests
         id: unit-tests
         env:
