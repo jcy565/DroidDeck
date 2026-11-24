@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.droiddeck.launcher.session.SessionState
+import com.droiddeck.launcher.compatibility.GameplayBudget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -92,7 +93,16 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     preview = null
                     val input = command.trim()
                     if (log && (input.isEmpty() || listOf("분석", "오류", "검은", "원인").any { it in input })) {
-                        message = withContext(Dispatchers.IO) { LocalGameAdvisor.diagnose(LocalGameAdvisor.decode(GamePatchStore.readLog(file))) }
+                        message = withContext(Dispatchers.IO) {
+                            if (!GameplayBudget.allowsOptionalAnalysis(context)) {
+                                "게임 실행 중이거나 메모리 상태가 충분하지 않아 로그 분석을 보류합니다. 세션 종료 후 다시 시도하세요."
+                            } else {
+                                val bytes = GamePatchStore.readLog(file)
+                                if (!GameplayBudget.allowsOptionalAnalysis(context)) {
+                                    "실행 상태 또는 메모리 상태가 변경되어 분석을 보류합니다."
+                                } else LocalGameAdvisor.diagnose(LocalGameAdvisor.decode(bytes))
+                            }
+                        }
                     } else if (config && (input.isEmpty() || listOf("720", "900", "균형", "30", "배터리", "최적화", "해상도").any { it in input })) {
                         preview = LocalGameAdvisor.optimize(original(), input)
                         message = "설정 한 그룹의 비교 계획입니다. 적용 후 같은 장면에서 측정하세요."
