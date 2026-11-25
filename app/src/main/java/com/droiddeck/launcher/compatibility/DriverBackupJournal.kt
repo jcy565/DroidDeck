@@ -21,6 +21,14 @@ internal object DriverBackupJournal {
         check(p.edit().putString(KEY, json.toString()).commit()) { "Backup persistence failed" }
     }
 
+    /** Read-only recovery eligibility; never writes driver settings. */
+    @Synchronized fun canReviewRestore(context: Context, applied: DriverSettingsSnapshot.Snapshot): Boolean {
+        val baseline = load(context) ?: return false
+        return GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE) &&
+            DriverSettingsSnapshot.changed(baseline, applied).isNotEmpty() &&
+            DriverSettingsSnapshot.matches(context, applied)
+    }
+
     @Synchronized fun load(context: Context): DriverSettingsSnapshot.Snapshot? {
         val raw = prefs(context).getString(KEY, null) ?: return null
         val json = JSONObject(raw)
