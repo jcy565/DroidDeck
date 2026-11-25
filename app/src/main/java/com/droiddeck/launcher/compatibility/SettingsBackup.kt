@@ -18,6 +18,7 @@ internal object SettingsBackup {
     data class ReviewEntry(
         val key: String, val status: ReviewStatus, val review: RecoveryReview?,
         val archiveOccupied: Boolean,
+        val archived: RecoveryReview?,
     )
 
     private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
@@ -122,8 +123,11 @@ internal object SettingsBackup {
                 recordFields.any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
                 else -> ReviewStatus.NO_BACKUP
             }
-            ReviewEntry(key, status, review,
-                archiveFields.any { all.containsKey(archivePrefix(key) + it) })
+            val archive = archivePrefix(key)
+            val archiveOccupied = archiveFields.any { all.containsKey(archive + it) }
+            val archived = if (archiveOccupied) readReview(key, all, archive, archive + "current")
+                ?.takeIf { it.recordId != null } else null
+            ReviewEntry(key, status, review, archiveOccupied, archived)
         }
     }
 
@@ -194,6 +198,7 @@ internal object SettingsBackup {
     fun archivedReview(context: Context, key: String): RecoveryReview? {
         val archive = archivePrefix(key)
         return readReview(key, prefs(context).all, archive, archive + "current")
+            ?.takeIf { it.recordId != null }
     }
 
     @Synchronized
