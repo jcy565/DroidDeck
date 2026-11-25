@@ -1,15 +1,18 @@
 package com.droiddeck.launcher.compatibility
 
+import android.content.ComponentCallbacks2
 import org.junit.Assert.*
 import org.junit.Test
 
 class SmartMemoryTest {
     @Test fun releasesOnlyUnderPressureWhileIdle() {
-        for (level in listOf(10, 15, 40, 60, 80)) {
+        for (level in listOf(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW, ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            ComponentCallbacks2.TRIM_MEMORY_BACKGROUND, ComponentCallbacks2.TRIM_MEMORY_MODERATE,
+            ComponentCallbacks2.TRIM_MEMORY_COMPLETE)) {
             assertTrue(SmartMemory.shouldRelease(level, true))
             assertFalse(SmartMemory.shouldRelease(level, false))
         }
-        for (level in listOf(0, 5, 20)) assertFalse(SmartMemory.shouldRelease(level, true))
+        for (level in listOf(0, ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE, ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)) assertFalse(SmartMemory.shouldRelease(level, true))
     }
 
     @Test fun stoppedScanDoesNotContinueCounting() {
