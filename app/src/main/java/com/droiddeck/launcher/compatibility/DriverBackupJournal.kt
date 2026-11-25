@@ -19,6 +19,7 @@ internal object DriverBackupJournal {
         check(DriverSettingsSnapshot.matches(context, expected)) { "Driver settings changed" }
         val json = JSONObject()
         expected.values.forEach { (key, value) -> json.put(key, value ?: JSONObject.NULL) }
+        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         check(p.edit().putString(KEY, json.toString()).commit()) { "Backup persistence failed" }
     }
 
@@ -33,6 +34,7 @@ internal object DriverBackupJournal {
         check(DriverSettingsSnapshot.matches(context, expected)) { "Driver settings changed" }
         val json = JSONObject()
         expected.values.forEach { (key, value) -> json.put(key, value ?: JSONObject.NULL) }
+        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         check(p.edit().putString(APPLIED, json.toString()).commit()) { "Applied snapshot persistence failed" }
     }
 
