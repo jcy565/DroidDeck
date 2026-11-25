@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_wait_driver_write">GPU 드라이버 변경이 끝난 후 다시 실행해 주세요.</string>
+</resources>
