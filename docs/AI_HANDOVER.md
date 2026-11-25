@@ -37,3 +37,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Driver journal tests
 2a53b9e4416956091ea56bed57185300fdaafb6b adds six Robolectric tests: empty journal, exact nullable baseline and change detection, duplicate, stale, unapproved, incomplete journal. Written only; no build or execution. Next: applied-state tracking, conflict-safe recovery and auto-job coordination. User's '다음' means perform actual next code task and checkpoint, not merely describe plans.
+
+## Applied driver record
+90a829e904d26f41a572e297caf3ad85fdccb8ee persists a separately approved applied snapshot and requires it for recovery review. e5de498d702be3fdf6504765e70692af251961b2 adds two regression tests for conflicts, approval and duplicate records. Tests not run; no build. No driver writes or restoration enabled. External writers and session/auto-job races remain. Next: coordinate driver jobs and session lifecycle before implementing actual restore; check malformed journal handling and verify tests in CI.
