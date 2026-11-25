@@ -593,11 +593,26 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         }
     }
 
+    private fun driverWritesAllowed(): Boolean =
+        com.droiddeck.launcher.compatibility.GameplayBudget.allows(
+            com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)
+
+    private fun allowManualDriverWrite(): Boolean {
+        if (driverWritesAllowed()) return true
+        android.widget.Toast.makeText(activity,
+            activity.getString(R.string.drivers_auto_waits_for_session),
+            android.widget.Toast.LENGTH_LONG).show()
+        return false
+    }
+
     fun importDriver(uri: Uri, linux: Boolean?) {
+        if (!allowManualDriverWrite()) return
+        val expected = com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.capture(activity)
         val name = activity.displayNameOf(uri)
         Thread({
             var bundle: DriverBundle.Bundle? = null
             val problem = try {
+                check(driverWritesAllowed()) { activity.getString(R.string.drivers_auto_waits_for_session) }
                 when {
                     DriverBundle.isBundle(activity, uri) -> bundle = DriverBundle.install(activity, uri)
                     linux == true -> LinuxVulkanDriverManager(activity).installDriver(uri, name)
@@ -620,7 +635,10 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 activity.getString(R.string.drivers_import_failed, e.message)
             }
             ui.post {
-                val done = bundle?.let { useBundle(it) }
+                val done = bundle?.takeIf {
+                    problem == null && driverWritesAllowed() &&
+                        com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.matches(activity, expected)
+                }?.let { useBundle(it) }
                     ?: name?.let { activity.getString(R.string.comp_imported, it) } ?: activity.getString(R.string.drivers_imported_unnamed)
                 android.widget.Toast.makeText(
                     activity, problem ?: done,
@@ -632,6 +650,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     }
 
     fun selectDriver(id: String, linux: Boolean) {
+        if (!allowManualDriverWrite()) return
         if (!linux && id == TurnipDriver.AUTO) {
             DriverBundle.selectDisplay(activity, id)
             pairModeOpen = false
@@ -662,6 +681,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     }
 
     fun deleteDriver(id: String, linux: Boolean) {
+        if (!allowManualDriverWrite()) return
         val bundle = DriverBundle.containing(activity, id, linux)
         if (bundle != null) {
             DriverBundle.remove(activity, bundle)
