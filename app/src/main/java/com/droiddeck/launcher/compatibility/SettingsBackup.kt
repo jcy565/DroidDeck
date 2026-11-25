@@ -36,6 +36,22 @@ internal object SettingsBackup {
         return "ai.archive.$key."
     }
 
+    // A revision is distinct from a backup ID: it also tracks normal writes
+    // before any backup has been created. Missing means an untouched key.
+    private fun revisionKey(key: String): String {
+        require(key in supportedKeys)
+        return "ai.revision.$key"
+    }
+
+    private fun revision(context: Context, key: String): String? =
+        prefs(context).getString(revisionKey(key), null)
+
+    data class PreviewSnapshot(val raw: String?, val effective: String, val revision: String?)
+
+    @Synchronized
+    fun capturePreview(context: Context, key: String, effective: () -> String): PreviewSnapshot =
+        PreviewSnapshot(raw(context, key), effective(), revision(context, key))
+
     private fun <T> withAdmission(action: () -> T): T {
         val lease = SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.DRIVER_WRITE) {
             GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)
@@ -53,6 +69,7 @@ internal object SettingsBackup {
 
     @Synchronized
     fun apply(context: Context, key: String, expectedRaw: String?, proposed: String,
+        expectedPreview: PreviewSnapshot? = null,
         verifyBefore: () -> Boolean = { true }): RecoveryReview = withAdmission {
         val p = prefs(context)
         val b = prefix(key)
@@ -60,10 +77,13 @@ internal object SettingsBackup {
         require(expectedRaw != proposed)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         check(recordFields.none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
+        check(expectedPreview == null || (expectedPreview.raw == expectedRaw &&
+            expectedPreview.revision == revision(context, key))) { "미리보기 이후 설정이 변경되었습니다." }
         check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
         val recordId = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
             .putString(b + "id", recordId)
+            .putString(revisionKey(key), UUID.randomUUID().toString())
             .putBoolean(b + "present", expectedRaw != null)
         if (expectedRaw != null) e.putString(b + "before", expectedRaw)
         else e.remove(b + "before")
@@ -97,6 +117,7 @@ internal object SettingsBackup {
         editor: android.content.SharedPreferences.Editor) {
         if (key !in supportedKeys || all[key] == value) return
         val b = prefix(key)
+        editor.putString(revisionKey(key), UUID.randomUUID().toString())
         if (recordFields.any { all.containsKey(b + it) }) editor.putBoolean(b + "invalidated", true)
     }
 
@@ -235,6 +256,7 @@ internal object SettingsBackup {
             else e.putString(key, before)
         }
         recordFields.forEach { e.remove(b + it) }
+        e.putString(revisionKey(key), UUID.randomUUID().toString())
         check(e.commit()) { "복구 저장 실패: 현재 상태를 다시 확인하세요." }
     }
 }
