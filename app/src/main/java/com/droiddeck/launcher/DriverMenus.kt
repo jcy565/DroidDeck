@@ -271,7 +271,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     fun ensureAuto(force: Boolean) {
         mode = SessionPrefs.gpuDriverMode(activity)
         if (mode != SessionPrefs.GPU_DRIVERS_AUTO || pairBusy != null || releaseChecking) return
-        if (SessionState.running) {
+        if (!driverWritesAllowed()) {
             if (force) autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
             return
         }
@@ -692,25 +692,35 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
 
     fun deleteDriver(id: String, linux: Boolean) {
         if (!allowManualDriverWrite()) return
-        val bundle = DriverBundle.containing(activity, id, linux)
-        if (bundle != null) {
-            DriverBundle.remove(activity, bundle)
-            TurnipReleases.forget(activity, bundle.id)
-            android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_deleted_bundle, bundle.label), android.widget.Toast.LENGTH_SHORT).show()
-            refreshDrivers()
+        val gate = com.droiddeck.launcher.compatibility.SessionDriverGate.shared
+        val lease = gate.tryAcquire(com.droiddeck.launcher.compatibility.SessionDriverGate.Kind.DRIVER_WRITE) { driverWritesAllowed() }
+        if (lease == null) {
+            android.widget.Toast.makeText(activity,
+                activity.getString(R.string.session_wait_driver_write),
+                android.widget.Toast.LENGTH_LONG).show()
             return
         }
-        if (linux) {
-            LinuxVulkanDriverManager(activity).removeDriver(id)
-            if (SessionPrefs.linuxDriver(activity) == id) SessionPrefs.setLinuxDriver(activity, "")
-        } else {
-            val td = TurnipDriver(activity)
-            if (id in TurnipDriver.BUNDLED) td.hideBundled(id) else td.remove(id)
-            if (SessionPrefs.androidDriver(activity) == id) SessionPrefs.setAndroidDriver(activity, TurnipDriver.AUTO)
+        lease.use {
+            val bundle = DriverBundle.containing(activity, id, linux)
+            if (bundle != null) {
+                DriverBundle.remove(activity, bundle)
+                TurnipReleases.forget(activity, bundle.id)
+                android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_deleted_bundle, bundle.label), android.widget.Toast.LENGTH_SHORT).show()
+                refreshDrivers()
+                return
+            }
+            if (linux) {
+                LinuxVulkanDriverManager(activity).removeDriver(id)
+                if (SessionPrefs.linuxDriver(activity) == id) SessionPrefs.setLinuxDriver(activity, "")
+            } else {
+                val td = TurnipDriver(activity)
+                if (id in TurnipDriver.BUNDLED) td.hideBundled(id) else td.remove(id)
+                if (SessionPrefs.androidDriver(activity) == id) SessionPrefs.setAndroidDriver(activity, TurnipDriver.AUTO)
+            }
+            TurnipReleases.forget(activity, id)
+            android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_deleted, id), android.widget.Toast.LENGTH_SHORT).show()
+            refreshDrivers()
         }
-        TurnipReleases.forget(activity, id)
-        android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_deleted, id), android.widget.Toast.LENGTH_SHORT).show()
-        refreshDrivers()
     }
 
     fun refreshReleaseRows() {
