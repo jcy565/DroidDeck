@@ -332,4 +332,28 @@ class SettingsBackupTest {
         assertEquals("preserve", prefs.getString("ai.archive.$key.before", null))
         assertEquals(approved, SettingsBackup.review(context, key))
     }
+
+    @Test fun aggregateReviewSeparatesArchiveFromNewPendingRecord() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, first, true)
+        val next = SettingsBackup.apply(context, key, "1280x720", "1600x900")
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(next, entry.review)
+        assertEquals(first, entry.archived)
+        assertTrue(entry.archiveOccupied)
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun malformedArchiveIsVisibleButNeverReturnedAsValidReview() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, first, true)
+        prefs.edit().remove("ai.archive.$key.id").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(before, prefs.all)
+    }
 }
