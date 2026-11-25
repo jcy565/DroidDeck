@@ -66,7 +66,12 @@ internal object SettingsBackup {
         if (!present && all.containsKey(b + "before")) return null
         if (key == "bridgeProtonDxvk" && before != null && before !in setOf("true", "false")) return null
         if (before == applied) return null
-        val current = try { raw(context, key) } catch (_: ClassCastException) { return null }
+        val value = all[key]
+        val current = when {
+            !all.containsKey(key) -> null
+            key == "bridgeProtonDxvk" -> (value as? Boolean ?: return null).toString()
+            else -> value as? String ?: return null
+        }
         return RecoveryReview(key, before, applied, current)
     }
 
