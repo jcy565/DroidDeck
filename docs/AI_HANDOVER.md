@@ -31,3 +31,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Driver group snapshot
 6fa5e4cda90a33c200bce297ca4414ecc62bfb63 adds read-only DriverSettingsSnapshot for exact nullable linuxDriver/androidDriver/gpuDriverMode and legacy linuxDriver.steam/desktop keys. Verified DriverBundle.select changes both halves, selectDisplay may clear Linux, DriverMenus.setMode(auto=true) can trigger ensureAuto and further changes. Snapshot does not capture installed files/live compositor/auto jobs; no driver writes or restore enabled. Next: persistent group journal, conflict checks and tests; restrict experiments until auto-job coordination exists. Not built/tested.
+
+## Persistent driver baseline
+1ee4b4bff3a5374f2cb0413e8436fef866246c52 adds DriverBackupJournal save/load using private preferences and synchronous commit, approval, idle gate, stale snapshot and duplicate checks, exact nullable values. No restore or driver writes enabled. Not tested or built; session/auto-job races remain. Next: journal tests, applied-state tracking and coordinated restore.
