@@ -19,7 +19,7 @@ internal object DroidDeckSettingsTransaction {
         when (change.setting) {
             DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION -> {
                 require(change.scope in setOf("steam", "desktop"))
-                require(panel.first > 0 && panel.second > 0)
+                require(panel.first > 0 && panel.second > 0 && change.panel == panel)
                 require(change.proposed in setOf("1280x720", "1600x900"))
             }
             DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE -> {
@@ -43,11 +43,10 @@ internal object DroidDeckSettingsTransaction {
         require(approved)
         validate(change, panel)
         require(change.before != change.proposed)
-        check(current(context, change, panel) == change.before) { "설정이 변경되었습니다. 다시 미리보세요." }
         val key = key(change)
-        val raw = SettingsBackup.raw(context, key)
-        check(current(context, change, panel) == change.before)
-        val recovery = SettingsBackup.apply(context, key, raw, change.proposed)
+        val recovery = SettingsBackup.apply(context, key, change.rawBefore, change.proposed) {
+            current(context, change, panel) == change.before
+        }
         check(current(context, change, panel) == change.proposed) { "적용 상태를 확인할 수 없습니다." }
         return Receipt(change, panel, recovery)
     }
