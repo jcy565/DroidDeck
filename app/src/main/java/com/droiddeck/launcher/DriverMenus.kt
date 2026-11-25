@@ -581,16 +581,25 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 activity.getString(R.string.drivers_auto_waits_for_session)
             }
             val uri = Uri.fromFile(file)
-            val id = when {
-                asset.bundle -> DriverBundle.install(activity, uri).id
-                asset.linux -> LinuxVulkanDriverManager(activity).installDriver(uri, asset.name)
-                else -> TurnipDriver(activity).installFromZip(uri, asset.name)
+            return withDriverFileWrite {
+                val id = when {
+                    asset.bundle -> DriverBundle.install(activity, uri).id
+                    asset.linux -> LinuxVulkanDriverManager(activity).installDriver(uri, asset.name)
+                    else -> TurnipDriver(activity).installFromZip(uri, asset.name)
+                }
+                TurnipReleases.recordDownload(activity, asset, id)
+                id
             }
-            TurnipReleases.recordDownload(activity, asset, id)
-            return id
         } finally {
             file?.let { com.droiddeck.launcher.core.FileUtils.delete(it) }
         }
+    }
+
+    private fun <T> withDriverFileWrite(action: () -> T): T {
+        val gate = com.droiddeck.launcher.compatibility.SessionDriverGate.shared
+        val lease = gate.tryAcquire(com.droiddeck.launcher.compatibility.SessionDriverGate.Kind.DRIVER_WRITE) { driverWritesAllowed() }
+            ?: throw IllegalStateException(activity.getString(R.string.drivers_auto_waits_for_session))
+        return lease.use { action() }
     }
 
     private fun driverWritesAllowed(): Boolean =
@@ -612,8 +621,8 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         Thread({
             var bundle: DriverBundle.Bundle? = null
             val problem = try {
-                check(driverWritesAllowed()) { activity.getString(R.string.drivers_auto_waits_for_session) }
-                when {
+                withDriverFileWrite {
+                    when {
                     DriverBundle.isBundle(activity, uri) -> bundle = DriverBundle.install(activity, uri)
                     linux == true -> LinuxVulkanDriverManager(activity).installDriver(uri, name)
                     linux == false -> TurnipDriver(activity).installFromZip(uri, name)
@@ -625,6 +634,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                         } catch (runtime: IllegalArgumentException) {
                             throw IllegalArgumentException(activity.getString(R.string.drivers_not_a_driver))
                         }
+                    }
                     }
                 }
                 null
