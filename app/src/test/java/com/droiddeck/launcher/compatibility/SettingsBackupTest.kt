@@ -244,4 +244,36 @@ class SettingsBackupTest {
         }
         assertFalse(prefs.contains(key))
     }
+
+    @Test fun ordinaryResolutionChangesInvalidateApprovalEvenAfterReturningToAppliedValue() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        SettingsBackup.writeNormalResolution(context, "steam", "1280x720")
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(SettingsBackup.ReviewStatus.CONFLICT, entry.status)
+        assertTrue(requireNotNull(entry.review).invalidated)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, approved, true)
+        }
+        assertEquals("1280x720", SettingsBackup.raw(context, key))
+    }
+
+    @Test fun ordinaryBridgeChangesInvalidateApprovalEvenAfterReturningToAppliedValue() {
+        val bridge = "bridgeProtonDxvk"
+        val approved = SettingsBackup.apply(context, bridge, null, "true")
+        SettingsBackup.writeNormalBridge(context, false)
+        SettingsBackup.writeNormalBridge(context, true)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, approved, true)
+        }
+        assertTrue(requireNotNull(SettingsBackup.review(context, bridge)).invalidated)
+    }
+
+    @Test fun sameValueNormalWriteKeepsApproval() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1280x720")
+        assertEquals(approved, SettingsBackup.review(context, key))
+        SettingsBackup.restoreReviewed(context, approved, true)
+        assertFalse(prefs.contains(key))
+    }
 }
