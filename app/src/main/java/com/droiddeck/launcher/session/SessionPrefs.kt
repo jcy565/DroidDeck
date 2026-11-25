@@ -881,7 +881,7 @@ object SessionPrefs {
     fun bridgeProtonDxvk(context: Context): Boolean = prefs(context).getBoolean("bridgeProtonDxvk", false)
 
     fun setBridgeProtonDxvk(context: Context, on: Boolean) {
-        prefs(context).edit().putBoolean("bridgeProtonDxvk", on).apply()
+        com.droiddeck.launcher.compatibility.SettingsBackup.writeNormalBridge(context, on)
     }
 
     @JvmStatic
@@ -1069,7 +1069,7 @@ object SessionPrefs {
             val size = requireNotNull(parseResolution(choice)) { "Invalid resolution" }
             "${size.first}x${size.second}"
         }
-        prefs(context).edit().putString("displayResolution.$mode", value).apply()
+        com.droiddeck.launcher.compatibility.SettingsBackup.writeNormalResolution(context, mode, value)
     }
 
     fun fexPreset(context: Context): String = prefs(context).getString("fexPreset", DEFAULT_FEX_PRESET) ?: DEFAULT_FEX_PRESET
