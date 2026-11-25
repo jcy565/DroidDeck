@@ -43,3 +43,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Malformed driver journal handling
 1de4af1a10fa9463fd88d689ba9a103fb68ccd80 makes recovery review fail closed for malformed JSON, invalid key sets and unexpected types. 5249217f2f74eda117bc32d650a71dc5214b7ba2 adds two regression tests. Direct load remains strict for diagnostics. No tests run or build. Session/auto-job coordination still outstanding; no restore or driver writes enabled.
+
+## Session gate follow-up
+ d2b50327f0b6370dabf5d1d1b91126f92ef48a0c rechecks GameplayBudget immediately before baseline/applied journal persistence. Reviewed SessionState and SessionService running transitions; this narrows but does not eliminate the race. DriverMenus source path not resolved in this turn. No shared lifecycle lock or driver restore enabled. Next locate actual driver job implementation and coordinate lifecycle before enabling writes. Not compiled/tested.
