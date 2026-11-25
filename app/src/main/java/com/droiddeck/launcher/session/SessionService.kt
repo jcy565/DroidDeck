@@ -336,6 +336,22 @@ class SessionService : Service() {
             stopSession(0)
             return START_NOT_STICKY
         }
+        // SessionActivity normally publishes PREPARING before attaching the compositor.
+        // A direct service start must establish the same handoff before reading settings.
+        if (SessionState.phase == SessionPhase.IDLE || SessionState.phase == SessionPhase.FAILED) {
+            val gate = com.droiddeck.launcher.compatibility.SessionDriverGate.shared
+            val lease = gate.tryAcquire(com.droiddeck.launcher.compatibility.SessionDriverGate.Kind.SESSION)
+            if (lease == null) {
+                Toast.makeText(this, R.string.session_wait_driver_write, Toast.LENGTH_LONG).show()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
+            lease.use {
+                val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_STEAM
+                SessionEvents.begin(this, mode, SessionPaths.label(mode, intent?.getStringExtra(EXTRA_PROGRAM)))
+            }
+        }
         SessionState.mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_STEAM
         SessionState.fpsLimit = 0
         suspendPolicy = SessionPrefs.suspendPolicy(this, SessionState.mode)
