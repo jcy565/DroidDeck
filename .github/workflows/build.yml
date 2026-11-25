@@ -658,7 +658,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/robolectric
-          key: robolectric-prefetch-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
+          key: robolectric-prefetch-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
 
       - name: Prepare Robolectric runtime dependencies
         run: |
@@ -673,8 +673,14 @@ jobs:
               if [ -s "$file" ] && [ -s "$file.sha512" ] && (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512")" "$(basename "$file")" | sha512sum -c --status); then
                 continue
               fi
-              curl --fail --silent --show-error --location --retry 8 --retry-all-errors --retry-max-time 600 --connect-timeout 30 --max-time 300 "$base.$ext.sha512" -o "$file.sha512.tmp"
-              curl --fail --silent --show-error --location --retry 8 --retry-all-errors --retry-max-time 600 --connect-timeout 30 --max-time 300 "$base.$ext" -o "$file.tmp"
+              echo "Preparing $artifact:$version ($ext)"
+              download() {
+                local url="$1" dest="$2"
+                curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --retry-max-time 600 --connect-timeout 30 --max-time 300 "$url" -o "$dest" ||
+                  curl --fail --silent --show-error --location --retry 3 --retry-all-errors --retry-delay 15 --retry-max-time 300 --connect-timeout 30 --max-time 300 "${url/https:\/\/repo.maven.apache.org\/maven2/https:\/\/repo1.maven.org\/maven2}" -o "$dest"
+              }
+              download "$base.$ext.sha512" "$file.sha512.tmp"
+              download "$base.$ext" "$file.tmp"
               (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512.tmp")" "$(basename "$file.tmp")" | sha512sum -c -)
               mv "$file.tmp" "$file"
               mv "$file.sha512.tmp" "$file.sha512"
