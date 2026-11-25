@@ -16,6 +16,17 @@ internal object RuntimeSettingsPreview {
         SessionPrefs.fexPreset(context)
     )
 
+    /** Uses the existing selector's local rows, never its download catalog.
+     * Default/automatic IDs are excluded from explicit driver experiments.
+     */
+    fun driverCandidates(state: com.droiddeck.launcher.ui.GpuDriversState,
+        setting: Setting): Set<String> = when (setting) {
+        Setting.LINUX_DRIVER -> state.linuxRows.map { it.id }.filter { it.isNotBlank() }.toSet()
+        Setting.ANDROID_DRIVER -> state.androidRows.map { it.id }
+            .filter { it.isNotBlank() && it != com.droiddeck.launcher.gpu.TurnipDriver.AUTO }.toSet()
+        Setting.FEX_PRESET -> emptySet()
+    }
+
     fun preview(snapshot: Snapshot, setting: Setting, proposed: String,
         supportedIds: Set<String>): Change {
         require(proposed.isNotBlank() && proposed.length <= 256)
