@@ -58,3 +58,6 @@ ae71be7dda01918774a24964fd471705f8d6b318 checks GameplayBudget at pair install e
 
 ## Manual driver guards
 7393ca1dcbfee9f3da51ee77e602985496026f76 guards import entry and worker, manual select/delete, and skips imported bundle auto-selection when session busy or exact driver snapshot changed. No shared lifecycle lock; import may still race with session start. No tests/build executed. Next add regression coverage and review remaining writers. User requests explicit actionable notice when tools are blocked.
+
+## Remaining driver entry guards
+165d6111825c713ddd7f270136547be9b5673a65 adds existing manual write gate to chooseMode, setMode, selectPair, updatePair and downloadReleaseDriver. Prevents mode mutation before pair install guard and blocks release download entry during busy sessions. No shared lifecycle lock; nested guards can still race. Tests not added or run, no build. Next regression coverage and lifecycle coordination.
