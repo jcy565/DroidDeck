@@ -108,4 +108,26 @@ class DriverBackupJournalTest {
         journal.edit().putString("applied", "{}").commit()
         assertFalse(DriverBackupJournal.canReviewRestore(context, snapshot()))
     }
+
+    @Test fun activeSessionLeasePreventsJournalWrites() {
+        val gate = SessionDriverGate.shared
+        val before = snapshot()
+        requireNotNull(gate.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
+            assertThrows(IllegalStateException::class.java) {
+                DriverBackupJournal.save(context, before, true)
+            }
+        }
+        assertNull(DriverBackupJournal.load(context))
+        DriverBackupJournal.save(context, before, true)
+        settings.edit().putString("linuxDriver", "new").commit()
+        val applied = snapshot()
+        requireNotNull(gate.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
+            assertThrows(IllegalStateException::class.java) {
+                DriverBackupJournal.recordApplied(context, applied, true)
+            }
+        }
+        assertNull(DriverBackupJournal.loadApplied(context))
+        DriverBackupJournal.recordApplied(context, applied, true)
+        assertEquals(applied, DriverBackupJournal.loadApplied(context))
+    }
 }
