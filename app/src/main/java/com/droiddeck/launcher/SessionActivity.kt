@@ -693,7 +693,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 com.droiddeck.launcher.compatibility.SessionDriverGate.Kind.SESSION)
             if (lease == null) {
                 runtimeRemovalBlocked = true
-                android.widget.Toast.makeText(this, R.string.main_wait_desktop_install, android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, R.string.session_wait_driver_write, android.widget.Toast.LENGTH_LONG).show()
                 finish()
                 return
             }
