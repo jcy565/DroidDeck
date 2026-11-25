@@ -32,6 +32,7 @@ class PackDownloadsTest(unittest.TestCase):
         tool.write_text('#!/usr/bin/env python3\nimport json,os,shutil,sys\n'
                         'args=sys.argv[1:]\n'
                         'with open(os.environ["CURL_LOG"],"a") as f: f.write(json.dumps(args)+"\\n")\n'
+                        'if args[-1] == os.environ.get("FAIL_URL"): sys.exit(22)\n'
                         'shutil.copyfile(os.environ["REMOTE"],args[args.index("-o")+1])\n')
         tool.chmod(0o755)
         self.env = dict(os.environ, DROIDDECK_PACK_CACHE=str(self.cache), CURL_LOG=str(self.log),
@@ -88,6 +89,30 @@ class PackDownloadsTest(unittest.TestCase):
         self.assertIn('--retry-all-errors', arguments)
         self.assertIn('--max-time', arguments)
         self.assertIn('--retry-max-time', arguments)
+
+    def test_maven_transport_failure_uses_official_alternate(self):
+        primary = 'https://repo1.maven.org/maven2/example/input.aar'
+        alternate = 'https://repo.maven.apache.org/maven2/example/input.aar'
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL=primary))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([json.loads(line)[-1] for line in self.log.read_text().splitlines()],
+                         [primary, alternate])
+        self.assertEqual(self.destination.read_bytes(), b'verified input')
+
+    def test_maven_fallback_still_rejects_bad_checksum(self):
+        primary = 'https://repo.maven.apache.org/maven2/example/input.aar'
+        self.remote.write_bytes(b'tampered input')
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL=primary))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(list(self.cache.iterdir()), [])
+
+    def test_unrelated_endpoint_failure_does_not_fallback(self):
+        primary = 'https://example.test/pinned'
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL=primary))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.log.read_text().splitlines()), 1)
+        self.assertFalse(self.destination.exists())
 
     def test_connection_reset_retries_then_verifies_real_download(self):
         if not shutil.which('curl'):
