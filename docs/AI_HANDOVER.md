@@ -19,3 +19,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Backup regression tests
 07939870bdf007a4d95e0a67d4f545c53beab82f adds seven Robolectric SDK28 tests for absent key, legacy value, boolean type, stale preview, duplicate backup, conflicting restore and unapproved restore. Written only; not run. Next: recovery UI, session race protection and supported driver/runtime preview. Overall progress estimate ~60%, subjective; device verification still zero.
+
+## Runtime preview
+741ea8efe63d5e791e49cb3053194c83e0ac9a66 adds RuntimeSettingsPreview.kt using verified SessionPrefs Linux/Android driver and FEX getters. Candidate membership is caller-supplied, not yet connected to installed component inventory. FEX setter publishes GameEnvironmentStore, so raw preference writes are not appropriate. Read-only, untested. Next: locate actual component selector, bind candidate lists and add tests; recovery UI and session race protection remain. No new build.
