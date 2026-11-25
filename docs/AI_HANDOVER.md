@@ -52,3 +52,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Pair installation completion guard
 3f2482a1d5b817a0a6770915feaa259f95d8820d captures expected mode and both driver IDs before installPair and rejects stale selection or busy session at completion for manual and auto selection. Does not prevent installation/replacement of files during a session, ABA changes or races after final check. Next review installAsset replacement and shared lifecycle coordination; add regression tests. No build/tests executed; restore remains disabled.
+
+## Driver file installation guard
+ae71be7dda01918774a24964fd471705f8d6b318 checks GameplayBudget at pair install entry and after asset download before invoking file installers. Existing finally cleans downloaded temporary file. This narrows race but cannot prevent session starting during installation. Manual imports/deletion and shared lifecycle coordination remain. No regression tests added this turn; no build/tests executed. Next review those paths and add tests.
