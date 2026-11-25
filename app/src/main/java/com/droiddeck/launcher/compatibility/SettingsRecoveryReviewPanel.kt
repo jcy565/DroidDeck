@@ -61,6 +61,7 @@ internal fun SettingsRecoveryReviewPanel() {
                     SettingsBackup.ReviewStatus.NO_BACKUP -> "백업 없음"
                     SettingsBackup.ReviewStatus.INVALID_BACKUP -> "손상되거나 불완전한 기록"
                     SettingsBackup.ReviewStatus.CONFLICT -> "현재 값과 충돌: 복구 보류"
+                    SettingsBackup.ReviewStatus.LEGACY_BACKUP -> "이전 형식 백업: 조회만 가능"
                     SettingsBackup.ReviewStatus.READY -> "복구 검토 가능"
                 }
                 Text("$label: $status")
