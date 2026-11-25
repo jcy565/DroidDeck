@@ -65,10 +65,15 @@ internal fun SettingsRecoveryReviewPanel() {
                     SettingsBackup.ReviewStatus.READY -> "복구 검토 가능"
                 }
                 Text("$label: $status")
-                if (entry.archiveOccupied) Text("이전 기록 보관됨: 덮어쓰기 금지")
+                fun display(value: String?): String = value?.take(100) ?: "저장된 값 없음"
                 entry.review?.let { review ->
-                    fun display(value: String?): String = value?.take(100) ?: "저장된 값 없음"
                     Text("이전: ${display(review.before)} / 적용: ${display(review.applied)} / 현재: ${display(review.current)}")
+                }
+                if (entry.archiveOccupied) {
+                    Text("이전 기록 보관됨: 덮어쓰기 금지")
+                    val archived = entry.archived
+                    if (archived == null) Text("보관 기록의 형식이 올바르지 않습니다. 원본은 유지합니다.")
+                    else Text("보관 당시 이전: ${display(archived.before)} / 적용: ${display(archived.applied)} / 현재: ${display(archived.current)}")
                 }
             }
         }
