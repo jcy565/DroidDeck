@@ -17,15 +17,22 @@ internal object SettingsBackup {
 
     data class ReviewEntry(
         val key: String, val status: ReviewStatus, val review: RecoveryReview?,
+        val archiveOccupied: Boolean,
     )
 
     private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
+    private val archiveFields = recordFields + "current"
     private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
 
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
     private fun prefix(key: String): String {
         require(key in supportedKeys)
         return "ai.backup.$key."
+    }
+
+    private fun archivePrefix(key: String): String {
+        require(key in supportedKeys)
+        return "ai.archive.$key."
     }
 
     private fun <T> withAdmission(action: () -> T): T {
@@ -115,12 +122,13 @@ internal object SettingsBackup {
                 recordFields.any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
                 else -> ReviewStatus.NO_BACKUP
             }
-            ReviewEntry(key, status, review)
+            ReviewEntry(key, status, review,
+                archiveFields.any { all.containsKey(archivePrefix(key) + it) })
         }
     }
 
-    private fun readReview(key: String, all: Map<String, *>): RecoveryReview? {
-        val b = prefix(key)
+    private fun readReview(key: String, all: Map<String, *>,
+        b: String = prefix(key), currentKey: String = key): RecoveryReview? {
         val applied = all[b + "applied"] as? String ?: return null
         if (!validProposed(key, applied)) return null
         val present = all[b + "present"] as? Boolean ?: return null
@@ -128,9 +136,9 @@ internal object SettingsBackup {
         if (!present && all.containsKey(b + "before")) return null
         if (key == "bridgeProtonDxvk" && before != null && before !in setOf("true", "false")) return null
         if (before == applied) return null
-        val value = all[key]
+        val value = all[currentKey]
         val current = when {
-            !all.containsKey(key) -> null
+            !all.containsKey(currentKey) -> null
             key == "bridgeProtonDxvk" -> (value as? Boolean ?: return null).toString()
             else -> value as? String ?: return null
         }
@@ -144,6 +152,48 @@ internal object SettingsBackup {
             all[b + "invalidated"] as? Boolean ?: return null
         } else false
         return RecoveryReview(key, before, applied, current, recordId, invalidated)
+    }
+
+    /** One immutable archive slot per key. Never overwrite an earlier archive.
+     * Retains the exact pending record and current value without changing the setting.
+     * The caller must obtain explicit approval, and invoke off the main thread. */
+    @Synchronized
+    fun keepCurrentAndArchive(context: Context, expected: RecoveryReview, approved: Boolean) {
+        require(approved)
+        withAdmission {
+            val key = expected.key
+            val p = prefs(context)
+            val all = p.all
+            val b = prefix(key)
+            val archive = archivePrefix(key)
+            val review = checkNotNull(readReview(key, all))
+            check(review.recordId != null && review == expected) { "복구 기록이 변경되었거나 이전 형식입니다." }
+            check(archiveFields.none { all.containsKey(archive + it) }) { "보관된 이전 기록이 있습니다." }
+            val e = p.edit()
+            for (field in recordFields) {
+                when (val value = all[b + field]) {
+                    null -> check(!all.containsKey(b + field))
+                    is String -> e.putString(archive + field, value)
+                    is Boolean -> e.putBoolean(archive + field, value)
+                    else -> error("잘못된 백업 형식")
+                }
+                e.remove(b + field)
+            }
+            when (val value = all[key]) {
+                null -> check(!all.containsKey(key))
+                is String -> e.putString(archive + "current", value)
+                is Boolean -> e.putBoolean(archive + "current", value)
+                else -> error("잘못된 현재 설정 형식")
+            }
+            check(e.commit()) { "백업 보관 실패: 현재 상태를 다시 확인하세요." }
+        }
+    }
+
+    /** Historical snapshot only, not eligible for automatic restoration. */
+    @Synchronized
+    fun archivedReview(context: Context, key: String): RecoveryReview? {
+        val archive = archivePrefix(key)
+        return readReview(key, prefs(context).all, archive, archive + "current")
     }
 
     @Synchronized
