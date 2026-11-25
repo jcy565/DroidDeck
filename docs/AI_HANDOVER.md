@@ -55,3 +55,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Driver file installation guard
 ae71be7dda01918774a24964fd471705f8d6b318 checks GameplayBudget at pair install entry and after asset download before invoking file installers. Existing finally cleans downloaded temporary file. This narrows race but cannot prevent session starting during installation. Manual imports/deletion and shared lifecycle coordination remain. No regression tests added this turn; no build/tests executed. Next review those paths and add tests.
+
+## Manual driver guards
+7393ca1dcbfee9f3da51ee77e602985496026f76 guards import entry and worker, manual select/delete, and skips imported bundle auto-selection when session busy or exact driver snapshot changed. No shared lifecycle lock; import may still race with session start. No tests/build executed. Next add regression coverage and review remaining writers. User requests explicit actionable notice when tools are blocked.
