@@ -196,4 +196,52 @@ class SettingsBackupTest {
         assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP, entry.status)
         assertNull(entry.review)
     }
+
+    @Test fun recreatedIdenticalBackupRejectsOldApproval() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.restoreReviewed(context, first, true)
+        val second = SettingsBackup.apply(context, key, null, "1280x720")
+        assertNotEquals(first.recordId, second.recordId)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, first, true)
+        }
+        assertEquals(second, SettingsBackup.review(context, key))
+        SettingsBackup.restoreReviewed(context, second, true)
+        assertFalse(prefs.contains(key))
+    }
+
+    @Test fun oldBackupRemainsVisibleButCannotBeRestored() {
+        prefs.edit().putString(key, "1280x720")
+            .putString("ai.backup.$key.applied", "1280x720")
+            .putBoolean("ai.backup.$key.present", false).commit()
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(SettingsBackup.ReviewStatus.LEGACY_BACKUP, entry.status)
+        val review = requireNotNull(entry.review)
+        assertNull(review.recordId)
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, review, true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun malformedRecordIdentityIsInvalid() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putString("ai.backup.$key.id", "invalid").commit()
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP,
+            SettingsBackup.reviewAll(context).single { it.key == key }.status)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restore(context, key, true)
+        }
+    }
+
+    @Test fun orphanedIdentityCannotBeOverwritten() {
+        prefs.edit().putString("ai.backup.$key.id", java.util.UUID.randomUUID().toString()).commit()
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP,
+            SettingsBackup.reviewAll(context).single { it.key == key }.status)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720")
+        }
+        assertFalse(prefs.contains(key))
+    }
 }
