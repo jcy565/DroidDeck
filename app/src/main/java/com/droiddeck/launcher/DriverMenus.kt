@@ -238,11 +238,13 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     )
 
     fun chooseMode(next: String) {
+        if (!allowManualDriverWrite()) return
         pairModeOpen = next == GPU_MODE_PAIR
         setMode(auto = next == GPU_MODE_AUTO, mix = next == GPU_MODE_MIX)
     }
 
     fun setMode(auto: Boolean, mix: Boolean = false) {
+        if (!allowManualDriverWrite()) return
         mode = when {
             auto -> SessionPrefs.GPU_DRIVERS_AUTO
             mix -> SessionPrefs.GPU_DRIVERS_MIX
@@ -452,6 +454,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     }
 
     fun selectPair(key: String) {
+        if (!allowManualDriverWrite()) return
         if (pairBusy != null) return
         val pair = DriverPairs.from(TurnipReleases.cached(activity)).firstOrNull { it.key == key && it.complete } ?: return
         pairModeOpen = true
@@ -461,6 +464,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
 
     /** A newer build of an installed open non-Adreno pair: replaced in place, still selected if it was. */
     fun updatePair(key: String) {
+        if (!allowManualDriverWrite()) return
         if (pairBusy != null) return
         val pair = DriverPairs.from(TurnipReleases.cached(activity)).firstOrNull { it.key == key && it.complete } ?: return
         val wasActive = pairRows.firstOrNull { it.key == key }?.active == true
@@ -752,6 +756,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     }
 
     fun downloadReleaseDriver(assetName: String) {
+        if (!allowManualDriverWrite()) return
         val asset = TurnipReleases.cached(activity)?.assets?.firstOrNull { it.name == assetName } ?: return
         if (releaseProgress.containsKey(assetName)) return
         releaseProgress[assetName] = 0
