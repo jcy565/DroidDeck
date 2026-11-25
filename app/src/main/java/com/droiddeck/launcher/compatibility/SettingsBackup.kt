@@ -11,9 +11,17 @@ internal object SettingsBackup {
         val matchesApplied: Boolean get() = current == applied
     }
 
+    enum class ReviewStatus { NO_BACKUP, INVALID_BACKUP, CONFLICT, READY }
+
+    data class ReviewEntry(
+        val key: String, val status: ReviewStatus, val review: RecoveryReview?,
+    )
+
+    private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
+
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
     private fun prefix(key: String): String {
-        require(key in setOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk"))
+        require(key in supportedKeys)
         return "ai.backup.$key."
     }
 
@@ -57,8 +65,28 @@ internal object SettingsBackup {
     /** Read a durable review after process recreation; malformed records fail closed. */
     @Synchronized
     fun review(context: Context, key: String): RecoveryReview? {
-        val b = prefix(key)
+        return readReview(key, prefs(context).all)
+    }
+
+    /** On-demand, bounded inspection of the three known keys only. No writes. */
+    @Synchronized
+    fun reviewAll(context: Context): List<ReviewEntry> {
         val all = prefs(context).all
+        return supportedKeys.map { key ->
+            val b = prefix(key)
+            val review = readReview(key, all)
+            val status = when {
+                review != null && review.matchesApplied -> ReviewStatus.READY
+                review != null -> ReviewStatus.CONFLICT
+                listOf("applied", "present", "before").any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
+                else -> ReviewStatus.NO_BACKUP
+            }
+            ReviewEntry(key, status, review)
+        }
+    }
+
+    private fun readReview(key: String, all: Map<String, *>): RecoveryReview? {
+        val b = prefix(key)
         val applied = all[b + "applied"] as? String ?: return null
         if (!validProposed(key, applied)) return null
         val present = all[b + "present"] as? Boolean ?: return null
