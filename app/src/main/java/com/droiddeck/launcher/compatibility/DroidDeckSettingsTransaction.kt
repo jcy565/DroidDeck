@@ -29,18 +29,13 @@ internal object DroidDeckSettingsTransaction {
         }
     }
 
-    private fun write(context: Context, change: DroidDeckSettingsPreview.Change, value: String) {
-        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) { "게임 세션을 종료하세요." }
-        when (change.setting) {
-            DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION ->
-                SessionPrefs.setResolutionChoice(context, change.scope, value)
-            DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE ->
-                SessionPrefs.setBridgeProtonDxvk(context, value.toBooleanStrict())
-        }
+    private fun key(change: DroidDeckSettingsPreview.Change): String = when (change.setting) {
+        DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION -> "displayResolution.${change.scope}"
+        DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE -> "bridgeProtonDxvk"
     }
 
-    /** Caller must obtain explicit approval. Receipt is not a durable backup.
-     * Serializes assistant calls only; other settings writers and session start may race.
+    /** Caller must obtain explicit approval and invoke off the main thread.
+     * Other settings writers and session start may still race.
      */
     @Synchronized
     fun apply(context: Context, change: DroidDeckSettingsPreview.Change,
@@ -49,7 +44,10 @@ internal object DroidDeckSettingsTransaction {
         validate(change, panel)
         require(change.before != change.proposed)
         check(current(context, change, panel) == change.before) { "설정이 변경되었습니다. 다시 미리보세요." }
-        write(context, change, change.proposed)
+        val key = key(change)
+        val raw = SettingsBackup.raw(context, key)
+        check(current(context, change, panel) == change.before)
+        SettingsBackup.apply(context, key, raw, change.proposed)
         check(current(context, change, panel) == change.proposed) { "적용 상태를 확인할 수 없습니다." }
         return Receipt(change, panel)
     }
@@ -60,7 +58,6 @@ internal object DroidDeckSettingsTransaction {
         val change = receipt.change
         validate(change, receipt.panel)
         check(current(context, change, receipt.panel) == change.proposed) { "현재 설정이 달라 복구를 보류합니다." }
-        write(context, change, change.before)
-        check(current(context, change, receipt.panel) == change.before) { "복구 상태를 확인할 수 없습니다." }
+        SettingsBackup.restore(context, key(change), approved)
     }
 }
