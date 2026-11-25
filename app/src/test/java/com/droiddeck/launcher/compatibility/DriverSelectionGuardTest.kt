@@ -103,4 +103,26 @@ class DriverSelectionGuardTest {
         SessionState.phase = SessionPhase.IDLE
         requireNotNull(gate.tryAcquire(driver, allowed)).close()
     }
+
+    @Test fun cancelledPreparationDoesNotAllowDriverWritesUntilInstallAndStopFlagsClear() {
+        val gate = SessionDriverGate()
+        val driver = SessionDriverGate.Kind.DRIVER_WRITE
+        val allowed = { GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE) }
+        SessionState.phase = SessionPhase.IDLE
+        SessionState.installing = "runtime"
+        SessionState.stopRequested = true
+        assertNull(gate.tryAcquire(driver, allowed))
+        SessionState.installing = null
+        assertNull(gate.tryAcquire(driver, allowed))
+        SessionState.stopRequested = false
+        requireNotNull(gate.tryAcquire(driver, allowed)).close()
+    }
+
+    @Test fun staleLegacyPreferenceAfterPreparationCancellationStillRejectsSelection() {
+        val expected = DriverSettingsSnapshot.capture(context)
+        SessionState.phase = SessionPhase.PREPARING
+        assertTrue(settings.edit().putString("linuxDriver.desktop", "legacy").commit())
+        SessionState.phase = SessionPhase.IDLE
+        assertFalse(DriverSettingsSnapshot.canCompleteSelection(context, expected))
+    }
 }
