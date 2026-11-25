@@ -687,9 +687,21 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             return
         }
         if (!SessionState.running && SessionState.phase in setOf(SessionPhase.IDLE, SessionPhase.FAILED)) {
-            val mode = intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM
-            SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
-            SessionEvents.begin(this, mode, SessionPaths.label(mode, intent.getStringExtra(SessionService.EXTRA_PROGRAM)))
+            // Reserve startup before PREPARING is visible to driver-write workers.
+            // Once published, the existing GameplayBudget phase check keeps them out.
+            val lease = com.droiddeck.launcher.compatibility.SessionDriverGate.shared.tryAcquire(
+                com.droiddeck.launcher.compatibility.SessionDriverGate.Kind.SESSION)
+            if (lease == null) {
+                runtimeRemovalBlocked = true
+                android.widget.Toast.makeText(this, R.string.main_wait_desktop_install, android.widget.Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
+            lease.use {
+                val mode = intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM
+                SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
+                SessionEvents.begin(this, mode, SessionPaths.label(mode, intent.getStringExtra(SessionService.EXTRA_PROGRAM)))
+            }
             SessionState.secondScreenAutoOpened = false
             SessionState.secondScreenProvisional = false
             SessionState.secondScreenAutomatic = false
