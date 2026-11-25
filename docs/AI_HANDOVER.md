@@ -10,3 +10,6 @@ Update this checkpoint after each substantive change, before usage runs low. Do 
 
 ## CI follow-up
 Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparation after APK packaging. Commit 19129156b920256b89908c14d9e14fd082576aad adds delayed retries and alternate Maven Central endpoint, retaining SHA-512 verification. Not tested or rebuilt. Next: review native settings apply/rollback and verify CI fix at next authorized build.
+
+## Native settings transaction
+01da23fa341c7162038ba954ab4465e7f778fa18 adds DroidDeckSettingsTransaction.kt for approved output resolution and Proton DXVK bridge changes, stale-value checks, session gate and in-memory rollback receipt. Not compiled or tested. Receipt is not durable; effective resolution restore may not reproduce absent/legacy preference state. Existing setters use apply(), and other writers/session start can race. No UI wiring. Next: durable exact preference snapshot, tests and approved UI integration before enabling writes.
