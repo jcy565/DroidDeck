@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.droiddeck.launcher.compatibility.GameplayBudget
+import kotlinx.coroutines.ensureActive
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -90,14 +92,21 @@ internal fun FilePropertiesDialog(
                         busy = true
                         scope.launch {
                             try {
-                                val r = withContext(Dispatchers.IO) { FolderUsage.inspect(file) }
+                                val r = withContext(Dispatchers.IO) {
+                                    check(GameplayBudget.allowsOptionalAnalysis(context)) { "게임 또는 메모리 상태 때문에 분석을 보류했습니다." }
+                                    FolderUsage.inspect(file) {
+                                        ensureActive()
+                                        check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN)) { "게임 상태가 바뀌어 분석을 중단했습니다." }
+                                    }
+                                }
                                 usage = buildString {
                                     append("파일 ${r.files}개 · ${FileOps.formatBytes(context, r.bytes)}")
                                     if (r.partial) append(" (부분 집계)")
                                     append("\n캐시·임시 파일 후보 ${FileOps.formatBytes(context, r.temporaryBytes)}")
                                     if (r.candidates.isNotEmpty()) append("\n이름과 크기가 같은 후보\n" + r.candidates.joinToString("\n"))
                                 }
-                            } catch (e: Exception) { usage = e.message ?: "폴더 분석 실패" }
+                            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                            catch (e: Exception) { usage = e.message ?: "폴더 분석 실패" }
                             finally { busy = false }
                         }
                     }) { Text("폴더 사용량 분석") }

@@ -1,5 +1,7 @@
 package com.droiddeck.launcher.ui
 
+import com.droiddeck.launcher.compatibility.OptimizationComparison
+import androidx.compose.material3.OutlinedTextField
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -20,27 +22,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 1) {
+private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE trial (id INTEGER PRIMARY KEY, game TEXT NOT NULL,
-            model TEXT NOT NULL, gpu TEXT, driver TEXT, proton TEXT, width INTEGER, height INTEGER,
+            model TEXT NOT NULL, scene TEXT, gpu TEXT, driver TEXT, proton TEXT, width INTEGER, height INTEGER,
             recorded INTEGER NOT NULL, frames INTEGER NOT NULL, fps REAL NOT NULL, p95 REAL NOT NULL)""")
     }
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        require(oldVersion == 1 && newVersion == 2)
+        db.execSQL("ALTER TABLE trial ADD COLUMN scene TEXT")
+    }
 
     fun record(values: ContentValues): String {
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val previous = db.rawQuery("SELECT fps, p95 FROM trial WHERE game=? AND model=? ORDER BY id DESC LIMIT 1",
-                arrayOf(values.getAsString("game"), values.getAsString("model"))).use {
-                if (it.moveToFirst()) format(it.getDouble(0), it.getDouble(1)) else null
+            val sample = OptimizationComparison.Sample(values.getAsString("game"), values.getAsString("model"),
+                values.getAsString("scene"), values.getAsInteger("width"), values.getAsInteger("height"),
+                values.getAsDouble("fps"), values.getAsDouble("p95"))
+            val previous = db.rawQuery("SELECT fps, p95 FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? ORDER BY id DESC LIMIT 1",
+                arrayOf(sample.gameId, sample.deviceId, sample.scene, sample.outputWidth.toString(), sample.outputHeight.toString())).use {
+                if (it.moveToFirst()) sample.copy(fps = it.getDouble(0), p95Ms = it.getDouble(1)) else null
             }
             db.insertOrThrow("trial", null, values)
             db.execSQL("DELETE FROM trial WHERE id <= (SELECT id FROM trial ORDER BY id DESC LIMIT 1 OFFSET 500)")
             db.setTransactionSuccessful()
-            return listOfNotNull(previous?.let { "이전  $it" },
-                "이번  " + format(values.getAsDouble("fps"), values.getAsDouble("p95"))).joinToString("\n")
+            return listOfNotNull(previous?.let { "이전  " + format(it.fps, it.p95Ms) },
+                "이번  " + format(sample.fps, sample.p95Ms),
+                previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it, sample)) } ?: "같은 장면과 출력 해상도의 첫 측정입니다.").joinToString("\n")
         } finally { db.endTransaction() }
     }
 
@@ -56,7 +65,10 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
         val scope = rememberCoroutineScope()
         var job by remember { mutableStateOf<Job?>(null) }
         var message by remember { mutableStateOf("") }
-        TextButton(onClick = {
+        var scene by remember { mutableStateOf("") }
+        OutlinedTextField(scene, { scene = it.take(80) }, enabled = job?.isActive != true,
+            label = { Text("비교할 장면 이름") }, singleLine = true)
+        TextButton(enabled = scene.isNotBlank(), onClick = {
             val current = job
             if (current?.isActive == true) {
                 current.cancel()
@@ -86,6 +98,7 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     samples.sort()
                     val values = ContentValues().apply {
                         put("game", game)
+                        put("scene", scene.trim())
                         put("model", Build.MODEL)
                         put("gpu", gpu)
                         put("driver", driver)

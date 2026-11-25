@@ -20,8 +20,11 @@ internal class GameCompatibilityService(context: Context) {
     }
 
     suspend fun report(gameId: String, limit: Int = 20): Report = withContext(Dispatchers.IO) {
+        check(GameplayBudget.allowsOptionalAnalysis(appContext)) { "게임 또는 메모리 상태 때문에 이력 분석을 보류합니다." }
         GameRunHistory(appContext).use { history ->
-            analyze(history.recent(gameId, limit))
+            val recent = history.recent(gameId, limit)
+            check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+            analyze(recent)
         }
     }
 

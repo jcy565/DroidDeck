@@ -9,7 +9,7 @@ internal object FolderUsage {
     data class Report(val files: Int, val bytes: Long, val temporaryBytes: Long,
                       val candidates: List<String>, val partial: Boolean)
 
-    fun inspect(root: File, limit: Int = 10000): Report {
+    fun inspect(root: File, limit: Int = 10000, checkpoint: () -> Unit = {}): Report {
         val start = root.toPath()
         require(Files.isDirectory(start, LinkOption.NOFOLLOW_LINKS))
         var visited = 0
@@ -20,6 +20,7 @@ internal object FolderUsage {
         val names = mutableMapOf<Pair<String, Long>, String>()
         val candidates = mutableListOf<String>()
         fun next(): FileVisitResult {
+            checkpoint()
             if (++visited <= limit) return FileVisitResult.CONTINUE
             partial = true
             return FileVisitResult.TERMINATE

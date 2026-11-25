@@ -139,7 +139,7 @@ internal class GameRef(val appId: Int?, val store: Store?, val storeId: String?)
     }
 }
 
-internal enum class GameTab { ABOUT, ACHIEVEMENTS, LAUNCH, SAVES, ADDONS, INSTALL }
+internal enum class GameTab { ABOUT, ACHIEVEMENTS, LAUNCH, SAVES, ADDONS, INSTALL, HISTORY }
 
 @Composable
 internal fun GameDetail(
@@ -184,6 +184,11 @@ internal fun GameDetail(
     val scored = scores != null && (scores.metacritic != Lookup.None || scores.hltb != Lookup.None)
     val prefix = game?.protonPrefix?.takeIf { it.isDirectory }
     val addonTargets = remember(game?.gameId, game?.gameFiles) { game?.let(WowAddons::targets).orEmpty() }
+    val historyId = when {
+        store != null && !id.isNullOrBlank() -> "${store.id}:$id"
+        game != null && source == Library.SOURCE_STEAM -> "steam:${game.gameIdString}"
+        else -> null
+    }
     val tabs = buildList {
         if (description.isNotBlank() || developer.isNotBlank() || publisher.isNotBlank() || releaseDate.isNotBlank() || scored || (!s.shortcutPicker && title.isNotBlank() && title != id)) add(GameTab.ABOUT)
         if (achievementState != null) add(GameTab.ACHIEVEMENTS)
@@ -192,6 +197,7 @@ internal fun GameDetail(
         if (game != null && game.library == Library.ADDED && prefix != null) add(GameTab.SAVES)
         if (addonTargets.isNotEmpty()) add(GameTab.ADDONS)
         if ((game != null && !cloud) || installed != null) add(GameTab.INSTALL)
+        if (!s.shortcutPicker && historyId != null) add(GameTab.HISTORY)
     }
     var picked by remember(key) { mutableStateOf<GameTab?>(null) }
     val tab = picked?.takeIf { it in tabs } ?: tabs.firstOrNull()
@@ -254,6 +260,7 @@ internal fun GameDetail(
                             GameTab.LAUNCH -> stringResource(R.string.game_tab_launch)
                             GameTab.SAVES -> stringResource(if (Store.byId(source).let { it == Store.GOG || it == Store.EPIC }) R.string.game_tab_saves_cloud else R.string.games_saves)
                             GameTab.ADDONS -> stringResource(R.string.game_tab_addons)
+                            GameTab.HISTORY -> "호환성 기록"
                             GameTab.INSTALL -> stringResource(R.string.game_tab_install)
                         }
                     }
@@ -270,6 +277,7 @@ internal fun GameDetail(
                             GameTab.LAUNCH -> if (game != null) LaunchTab(game, s, a, hopRail)
                             GameTab.SAVES -> if (game != null && prefix != null) SavesTab(game, prefix, a)
                             GameTab.ADDONS -> if (game != null) AddonsTab(game, addonTargets, a)
+                            GameTab.HISTORY -> historyId?.let { com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp)) }
                             GameTab.INSTALL -> InstallTab(game, installed, item, store)
                         }
                     }

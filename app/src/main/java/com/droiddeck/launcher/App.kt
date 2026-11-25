@@ -15,6 +15,16 @@ class App : Application() {
         com.droiddeck.launcher.core.AppLanguage.systemChanged(newConfig)
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        com.droiddeck.launcher.compatibility.SmartMemory.onMemoryPressure(level)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        com.droiddeck.launcher.compatibility.SmartMemory.onMemoryPressure(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+    }
+
     override fun onCreate() {
         super.onCreate()
         Thread({ runCatching { EnhancedSessionLogShare.cleanupAbandonedStages(this) } }, "diagnostic-stage-cleanup").start()

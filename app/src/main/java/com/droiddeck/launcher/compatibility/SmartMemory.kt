@@ -1,9 +1,20 @@
 package com.droiddeck.launcher.compatibility
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 
 internal object SmartMemory {
     data class Report(val availableBytes: Long?, val totalBytes: Long?, val guidance: String)
+
+    internal fun shouldRelease(level: Int, idle: Boolean): Boolean = idle &&
+        (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+
+    fun onMemoryPressure(level: Int) {
+        if (shouldRelease(level, GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))) {
+            com.droiddeck.launcher.input.SteamTouchBindings.releaseCachedIcons()
+        }
+    }
 
     fun inspect(context: Context): Report = describe(GameplayBudget.memory(context))
 

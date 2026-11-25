@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main, ai-assistant-stable ]
+    branches: [ main, ai-assistant-stable, ai-compatibility-history ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   source:
     name: Pin source tree
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || github.ref_name != 'ai-compatibility-history' || contains(github.event.head_commit.message, '[build apk]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -626,7 +626,7 @@ jobs:
         id: build
         env:
           DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
-          SGDB_API_KEY: ${{ github.ref_name != 'ai-assistant-stable' && secrets.SGDB_API_KEY || '' }}
+          SGDB_API_KEY: ${{ !startsWith(github.ref_name, 'ai-') && secrets.SGDB_API_KEY || '' }}
         run: |
           set -o pipefail
           python3 tools/powervr/fetch.py
@@ -688,29 +688,6 @@ jobs:
           path: ~/.m2/repository/org/robolectric
           key: ${{ steps.robolectric-cache.outputs.cache-primary-key }}
 
-      - name: Unit tests
-        id: unit-tests
-        env:
-          DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
-          SGDB_API_KEY: ${{ github.ref_name != 'ai-assistant-stable' && secrets.SGDB_API_KEY || '' }}
-        run: |
-          set -o pipefail
-          mkdir -p app/build
-          ./gradlew testReleaseUnitTest --console=plain --info --stacktrace -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee app/build/unit-tests.log
-
-      - name: Upload unit test diagnostics
-        id: unit-test-diagnostics
-        if: always() && steps.unit-tests.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: |
-            app/build/unit-tests.log
-            app/build/test-results/testReleaseUnitTest/
-            app/build/reports/tests/testReleaseUnitTest/
-          if-no-files-found: ignore
-          retention-days: 14
-
       - name: Sign with the testkey (v1 + v2 + v3)
         run: |
           set -euo pipefail
@@ -730,7 +707,7 @@ jobs:
           APK=$(find app/build/outputs/apk -name '*.apk' | head -1)
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --min-sdk-version 21 --verbose --print-certs "$APK" | tee /tmp/sig.txt
-          unzip -l "$APK" | grep -qE 'META-INF/.*\.(SF|RSA|DSA)$' \
+          unzip -l "$APK" | grep -E 'META-INF/.*\.(SF|RSA|DSA)$' \
             || { echo "::error::apk carries no JAR signature files"; exit 1; }
           for scheme in "v1 scheme (JAR signing): true" "v2 scheme (APK Signature Scheme v2): true" \
                         "v3 scheme (APK Signature Scheme v3): true"; do
@@ -740,7 +717,7 @@ jobs:
             || { echo "::error::apk is not signed with the AOSP testkey"; exit 1; }
 
       - name: Find previous successful inventory
-        if: github.ref_name == 'ai-assistant-stable'
+        if: startsWith(github.ref_name, 'ai-')
         id: previous-inventory
         env:
           GH_TOKEN: ${{ github.token }}
@@ -775,7 +752,7 @@ jobs:
             "$AAPT" dump permissions "$apk" > "app/build/apk-inventory/$(basename "$apk").permissions.txt"
             "$AAPT" dump xmltree "$apk" AndroidManifest.xml > "app/build/apk-inventory/$(basename "$apk").manifest.txt"
             cp /tmp/sig.txt app/build/apk-inventory/signature.txt
-            if [[ "$GITHUB_REF_NAME" == ai-assistant-stable ]]; then
+            if [[ "$GITHUB_REF_NAME" == ai-* ]]; then
               grep -Fx "package: com.droiddeck.launcher.ai" "app/build/apk-inventory/$(basename "$apk").permissions.txt"
             fi
             previous="$RUNNER_TEMP/previous-apk-inventory/$(basename "$apk").permissions.txt"
@@ -791,7 +768,7 @@ jobs:
 
 
       - name: Compare independent build with pinned official 0.7.1
-        if: github.ref_name == 'ai-assistant-stable'
+        if: startsWith(github.ref_name, 'ai-')
         run: |
           set -euo pipefail
           official="$RUNNER_TEMP/droiddeck-official-0.7.1.apk"
@@ -807,6 +784,38 @@ jobs:
           path: app/build/apk-inventory/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Unit tests
+        id: unit-tests
+        env:
+          DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
+          SGDB_API_KEY: ${{ !startsWith(github.ref_name, 'ai-') && secrets.SGDB_API_KEY || '' }}
+        run: |
+          set -o pipefail
+          mkdir -p app/build
+          ./gradlew testReleaseUnitTest --console=plain --info --stacktrace -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee app/build/unit-tests.log
+
+      - name: Upload unit test diagnostics
+        id: unit-test-diagnostics
+        if: always() && steps.unit-tests.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            app/build/unit-tests.log
+            app/build/test-results/testReleaseUnitTest/
+            app/build/reports/tests/testReleaseUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Retain checked APK for failed test investigation
+        if: failure() && steps.unit-tests.outcome == 'failure' && github.ref_name == 'ai-compatibility-history'
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-apk-tests-failed
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 3
+          compression-level: 0
 
       - uses: actions/upload-artifact@v4
         id: apk-upload

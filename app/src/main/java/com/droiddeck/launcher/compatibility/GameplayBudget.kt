@@ -33,7 +33,7 @@ internal object GameplayBudget {
     fun memory(context: Context): MemorySnapshot? {
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return null
         val info = ActivityManager.MemoryInfo()
-        manager.getMemoryInfo(info)
+        try { manager.getMemoryInfo(info) } catch (_: RuntimeException) { return null }
         return MemorySnapshot(info.availMem, info.totalMem, info.threshold, info.lowMemory)
     }
 }
