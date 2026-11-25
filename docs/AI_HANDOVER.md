@@ -49,3 +49,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Auto driver callback guard
 0df9a67fb53e4f061252fdb43dcdc3c06590bf29 locates DriverMenus.kt in launcher root and revalidates persisted auto mode and GameplayBudget before async release-check callback selects drivers or fallback. Resets lastAutoCheck when busy. This is not a shared lifecycle lock; installPair completion and other writers still need review. No tests/build run. Driver restore remains disabled.
+
+## Pair installation completion guard
+3f2482a1d5b817a0a6770915feaa259f95d8820d captures expected mode and both driver IDs before installPair and rejects stale selection or busy session at completion for manual and auto selection. Does not prevent installation/replacement of files during a session, ABA changes or races after final check. Next review installAsset replacement and shared lifecycle coordination; add regression tests. No build/tests executed; restore remains disabled.
