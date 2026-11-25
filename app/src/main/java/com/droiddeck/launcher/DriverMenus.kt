@@ -226,7 +226,12 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 installed = displayId != null && linuxId != null,
                 active = displayId != null && linuxId != null && SessionPrefs.linuxDriver(activity) == linuxId &&
                     (SessionPrefs.androidDriver(activity) == displayId ||
-                        // A Mali pair under Auto: the display is the phone's own driver.
+                        if (!com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.canCompleteSelection(activity, expected)) {
+                        lastAutoCheck = 0L
+                        Log.i(TAG, "driver pair selection skipped: settings changed or session became busy")
+                        return@onSuccess
+                    }
+                    // A Mali pair under Auto: the display is the phone's own driver.
                         (gpu.family.mali && DriverPairs.isNonAdreno(p.key) && SessionPrefs.androidDriver(activity) == TurnipDriver.AUTO)),
             )
         }.sortedByDescending { it.recommended }
@@ -479,9 +484,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
             if (!auto) android.widget.Toast.makeText(activity, autoStatus, android.widget.Toast.LENGTH_LONG).show()
             return
         }
-        val expectedMode = SessionPrefs.gpuDriverMode(activity)
-        val expectedDisplay = SessionPrefs.androidDriver(activity)
-        val expectedLinux = SessionPrefs.linuxDriver(activity)
+        val expected = com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.captureOrNull(activity)
         pairBusy = pair.key
         pairPercent = 0
         if (auto) autoStatus = activity.getString(R.string.drivers_downloading_pair, pair.name, pair.version)
@@ -501,13 +504,6 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 result.onSuccess { (pairDisplayId, linuxId) ->
                     if (!select) {
                         android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_pair_updated, pair.name), android.widget.Toast.LENGTH_LONG).show()
-                        return@onSuccess
-                    }
-                    if (SessionPrefs.gpuDriverMode(activity) != expectedMode ||
-                        SessionPrefs.androidDriver(activity) != expectedDisplay ||
-                        SessionPrefs.linuxDriver(activity) != expectedLinux) {
-                        lastAutoCheck = 0L
-                        Log.i(TAG, "driver pair selection skipped: settings changed during install")
                         return@onSuccess
                     }
                     if (!com.droiddeck.launcher.compatibility.GameplayBudget.allows(
@@ -611,7 +607,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
 
     fun importDriver(uri: Uri, linux: Boolean?) {
         if (!allowManualDriverWrite()) return
-        val expected = com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.capture(activity)
+        val expected = com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.captureOrNull(activity)
         val name = activity.displayNameOf(uri)
         Thread({
             var bundle: DriverBundle.Bundle? = null
@@ -640,8 +636,8 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
             }
             ui.post {
                 val done = bundle?.takeIf {
-                    problem == null && driverWritesAllowed() &&
-                        com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.matches(activity, expected)
+                    problem == null &&
+                        com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.canCompleteSelection(activity, expected)
                 }?.let { useBundle(it) }
                     ?: name?.let { activity.getString(R.string.comp_imported, it) } ?: activity.getString(R.string.drivers_imported_unnamed)
                 android.widget.Toast.makeText(
