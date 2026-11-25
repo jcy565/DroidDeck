@@ -34,3 +34,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Persistent driver baseline
 1ee4b4bff3a5374f2cb0413e8436fef866246c52 adds DriverBackupJournal save/load using private preferences and synchronous commit, approval, idle gate, stale snapshot and duplicate checks, exact nullable values. No restore or driver writes enabled. Not tested or built; session/auto-job races remain. Next: journal tests, applied-state tracking and coordinated restore.
+
+## Driver journal tests
+2a53b9e4416956091ea56bed57185300fdaafb6b adds six Robolectric tests: empty journal, exact nullable baseline and change detection, duplicate, stale, unapproved, incomplete journal. Written only; no build or execution. Next: applied-state tracking, conflict-safe recovery and auto-job coordination. User's '다음' means perform actual next code task and checkpoint, not merely describe plans.
