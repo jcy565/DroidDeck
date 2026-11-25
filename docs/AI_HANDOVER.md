@@ -28,3 +28,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Local driver candidates
  d7ca7efb8b0f5720e0c5fa66bae646684c532500 adds driverCandidates(GpuDriversState, Setting) using DriverMenus.state local linuxRows/androidRows, excluding empty/default auto IDs and download catalog. Verified DriverMenus.refreshDrivers uses LinuxVulkanDriver.optionValues and Turnip visibleBundled/enumerateImported. selectDriver can change bundle halves and GPU mode, so do not use single-key rollback for drivers. FEX candidates empty until verified. Adapter not yet called by UI, no tests/build run. Next: integrate fresh selector state and multi-setting preview/rollback.
+
+## Driver group snapshot
+6fa5e4cda90a33c200bce297ca4414ecc62bfb63 adds read-only DriverSettingsSnapshot for exact nullable linuxDriver/androidDriver/gpuDriverMode and legacy linuxDriver.steam/desktop keys. Verified DriverBundle.select changes both halves, selectDisplay may clear Linux, DriverMenus.setMode(auto=true) can trigger ensureAuto and further changes. Snapshot does not capture installed files/live compositor/auto jobs; no driver writes or restore enabled. Next: persistent group journal, conflict checks and tests; restrict experiments until auto-job coordination exists. Not built/tested.
