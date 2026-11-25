@@ -22,3 +22,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Runtime preview
 741ea8efe63d5e791e49cb3053194c83e0ac9a66 adds RuntimeSettingsPreview.kt using verified SessionPrefs Linux/Android driver and FEX getters. Candidate membership is caller-supplied, not yet connected to installed component inventory. FEX setter publishes GameEnvironmentStore, so raw preference writes are not appropriate. Read-only, untested. Next: locate actual component selector, bind candidate lists and add tests; recovery UI and session race protection remain. No new build.
+
+## Runtime preview tests
+3b19c7155a0298fbdbc84cf6d8043f92da662332 adds five tests covering all three setting previews, unknown/blank/control-character/oversized candidate rejection. Not executed. Actual installed component inventory binding remains outstanding; do not enable runtime writes before validation. No new build.
