@@ -469,6 +469,12 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
 
     private fun installPair(pair: DriverPairs.DriverPair, auto: Boolean, force: Boolean = false, select: Boolean = true) {
         if (!pair.complete) return
+        if (!com.droiddeck.launcher.compatibility.GameplayBudget.allows(
+                com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)) {
+            autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
+            if (!auto) android.widget.Toast.makeText(activity, autoStatus, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         val expectedMode = SessionPrefs.gpuDriverMode(activity)
         val expectedDisplay = SessionPrefs.androidDriver(activity)
         val expectedLinux = SessionPrefs.linuxDriver(activity)
@@ -570,6 +576,10 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         var file: File? = null
         try {
             file = TurnipReleases.download(activity, asset, progress)
+            check(com.droiddeck.launcher.compatibility.GameplayBudget.allows(
+                com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)) {
+                activity.getString(R.string.drivers_auto_waits_for_session)
+            }
             val uri = Uri.fromFile(file)
             val id = when {
                 asset.bundle -> DriverBundle.install(activity, uri).id
