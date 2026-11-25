@@ -621,20 +621,20 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         Thread({
             var bundle: DriverBundle.Bundle? = null
             val problem = try {
-                withDriverFileWrite {
+                withDriverFileWrite<Unit> {
                     when {
-                    DriverBundle.isBundle(activity, uri) -> bundle = DriverBundle.install(activity, uri)
-                    linux == true -> LinuxVulkanDriverManager(activity).installDriver(uri, name)
-                    linux == false -> TurnipDriver(activity).installFromZip(uri, name)
-                    else -> try {
-                        TurnipDriver(activity).installFromZip(uri, name)
-                    } catch (display: IllegalArgumentException) {
-                        try {
-                            LinuxVulkanDriverManager(activity).installDriver(uri, name)
-                        } catch (runtime: IllegalArgumentException) {
-                            throw IllegalArgumentException(activity.getString(R.string.drivers_not_a_driver))
+                        DriverBundle.isBundle(activity, uri) -> bundle = DriverBundle.install(activity, uri)
+                        linux == true -> LinuxVulkanDriverManager(activity).installDriver(uri, name)
+                        linux == false -> TurnipDriver(activity).installFromZip(uri, name)
+                        else -> try {
+                            TurnipDriver(activity).installFromZip(uri, name)
+                        } catch (display: IllegalArgumentException) {
+                            try {
+                                LinuxVulkanDriverManager(activity).installDriver(uri, name)
+                            } catch (runtime: IllegalArgumentException) {
+                                throw IllegalArgumentException(activity.getString(R.string.drivers_not_a_driver))
+                            }
                         }
-                    }
                     }
                 }
                 null
