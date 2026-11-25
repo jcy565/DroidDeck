@@ -169,4 +169,31 @@ class SettingsBackupTest {
         }
         assertNull(SettingsBackup.review(context, key))
     }
+
+    @Test fun reviewAllDistinguishesAllSupportedKeysAndIsReadOnly() {
+        val steam = "displayResolution.steam"
+        val desktop = "displayResolution.desktop"
+        val bridge = "bridgeProtonDxvk"
+        assertTrue(SettingsBackup.reviewAll(context).all { it.status == SettingsBackup.ReviewStatus.NO_BACKUP })
+        SettingsBackup.apply(context, steam, null, "1280x720")
+        SettingsBackup.apply(context, desktop, null, "1600x900")
+        prefs.edit().putString(desktop, "1280x720")
+            .putBoolean("ai.backup.$bridge.present", true).commit()
+        val before = prefs.all
+        val entries = SettingsBackup.reviewAll(context).associateBy { it.key }
+        assertEquals(setOf(steam, desktop, bridge), entries.keys)
+        assertEquals(SettingsBackup.ReviewStatus.READY, entries[steam]?.status)
+        assertEquals(SettingsBackup.ReviewStatus.CONFLICT, entries[desktop]?.status)
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP, entries[bridge]?.status)
+        assertNull(entries[bridge]?.review)
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun reviewAllRejectsIncorrectStoredValueType() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putInt(key, 720).commit()
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP, entry.status)
+        assertNull(entry.review)
+    }
 }
