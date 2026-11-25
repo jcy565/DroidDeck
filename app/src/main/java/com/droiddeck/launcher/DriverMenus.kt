@@ -226,12 +226,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 installed = displayId != null && linuxId != null,
                 active = displayId != null && linuxId != null && SessionPrefs.linuxDriver(activity) == linuxId &&
                     (SessionPrefs.androidDriver(activity) == displayId ||
-                        if (!com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.canCompleteSelection(activity, expected)) {
-                        lastAutoCheck = 0L
-                        Log.i(TAG, "driver pair selection skipped: settings changed or session became busy")
-                        return@onSuccess
-                    }
-                    // A Mali pair under Auto: the display is the phone's own driver.
+                        // A Mali pair under Auto: the display is the phone's own driver.
                         (gpu.family.mali && DriverPairs.isNonAdreno(p.key) && SessionPrefs.androidDriver(activity) == TurnipDriver.AUTO)),
             )
         }.sortedByDescending { it.recommended }
@@ -511,6 +506,11 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                         lastAutoCheck = 0L
                         autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
                         if (!auto) android.widget.Toast.makeText(activity, autoStatus, android.widget.Toast.LENGTH_LONG).show()
+                        return@onSuccess
+                    }
+                    if (!com.droiddeck.launcher.compatibility.DriverSettingsSnapshot.canCompleteSelection(activity, expected)) {
+                        lastAutoCheck = 0L
+                        Log.i(TAG, "driver pair selection skipped: settings changed or session became busy")
                         return@onSuccess
                     }
                     // A Mali pair under Auto: the compositor draws on the phone's own Mali driver
