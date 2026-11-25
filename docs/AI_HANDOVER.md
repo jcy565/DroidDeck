@@ -13,3 +13,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Native settings transaction
 01da23fa341c7162038ba954ab4465e7f778fa18 adds DroidDeckSettingsTransaction.kt for approved output resolution and Proton DXVK bridge changes, stale-value checks, session gate and in-memory rollback receipt. Not compiled or tested. Receipt is not durable; effective resolution restore may not reproduce absent/legacy preference state. Existing setters use apply(), and other writers/session start can race. No UI wiring. Next: durable exact preference snapshot, tests and approved UI integration before enabling writes.
+
+## Persistent settings backup
+00805c35684ca275611ab7dd4749f3132286d963 adds SettingsBackup; b9bda1799acca773ec0a85b8652e193305b70d5a wires transaction to it. Confirmed SessionPrefs uses private session preferences and exact three keys. Same editor commit stores prior presence/raw value and proposed value, restore removes originally absent keys, conflicts refused. One pending backup per key. Not compiled/tested; direct preference writes intentionally limited to verified keys, call off main thread. Commit failure and concurrent external writers/session starts remain risks; recovery UI and tests next. No new build.
