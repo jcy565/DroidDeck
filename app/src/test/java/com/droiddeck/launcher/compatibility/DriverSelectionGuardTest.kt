@@ -87,4 +87,20 @@ class DriverSelectionGuardTest {
         SessionState.stopRequested = false
         assertTrue(DriverSettingsSnapshot.canCompleteSelection(context, expected))
     }
+
+    @Test fun preparationPhasePreservesExclusionAfterSessionLeaseCloses() {
+        val gate = SessionDriverGate()
+        val driver = SessionDriverGate.Kind.DRIVER_WRITE
+        val session = SessionDriverGate.Kind.SESSION
+        val allowed = { GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE) }
+        requireNotNull(gate.tryAcquire(session)).use {
+            assertNull(gate.tryAcquire(driver, allowed))
+            SessionState.phase = SessionPhase.PREPARING
+        }
+        assertNull(gate.tryAcquire(driver, allowed))
+        SessionState.phase = SessionPhase.STOPPING
+        assertNull(gate.tryAcquire(driver, allowed))
+        SessionState.phase = SessionPhase.IDLE
+        requireNotNull(gate.tryAcquire(driver, allowed)).close()
+    }
 }
