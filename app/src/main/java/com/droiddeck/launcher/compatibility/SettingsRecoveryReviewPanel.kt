@@ -65,6 +65,7 @@ internal fun SettingsRecoveryReviewPanel() {
                     SettingsBackup.ReviewStatus.READY -> "복구 검토 가능"
                 }
                 Text("$label: $status")
+                if (entry.archiveOccupied) Text("이전 기록 보관됨: 덮어쓰기 금지")
                 entry.review?.let { review ->
                     fun display(value: String?): String = value?.take(100) ?: "저장된 값 없음"
                     Text("이전: ${display(review.before)} / 적용: ${display(review.applied)} / 현재: ${display(review.current)}")
