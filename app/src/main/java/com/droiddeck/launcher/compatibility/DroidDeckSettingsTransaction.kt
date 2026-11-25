@@ -5,7 +5,7 @@ import com.droiddeck.launcher.session.SessionPrefs
 
 internal object DroidDeckSettingsTransaction {
     data class Receipt internal constructor(val change: DroidDeckSettingsPreview.Change,
-        val panel: Pair<Int, Int>)
+        val panel: Pair<Int, Int>, val recovery: SettingsBackup.RecoveryReview)
 
     private fun current(context: Context, change: DroidDeckSettingsPreview.Change,
         panel: Pair<Int, Int>): String = when (change.setting) {
@@ -47,9 +47,9 @@ internal object DroidDeckSettingsTransaction {
         val key = key(change)
         val raw = SettingsBackup.raw(context, key)
         check(current(context, change, panel) == change.before)
-        SettingsBackup.apply(context, key, raw, change.proposed)
+        val recovery = SettingsBackup.apply(context, key, raw, change.proposed)
         check(current(context, change, panel) == change.proposed) { "적용 상태를 확인할 수 없습니다." }
-        return Receipt(change, panel)
+        return Receipt(change, panel, recovery)
     }
 
     @Synchronized
@@ -58,6 +58,7 @@ internal object DroidDeckSettingsTransaction {
         val change = receipt.change
         validate(change, receipt.panel)
         check(current(context, change, receipt.panel) == change.proposed) { "현재 설정이 달라 복구를 보류합니다." }
-        SettingsBackup.restore(context, key(change), approved)
+        check(receipt.recovery.key == key(change))
+        SettingsBackup.restoreReviewed(context, receipt.recovery, approved)
     }
 }
