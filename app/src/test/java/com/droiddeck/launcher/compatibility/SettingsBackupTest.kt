@@ -77,4 +77,96 @@ class SettingsBackupTest {
         }
         assertEquals("1280x720", SettingsBackup.raw(context, key))
     }
+
+    @Test fun reviewRecoversDurableRecordWithoutReceipt() {
+        prefs.edit().putString(key, "900p").commit()
+        SettingsBackup.apply(context, key, "900p", "1280x720")
+        val review = requireNotNull(SettingsBackup.review(context, key))
+        assertEquals("900p", review.before)
+        assertEquals("1280x720", review.applied)
+        assertTrue(review.matchesApplied)
+        SettingsBackup.restoreReviewed(context, review, true)
+        assertEquals("900p", SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+    }
+
+    @Test fun reviewShowsConflictWithoutOverwriting() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        val approvedReview = requireNotNull(SettingsBackup.review(context, key))
+        prefs.edit().putString(key, "1600x900").commit()
+        assertFalse(requireNotNull(SettingsBackup.review(context, key)).matchesApplied)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, approvedReview, true)
+        }
+        assertEquals("1600x900", SettingsBackup.raw(context, key))
+    }
+
+    @Test fun changedBaselineInvalidatesPreviouslyReviewedRestore() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        val old = requireNotNull(SettingsBackup.review(context, key))
+        prefs.edit().putBoolean("ai.backup.$key.present", true)
+            .putString("ai.backup.$key.before", "900p").commit()
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, old, true)
+        }
+        assertEquals("1280x720", SettingsBackup.raw(context, key))
+    }
+
+    @Test fun incompleteJournalIsNotOverwritten() {
+        prefs.edit().putBoolean("ai.backup.$key.present", true).commit()
+        assertNull(SettingsBackup.review(context, key))
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720")
+        }
+        assertTrue(prefs.contains("ai.backup.$key.present"))
+        assertFalse(prefs.contains(key))
+    }
+
+    @Test fun malformedRecordCannotRestore() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putString("ai.backup.$key.before", "unexpected").commit()
+        assertNull(SettingsBackup.review(context, key))
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restore(context, key, true)
+        }
+        assertEquals("1280x720", SettingsBackup.raw(context, key))
+    }
+
+    @Test fun malformedBooleanBaselineCannotRestore() {
+        val bridge = "bridgeProtonDxvk"
+        SettingsBackup.apply(context, bridge, null, "true")
+        prefs.edit().putBoolean("ai.backup.$bridge.present", true)
+            .putString("ai.backup.$bridge.before", "maybe").commit()
+        assertNull(SettingsBackup.review(context, bridge))
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restore(context, bridge, true)
+        }
+        assertTrue(prefs.getBoolean(bridge, false))
+    }
+
+    @Test fun sessionAdmissionBlocksApplyAndRestore() {
+        val gate = SessionDriverGate.shared
+        requireNotNull(gate.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
+            assertThrows(IllegalStateException::class.java) {
+                SettingsBackup.apply(context, key, null, "1280x720")
+            }
+        }
+        SettingsBackup.apply(context, key, null, "1280x720")
+        val review = requireNotNull(SettingsBackup.review(context, key))
+        requireNotNull(gate.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
+            assertThrows(IllegalStateException::class.java) {
+                SettingsBackup.restoreReviewed(context, review, true)
+            }
+        }
+        SettingsBackup.restoreReviewed(context, review, true)
+        assertFalse(prefs.contains(key))
+    }
+
+    @Test fun noOpDoesNotCreateBackup() {
+        prefs.edit().putString(key, "1280x720").commit()
+        assertThrows(IllegalArgumentException::class.java) {
+            SettingsBackup.apply(context, key, "1280x720", "1280x720")
+        }
+        assertNull(SettingsBackup.review(context, key))
+    }
 }
