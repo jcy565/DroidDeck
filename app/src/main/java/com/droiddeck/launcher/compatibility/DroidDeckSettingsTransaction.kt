@@ -1,0 +1,66 @@
+package com.droiddeck.launcher.compatibility
+
+import android.content.Context
+import com.droiddeck.launcher.session.SessionPrefs
+
+internal object DroidDeckSettingsTransaction {
+    data class Receipt internal constructor(val change: DroidDeckSettingsPreview.Change,
+        val panel: Pair<Int, Int>)
+
+    private fun current(context: Context, change: DroidDeckSettingsPreview.Change,
+        panel: Pair<Int, Int>): String = when (change.setting) {
+        DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION ->
+            SessionPrefs.resolutionChoice(context, change.scope, panel)
+        DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE ->
+            SessionPrefs.bridgeProtonDxvk(context).toString()
+    }
+
+    private fun validate(change: DroidDeckSettingsPreview.Change, panel: Pair<Int, Int>) {
+        when (change.setting) {
+            DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION -> {
+                require(change.scope in setOf("steam", "desktop"))
+                require(panel.first > 0 && panel.second > 0)
+                require(change.proposed in setOf("1280x720", "1600x900"))
+            }
+            DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE -> {
+                require(change.scope == "global")
+                require(change.before in setOf("true", "false") && change.proposed in setOf("true", "false"))
+            }
+        }
+    }
+
+    private fun write(context: Context, change: DroidDeckSettingsPreview.Change, value: String) {
+        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) { "게임 세션을 종료하세요." }
+        when (change.setting) {
+            DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION ->
+                SessionPrefs.setResolutionChoice(context, change.scope, value)
+            DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE ->
+                SessionPrefs.setBridgeProtonDxvk(context, value.toBooleanStrict())
+        }
+    }
+
+    /** Caller must obtain explicit approval. Receipt is not a durable backup.
+     * Serializes assistant calls only; other settings writers and session start may race.
+     */
+    @Synchronized
+    fun apply(context: Context, change: DroidDeckSettingsPreview.Change,
+        panel: Pair<Int, Int>, approved: Boolean): Receipt {
+        require(approved)
+        validate(change, panel)
+        require(change.before != change.proposed)
+        check(current(context, change, panel) == change.before) { "설정이 변경되었습니다. 다시 미리보세요." }
+        write(context, change, change.proposed)
+        check(current(context, change, panel) == change.proposed) { "적용 상태를 확인할 수 없습니다." }
+        return Receipt(change, panel)
+    }
+
+    @Synchronized
+    fun restore(context: Context, receipt: Receipt, approved: Boolean) {
+        require(approved)
+        val change = receipt.change
+        validate(change, receipt.panel)
+        check(current(context, change, receipt.panel) == change.proposed) { "현재 설정이 달라 복구를 보류합니다." }
+        write(context, change, change.before)
+        check(current(context, change, receipt.panel) == change.before) { "복구 상태를 확인할 수 없습니다." }
+    }
+}
