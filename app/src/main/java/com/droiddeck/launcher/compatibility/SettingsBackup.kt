@@ -8,9 +8,9 @@ import java.util.UUID
 internal object SettingsBackup {
     data class RecoveryReview internal constructor(
         val key: String, val before: String?, val applied: String, val current: String?,
-        val recordId: String?,
+        val recordId: String?, val invalidated: Boolean = false,
     ) {
-        val matchesApplied: Boolean get() = current == applied
+        val matchesApplied: Boolean get() = !invalidated && current == applied
     }
 
     enum class ReviewStatus { NO_BACKUP, INVALID_BACKUP, CONFLICT, LEGACY_BACKUP, READY }
@@ -19,7 +19,7 @@ internal object SettingsBackup {
         val key: String, val status: ReviewStatus, val review: RecoveryReview?,
     )
 
-    private val recordFields = listOf("applied", "present", "before", "id")
+    private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
     private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
 
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
@@ -58,6 +58,33 @@ internal object SettingsBackup {
         else e.putString(key, proposed)
         check(e.commit()) { "설정 저장 실패: 현재 상태를 다시 확인하세요." }
         RecoveryReview(key, expectedRaw, proposed, proposed, recordId)
+    }
+
+    /** Preserve ordinary settings behavior (apply, not commit), while retiring
+     * an outstanding approval if the normal UI changes its value. */
+    @Synchronized
+    fun writeNormalResolution(context: Context, mode: String, value: String) {
+        val key = "displayResolution.$mode"
+        val p = prefs(context)
+        val e = p.edit().putString(key, value)
+        invalidateOnChange(p.all, key, value, e)
+        e.apply()
+    }
+
+    @Synchronized
+    fun writeNormalBridge(context: Context, value: Boolean) {
+        val key = "bridgeProtonDxvk"
+        val p = prefs(context)
+        val e = p.edit().putBoolean(key, value)
+        invalidateOnChange(p.all, key, value, e)
+        e.apply()
+    }
+
+    private fun invalidateOnChange(all: Map<String, *>, key: String, value: Any,
+        editor: android.content.SharedPreferences.Editor) {
+        if (key !in supportedKeys || all[key] == value) return
+        val b = prefix(key)
+        if (recordFields.any { all.containsKey(b + it) }) editor.putBoolean(b + "invalidated", true)
     }
 
     fun raw(context: Context, key: String): String? {
@@ -113,7 +140,10 @@ internal object SettingsBackup {
             if (canonical != id) return null
             id
         } else null
-        return RecoveryReview(key, before, applied, current, recordId)
+        val invalidated = if (all.containsKey(b + "invalidated")) {
+            all[b + "invalidated"] as? Boolean ?: return null
+        } else false
+        return RecoveryReview(key, before, applied, current, recordId, invalidated)
     }
 
     @Synchronized
