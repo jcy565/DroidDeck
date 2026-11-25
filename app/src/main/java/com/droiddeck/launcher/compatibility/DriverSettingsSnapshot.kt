@@ -26,4 +26,19 @@ internal object DriverSettingsSnapshot {
     }
 
     fun matches(context: Context, expected: Snapshot): Boolean = capture(context) == expected
+
+    /** A malformed preference must not crash an asynchronous selection callback. */
+    fun captureOrNull(context: Context): Snapshot? = try {
+        capture(context)
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
+    /** Revalidate the complete raw selector state and session gate before selecting.
+     * This is a conservative check, not a lifecycle lock. */
+    fun canCompleteSelection(context: Context, expected: Snapshot?): Boolean =
+        expected != null &&
+            GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE) &&
+            captureOrNull(context) == expected &&
+            GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)
 }
