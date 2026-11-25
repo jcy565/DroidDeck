@@ -94,4 +94,18 @@ class DriverBackupJournalTest {
             DriverBackupJournal.recordApplied(context, applied, true)
         }
     }
+    @Test fun malformedJournalRefusesRecoveryReview() {
+        val applied = snapshot()
+        for (raw in listOf("{", "{}", "[]")) {
+            journal.edit().putString("baseline", raw).commit()
+            assertFalse(DriverBackupJournal.canReviewRestore(context, applied))
+        }
+    }
+
+    @Test fun malformedAppliedRecordRefusesRecoveryReview() {
+        DriverBackupJournal.save(context, snapshot(), true)
+        settings.edit().putString("linuxDriver", "new").commit()
+        journal.edit().putString("applied", "{}").commit()
+        assertFalse(DriverBackupJournal.canReviewRestore(context, snapshot()))
+    }
 }
