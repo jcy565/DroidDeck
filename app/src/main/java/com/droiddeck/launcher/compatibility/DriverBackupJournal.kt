@@ -10,9 +10,20 @@ internal object DriverBackupJournal {
     private fun prefs(context: Context) =
         context.getSharedPreferences("ai_driver_backup", Context.MODE_PRIVATE)
 
+    private fun <T> withAdmission(action: () -> T): T {
+        val lease = SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.DRIVER_WRITE) {
+            GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)
+        } ?: error("Driver settings or session work is busy")
+        return lease.use { action() }
+    }
+
     @Synchronized fun save(context: Context, expected: DriverSettingsSnapshot.Snapshot,
         approved: Boolean) {
         require(approved)
+        withAdmission { saveLocked(context, expected) }
+    }
+
+    private fun saveLocked(context: Context, expected: DriverSettingsSnapshot.Snapshot) {
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         val p = prefs(context)
         check(!p.contains(KEY) && !p.contains(APPLIED)) { "Existing driver backup requires review" }
@@ -26,6 +37,10 @@ internal object DriverBackupJournal {
     @Synchronized fun recordApplied(context: Context, expected: DriverSettingsSnapshot.Snapshot,
         approved: Boolean) {
         require(approved)
+        withAdmission { recordAppliedLocked(context, expected) }
+    }
+
+    private fun recordAppliedLocked(context: Context, expected: DriverSettingsSnapshot.Snapshot) {
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         val baseline = checkNotNull(load(context))
         val p = prefs(context)
