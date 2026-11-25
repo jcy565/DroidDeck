@@ -41,10 +41,19 @@ internal object DriverBackupJournal {
 
     /** Read-only recovery eligibility; never writes driver settings. */
     @Synchronized fun canReviewRestore(context: Context, applied: DriverSettingsSnapshot.Snapshot): Boolean {
-        val baseline = load(context) ?: return false
-        return loadApplied(context) == applied && GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE) &&
-            DriverSettingsSnapshot.changed(baseline, applied).isNotEmpty() &&
-            DriverSettingsSnapshot.matches(context, applied)
+        if (!GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) return false
+        return try {
+            val baseline = load(context) ?: return false
+            loadApplied(context) == applied &&
+                DriverSettingsSnapshot.changed(baseline, applied).isNotEmpty() &&
+                DriverSettingsSnapshot.matches(context, applied)
+        } catch (_: org.json.JSONException) {
+            false
+        } catch (_: IllegalArgumentException) {
+            false
+        } catch (_: ClassCastException) {
+            false
+        }
     }
 
     @Synchronized fun load(context: Context): DriverSettingsSnapshot.Snapshot? {
