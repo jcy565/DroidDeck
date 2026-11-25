@@ -40,3 +40,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Applied driver record
 90a829e904d26f41a572e297caf3ad85fdccb8ee persists a separately approved applied snapshot and requires it for recovery review. e5de498d702be3fdf6504765e70692af251961b2 adds two regression tests for conflicts, approval and duplicate records. Tests not run; no build. No driver writes or restoration enabled. External writers and session/auto-job races remain. Next: coordinate driver jobs and session lifecycle before implementing actual restore; check malformed journal handling and verify tests in CI.
+
+## Malformed driver journal handling
+1de4af1a10fa9463fd88d689ba9a103fb68ccd80 makes recovery review fail closed for malformed JSON, invalid key sets and unexpected types. 5249217f2f74eda117bc32d650a71dc5214b7ba2 adds two regression tests. Direct load remains strict for diagnostics. No tests run or build. Session/auto-job coordination still outstanding; no restore or driver writes enabled.
