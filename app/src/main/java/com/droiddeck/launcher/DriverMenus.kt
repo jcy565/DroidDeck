@@ -469,6 +469,9 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
 
     private fun installPair(pair: DriverPairs.DriverPair, auto: Boolean, force: Boolean = false, select: Boolean = true) {
         if (!pair.complete) return
+        val expectedMode = SessionPrefs.gpuDriverMode(activity)
+        val expectedDisplay = SessionPrefs.androidDriver(activity)
+        val expectedLinux = SessionPrefs.linuxDriver(activity)
         pairBusy = pair.key
         pairPercent = 0
         if (auto) autoStatus = activity.getString(R.string.drivers_downloading_pair, pair.name, pair.version)
@@ -490,9 +493,18 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                         android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_pair_updated, pair.name), android.widget.Toast.LENGTH_LONG).show()
                         return@onSuccess
                     }
-                    if (auto && SessionState.running) {
+                    if (SessionPrefs.gpuDriverMode(activity) != expectedMode ||
+                        SessionPrefs.androidDriver(activity) != expectedDisplay ||
+                        SessionPrefs.linuxDriver(activity) != expectedLinux) {
+                        lastAutoCheck = 0L
+                        Log.i(TAG, "driver pair selection skipped: settings changed during install")
+                        return@onSuccess
+                    }
+                    if (!com.droiddeck.launcher.compatibility.GameplayBudget.allows(
+                            com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)) {
                         lastAutoCheck = 0L
                         autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
+                        if (!auto) android.widget.Toast.makeText(activity, autoStatus, android.widget.Toast.LENGTH_LONG).show()
                         return@onSuccess
                     }
                     // A Mali pair under Auto: the compositor draws on the phone's own Mali driver
