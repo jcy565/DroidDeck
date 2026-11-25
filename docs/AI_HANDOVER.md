@@ -7,3 +7,6 @@ Recovered Work changes since 6c781c8: App memory callbacks, idle Steam touch ico
 Actions 45595329653 failed at Prepare Robolectric runtime dependencies; seven prerequisite jobs succeeded. Exact failure log not yet inspected. Do not bypass tests or checksum verification. No new APK build requested.
 Next: inspect dependency failure, then implement approved native settings changes with stale-value checks and safe rollback; validate existing APIs and session races. Preserve original app/data, no root, no security bypass, no resident AI, no arbitrary process killing. Device installation/performance unverified.
 Update this checkpoint after each substantive change, before usage runs low. Do not claim unexecuted tests passed.
+
+## CI follow-up
+Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparation after APK packaging. Commit 19129156b920256b89908c14d9e14fd082576aad adds delayed retries and alternate Maven Central endpoint, retaining SHA-512 verification. Not tested or rebuilt. Next: review native settings apply/rollback and verify CI fix at next authorized build.
