@@ -276,4 +276,60 @@ class SettingsBackupTest {
         SettingsBackup.restoreReviewed(context, approved, true)
         assertFalse(prefs.contains(key))
     }
+
+    @Test fun archiveKeepsCurrentAndPreservesExactReview() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val conflict = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.keepCurrentAndArchive(context, conflict, true)
+        assertEquals("1600x900", SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+        assertEquals(conflict, SettingsBackup.archivedReview(context, key))
+        assertTrue(SettingsBackup.reviewAll(context).single { it.key == key }.archiveOccupied)
+        val next = SettingsBackup.apply(context, key, "1600x900", "1280x720")
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, next, true)
+        }
+        assertEquals(next, SettingsBackup.review(context, key))
+        assertEquals(conflict, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun archiveRequiresFreshApprovalAndIdleAdmission() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        assertThrows(IllegalArgumentException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, first, false)
+        }
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, first, true)
+        }
+        val conflict = requireNotNull(SettingsBackup.review(context, key))
+        requireNotNull(SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
+            assertThrows(IllegalStateException::class.java) {
+                SettingsBackup.keepCurrentAndArchive(context, conflict, true)
+            }
+        }
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(conflict, SettingsBackup.review(context, key))
+    }
+
+    @Test fun archivedBooleanRetainsTypeAndOriginalSnapshot() {
+        val bridge = "bridgeProtonDxvk"
+        val approved = SettingsBackup.apply(context, bridge, null, "true")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        assertTrue(prefs.getBoolean(bridge, false))
+        assertTrue(prefs.getBoolean("ai.archive.$bridge.current", false))
+        SettingsBackup.writeNormalBridge(context, false)
+        assertEquals(approved, SettingsBackup.archivedReview(context, bridge))
+    }
+
+    @Test fun orphanedArchivePreventsOverwrite() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putString("ai.archive.$key.before", "preserve").commit()
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        }
+        assertEquals("preserve", prefs.getString("ai.archive.$key.before", null))
+        assertEquals(approved, SettingsBackup.review(context, key))
+    }
 }
