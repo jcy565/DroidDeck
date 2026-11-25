@@ -380,10 +380,11 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                     lastAutoCheck = 0L
                     return@post
                 }
-                menuDriverWrite.run(onBlocked = {
+                menuDriverWrite.run<Unit>(onBlocked = {
                     autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
                     lastAutoCheck = 0L
                 }) {
+                    if (SessionPrefs.gpuDriverMode(activity) != SessionPrefs.GPU_DRIVERS_AUTO) return@run
                     val pairs = DriverPairs.from(TurnipReleases.cached(activity))
                     val key = recommendedKey(pairs)
                     val pair = pairs.firstOrNull { it.key == key }
@@ -501,7 +502,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
     }
 
     private fun installPair(pair: DriverPairs.DriverPair, auto: Boolean, force: Boolean = false, select: Boolean = true) {
-        if (!pair.complete) return
+        if (!pair.complete || pairBusy != null) return
         if (!com.droiddeck.launcher.compatibility.GameplayBudget.allows(
                 com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)) {
             autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
@@ -512,7 +513,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         pairBusy = pair.key
         pairPercent = 0
         if (auto) autoStatus = activity.getString(R.string.drivers_downloading_pair, pair.name, pair.version)
-        Thread({
+        val worker = Thread({
             var downloaded = false
             val result = runCatching {
                 val zips = pair.assets
@@ -537,7 +538,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                         if (!auto) android.widget.Toast.makeText(activity, autoStatus, android.widget.Toast.LENGTH_LONG).show()
                         return@onSuccess
                     }
-                    menuDriverWrite.run(onBlocked = {
+                    menuDriverWrite.run<Unit>(onBlocked = {
                         lastAutoCheck = 0L
                         autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
                         if (!auto) showDriverWriteBusy()
@@ -592,7 +593,22 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 }
                 refreshDrivers()
             }
-        }, "gpu-driver-pair").start()
+        }, "gpu-driver-pair")
+        // The caller may hold the synchronous menu lease. Start on the next UI
+        // dispatch, after that lease has been released, even for cached assets.
+        if (!ui.post {
+                if (driverWritesAllowed()) worker.start()
+                else {
+                    pairBusy = null
+                    pairPercent = -1
+                    lastAutoCheck = 0L
+                    autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
+                }
+            }) {
+            pairBusy = null
+            pairPercent = -1
+            lastAutoCheck = 0L
+        }
     }
 
     private fun installedBundle(asset: TurnipReleases.Asset): DriverBundle.Bundle? =
@@ -769,6 +785,13 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
             }
             TurnipReleases.forget(activity, id)
             android.widget.Toast.makeText(activity, activity.getString(R.string.drivers_deleted, id), android.widget.Toast.LENGTH_SHORT).show()
+            refreshDrivers()
+        }
+    }
+
+    fun restoreBundled() {
+        menuDriverWrite.run(onBlocked = { showDriverWriteBusy() }) {
+            TurnipDriver(activity).restoreBundled()
             refreshDrivers()
         }
     }
