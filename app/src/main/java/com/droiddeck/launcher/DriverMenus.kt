@@ -351,6 +351,13 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
                 if (gpu.family == GpuInfo.Family.POWERVR) gpu = GpuInfo.detect()
                 refreshReleaseRows()
                 refreshPairs()
+                if (SessionPrefs.gpuDriverMode(activity) != SessionPrefs.GPU_DRIVERS_AUTO) return@post
+                if (!com.droiddeck.launcher.compatibility.GameplayBudget.allows(
+                        com.droiddeck.launcher.compatibility.GameplayBudget.Work.SETTINGS_WRITE)) {
+                    autoStatus = activity.getString(R.string.drivers_auto_waits_for_session)
+                    lastAutoCheck = 0L
+                    return@post
+                }
                 val pairs = DriverPairs.from(TurnipReleases.cached(activity))
                 val key = recommendedKey(pairs)
                 val pair = pairs.firstOrNull { it.key == key }
