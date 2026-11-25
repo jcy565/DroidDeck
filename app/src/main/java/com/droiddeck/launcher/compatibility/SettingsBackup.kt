@@ -48,14 +48,19 @@ internal object SettingsBackup {
         else value in setOf("1280x720", "1600x900")
 
     @Synchronized
-    fun apply(context: Context, key: String, expectedRaw: String?, proposed: String): RecoveryReview = withAdmission {
+    fun captureBefore(context: Context, key: String, effective: () -> String): Pair<String?, String> =
+        raw(context, key) to effective()
+
+    @Synchronized
+    fun apply(context: Context, key: String, expectedRaw: String?, proposed: String,
+        verifyBefore: () -> Boolean = { true }): RecoveryReview = withAdmission {
         val p = prefs(context)
         val b = prefix(key)
         require(validProposed(key, proposed))
         require(expectedRaw != proposed)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         check(recordFields.none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
-        check(raw(context, key) == expectedRaw) { "설정이 변경되었습니다." }
+        check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
         val recordId = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
             .putString(b + "id", recordId)
