@@ -16,3 +16,6 @@ Job 139143573666 logs confirm curl HTTP 429, exit 22 during Robolectric preparat
 
 ## Persistent settings backup
 00805c35684ca275611ab7dd4749f3132286d963 adds SettingsBackup; b9bda1799acca773ec0a85b8652e193305b70d5a wires transaction to it. Confirmed SessionPrefs uses private session preferences and exact three keys. Same editor commit stores prior presence/raw value and proposed value, restore removes originally absent keys, conflicts refused. One pending backup per key. Not compiled/tested; direct preference writes intentionally limited to verified keys, call off main thread. Commit failure and concurrent external writers/session starts remain risks; recovery UI and tests next. No new build.
+
+## Backup regression tests
+07939870bdf007a4d95e0a67d4f545c53beab82f adds seven Robolectric SDK28 tests for absent key, legacy value, boolean type, stale preview, duplicate backup, conflicting restore and unapproved restore. Written only; not run. Next: recovery UI, session race protection and supported driver/runtime preview. Overall progress estimate ~60%, subjective; device verification still zero.
