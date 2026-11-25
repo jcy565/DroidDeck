@@ -1,0 +1,31 @@
+package com.droiddeck.launcher.compatibility
+
+import android.content.Context
+import com.droiddeck.launcher.session.SessionPrefs
+
+/** Read-only: candidate IDs must come from the existing component selector,
+ * not from guessed driver names. No installation or environment writes. */
+internal object RuntimeSettingsPreview {
+    enum class Setting { LINUX_DRIVER, ANDROID_DRIVER, FEX_PRESET }
+    data class Snapshot(val linuxDriver: String, val androidDriver: String, val fexPreset: String)
+    data class Change(val setting: Setting, val before: String, val proposed: String)
+
+    fun inspect(context: Context): Snapshot = Snapshot(
+        SessionPrefs.linuxDriver(context),
+        SessionPrefs.androidDriver(context),
+        SessionPrefs.fexPreset(context)
+    )
+
+    fun preview(snapshot: Snapshot, setting: Setting, proposed: String,
+        supportedIds: Set<String>): Change {
+        require(proposed.isNotBlank() && proposed.length <= 256)
+        require(proposed.none { it.isISOControl() })
+        require(proposed in supportedIds) { "지원 목록에 없는 설정입니다." }
+        val before = when (setting) {
+            Setting.LINUX_DRIVER -> snapshot.linuxDriver
+            Setting.ANDROID_DRIVER -> snapshot.androidDriver
+            Setting.FEX_PRESET -> snapshot.fexPreset
+        }
+        return Change(setting, before, proposed)
+    }
+}
