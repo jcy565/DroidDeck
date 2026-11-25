@@ -68,4 +68,30 @@ class DriverBackupJournalTest {
             DriverBackupJournal.load(context)
         }
     }
+    @Test fun recordsAppliedAndRejectsLaterConflict() {
+        DriverBackupJournal.save(context, snapshot(), true)
+        settings.edit().putString("linuxDriver", "new").commit()
+        val applied = snapshot()
+        assertFalse(DriverBackupJournal.canReviewRestore(context, applied))
+        DriverBackupJournal.recordApplied(context, applied, true)
+        assertEquals(applied, DriverBackupJournal.loadApplied(context))
+        assertTrue(DriverBackupJournal.canReviewRestore(context, applied))
+        settings.edit().putString("androidDriver", "external").commit()
+        assertFalse(DriverBackupJournal.canReviewRestore(context, applied))
+        assertFalse(DriverBackupJournal.canReviewRestore(context, snapshot()))
+    }
+
+    @Test fun rejectsUnapprovedAndDuplicateAppliedRecord() {
+        DriverBackupJournal.save(context, snapshot(), true)
+        settings.edit().putString("linuxDriver", "new").commit()
+        val applied = snapshot()
+        assertThrows(IllegalArgumentException::class.java) {
+            DriverBackupJournal.recordApplied(context, applied, false)
+        }
+        assertNull(DriverBackupJournal.loadApplied(context))
+        DriverBackupJournal.recordApplied(context, applied, true)
+        assertThrows(IllegalStateException::class.java) {
+            DriverBackupJournal.recordApplied(context, applied, true)
+        }
+    }
 }
