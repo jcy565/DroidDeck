@@ -356,4 +356,25 @@ class SettingsBackupTest {
         assertNull(SettingsBackup.archivedReview(context, key))
         assertEquals(before, prefs.all)
     }
+
+    @Test fun previewCapturesRawAbsenceSeparatelyFromEffectiveValue() {
+        val (raw, effective) = SettingsBackup.captureBefore(context, key) { "720p" }
+        assertNull(raw)
+        assertEquals("720p", effective)
+        prefs.edit().putString(key, "720p").commit()
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, raw, "1280x720") { true }
+        }
+        assertEquals("720p", SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+    }
+
+    @Test fun effectiveValueCheckRefusesApplyWithoutCreatingBackup() {
+        val (raw, _) = SettingsBackup.captureBefore(context, key) { "720p" }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, raw, "1280x720") { false }
+        }
+        assertFalse(prefs.contains(key))
+        assertNull(SettingsBackup.review(context, key))
+    }
 }
