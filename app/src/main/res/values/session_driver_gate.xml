@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_wait_driver_write">Wait for the GPU driver change to finish, then launch again.</string>
+</resources>
