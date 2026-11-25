@@ -1,22 +1,25 @@
 package com.droiddeck.launcher.compatibility
 
 import android.content.Context
+import java.util.UUID
 
 /** One pending backup per supported key. Stored in the same preference file
  * so the backup and setting update can be committed together. */
 internal object SettingsBackup {
     data class RecoveryReview internal constructor(
         val key: String, val before: String?, val applied: String, val current: String?,
+        val recordId: String?,
     ) {
         val matchesApplied: Boolean get() = current == applied
     }
 
-    enum class ReviewStatus { NO_BACKUP, INVALID_BACKUP, CONFLICT, READY }
+    enum class ReviewStatus { NO_BACKUP, INVALID_BACKUP, CONFLICT, LEGACY_BACKUP, READY }
 
     data class ReviewEntry(
         val key: String, val status: ReviewStatus, val review: RecoveryReview?,
     )
 
+    private val recordFields = listOf("applied", "present", "before", "id")
     private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
 
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
@@ -37,21 +40,24 @@ internal object SettingsBackup {
         else value in setOf("1280x720", "1600x900")
 
     @Synchronized
-    fun apply(context: Context, key: String, expectedRaw: String?, proposed: String) = withAdmission {
+    fun apply(context: Context, key: String, expectedRaw: String?, proposed: String): RecoveryReview = withAdmission {
         val p = prefs(context)
         val b = prefix(key)
         require(validProposed(key, proposed))
         require(expectedRaw != proposed)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
-        check(listOf("applied", "present", "before").none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
+        check(recordFields.none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
         check(raw(context, key) == expectedRaw) { "설정이 변경되었습니다." }
+        val recordId = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
+            .putString(b + "id", recordId)
             .putBoolean(b + "present", expectedRaw != null)
         if (expectedRaw != null) e.putString(b + "before", expectedRaw)
         else e.remove(b + "before")
         if (key == "bridgeProtonDxvk") e.putBoolean(key, proposed.toBooleanStrict())
         else e.putString(key, proposed)
         check(e.commit()) { "설정 저장 실패: 현재 상태를 다시 확인하세요." }
+        RecoveryReview(key, expectedRaw, proposed, proposed, recordId)
     }
 
     fun raw(context: Context, key: String): String? {
@@ -76,9 +82,10 @@ internal object SettingsBackup {
             val b = prefix(key)
             val review = readReview(key, all)
             val status = when {
-                review != null && review.matchesApplied -> ReviewStatus.READY
-                review != null -> ReviewStatus.CONFLICT
-                listOf("applied", "present", "before").any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
+                review != null && !review.matchesApplied -> ReviewStatus.CONFLICT
+                review != null && review.recordId == null -> ReviewStatus.LEGACY_BACKUP
+                review != null -> ReviewStatus.READY
+                recordFields.any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
                 else -> ReviewStatus.NO_BACKUP
             }
             ReviewEntry(key, status, review)
@@ -100,7 +107,13 @@ internal object SettingsBackup {
             key == "bridgeProtonDxvk" -> (value as? Boolean ?: return null).toString()
             else -> value as? String ?: return null
         }
-        return RecoveryReview(key, before, applied, current)
+        val recordId = if (all.containsKey(b + "id")) {
+            val id = all[b + "id"] as? String ?: return null
+            val canonical = try { UUID.fromString(id).toString() } catch (_: IllegalArgumentException) { return null }
+            if (canonical != id) return null
+            id
+        } else null
+        return RecoveryReview(key, before, applied, current, recordId)
     }
 
     @Synchronized
@@ -121,6 +134,7 @@ internal object SettingsBackup {
         val b = prefix(key)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         val review = checkNotNull(review(context, key)) { "복구 기록을 확인할 수 없습니다." }
+        check(review.recordId != null) { "이전 형식의 백업은 자동 복구할 수 없습니다." }
         check(expected == null || review == expected) { "복구 기록이 변경되었습니다." }
         check(review.matchesApplied) { "설정 충돌: 복구를 보류합니다." }
         val e = p.edit()
@@ -130,7 +144,7 @@ internal object SettingsBackup {
             if (key == "bridgeProtonDxvk") e.putBoolean(key, before.toBooleanStrict())
             else e.putString(key, before)
         }
-        e.remove(b + "applied").remove(b + "present").remove(b + "before")
+        recordFields.forEach { e.remove(b + it) }
         check(e.commit()) { "복구 저장 실패: 현재 상태를 다시 확인하세요." }
     }
 }
