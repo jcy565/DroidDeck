@@ -73,9 +73,12 @@ class CiChecksTest(unittest.TestCase):
             self.assertEqual(result.returncode, 17)
             self.assertEqual(len(log.read_text().splitlines()), 2)
             log.unlink()
-            subprocess.run(['bash', str(installer), 'qemu-user'], env=env, check=True)
+            subprocess.run(['bash', str(installer), 'qemu-user'], env=dict(env, APT_UPDATE_TIMEOUT='180s', APT_INSTALL_TIMEOUT='300s'), check=True)
             update, install = log.read_text().splitlines()
+            self.assertIn('--kill-after=10s 180s apt-get', update)
+            self.assertIn('--kill-after=10s 300s env', install)
             for command in (update, install):
+                self.assertIn('Acquire::Languages=none', command)
                 self.assertIn('Dir::Etc::sourceparts=-', command)
                 self.assertIn(f'Dir::Etc::sourcelist={sources}', command)
                 self.assertIn('Acquire::https::Timeout=15', command)

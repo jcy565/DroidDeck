@@ -17,6 +17,7 @@ if [ -f "$ubuntu_sources" ]; then
   options+=(-o "Dir::Etc::sourcelist=$ubuntu_sources" -o Dir::Etc::sourceparts=-)
 fi
 options+=(
+  -o Acquire::Languages=none
   -o Acquire::Retries=1
   -o Acquire::http::Timeout=15
   -o Acquire::https::Timeout=15
@@ -24,9 +25,9 @@ options+=(
 )
 install_packages() {
   echo "Updating Ubuntu package indexes."
-  sudo timeout --kill-after=10s 60s apt-get "${options[@]}" -o APT::Update::Error-Mode=any update -q || return $?
+  sudo timeout --kill-after=10s "${APT_UPDATE_TIMEOUT:-60s}" apt-get "${options[@]}" -o APT::Update::Error-Mode=any update -q || return $?
   echo "Installing: ${missing[*]}"
-  sudo timeout --kill-after=10s 120s env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get "${options[@]}" install -y -q --no-install-recommends "${missing[@]}"
+  sudo timeout --kill-after=10s "${APT_INSTALL_TIMEOUT:-120s}" env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get "${options[@]}" install -y -q --no-install-recommends "${missing[@]}"
 }
 if install_packages; then
   exit 0

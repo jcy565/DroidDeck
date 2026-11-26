@@ -140,3 +140,7 @@ Staging commit 8764d1d backports the dispatcher recovery fixture. Its four regre
 ## Settings reset caller audit
 
 SettingsReset.resetAll removed resolution and legacy inputs directly from session preferences. The reset now removes the same settings and updates affected Steam/desktop preview revisions and pending recovery invalidations in one synchronized editor commit. A session preference commit failure now contributes to the reset result. Added SDK 33 regression cases for a pending backup, unrelated bridge approval and stale legacy preview. A local JVM run compiled SettingsBackup and SessionDriverGate with in-memory Android preference and gameplay-budget substitutes and passed reset, no-op, scope, legacy shape and failed-commit checks. Android validation pending.
+
+## Component preparation CI timeout
+
+Compose verification run 45790544329 reached the Ubuntu package install timeout (120 s) and then the fallback index update timeout (60 s) in job 139808311804. APK tests did not run. The component preparation step now allows 180 s for each index refresh and 300 s per installation, with apt translation downloads disabled. Mirror fallback and strict update failures remain enabled. The combined staging branch includes f4ccc58 for the next full Android run.
