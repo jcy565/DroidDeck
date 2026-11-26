@@ -106,3 +106,46 @@ class CiChecksTest(unittest.TestCase):
         for publisher in ('sign', 'packs'):
             self.assertIn('checks', jobs[publisher]['needs'])
 
+    def test_compose_diagnostics_do_not_replace_full_suite_gate(self):
+        jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
+        steps = jobs['build']['steps']
+        ids = {step.get('id'): step for step in steps}
+        diag = ids['compose-idle-diagnostics']
+        self.assertIn('failure()', diag['if'])
+        self.assertIn("steps.unit-tests.outcome == 'failure'", diag['if'])
+        self.assertEqual(diag['env'], ids['unit-tests']['env'])
+        self.assertNotIn('continue-on-error', ids['unit-tests'])
+        self.assertLess(steps.index(ids['unit-test-diagnostics']), steps.index(diag))
+        self.assertLess(steps.index(diag), steps.index(ids['apk-upload']))
+        self.assertNotIn('continue-on-error', jobs['build'])
+        self.assertIn('checks', jobs['sign']['needs'])
+
+    def test_isolated_compose_diagnostics_preserve_each_exit_code(self):
+        script = ROOT / 'tools/ci/diagnose-compose-idle.sh'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gradle = root / 'gradlew'
+            gradle.write_text("""#!/usr/bin/env bash
+set -eu
+[[ "$2" == --tests ]]
+mkdir -p app/build/test-results/testReleaseUnitTest
+printf '%s\\n' "$3" > app/build/test-results/testReleaseUnitTest/test.xml
+case "$3" in
+    *HeadingLocaleTest*) exit 1 ;;
+    *ModeHeaderFocusTest*) exit 0 ;;
+    *) exit 99 ;;
+esac
+""")
+            gradle.chmod(0o755)
+            subprocess.run(['bash', str(script)], cwd=root,
+                           env=dict(os.environ, NDK_VERSION='test'), check=True)
+            output = root / 'app/build/compose-idle-diagnostics'
+            rows = (output / 'summary.tsv').read_text().splitlines()
+            self.assertEqual(rows[0], 'test\\texit_code'.replace('\\t', '\t'))
+            self.assertEqual(len(rows), 3)
+            self.assertEqual([line.rsplit('\t', 1)[1] for line in rows[1:]], ['1', '0'])
+            for row in rows[1:]:
+                method = row.split('\t')[0]
+                dest = output / method.rsplit('.', 1)[1]
+                self.assertTrue((dest / 'run.log').is_file())
+                self.assertEqual((dest / 'results/test.xml').read_text().strip(), method)
