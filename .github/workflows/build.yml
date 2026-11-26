@@ -823,6 +823,26 @@ jobs:
           retention-days: 3
           compression-level: 0
 
+      # Keep the full-suite failure and its already-uploaded XML intact.
+      # Fresh Gradle test workers distinguish isolated failures from suite interaction.
+      - name: Diagnose recurring Compose idle failures
+        id: compose-idle-diagnostics
+        if: failure() && steps.unit-tests.outcome == 'failure' && startsWith(github.ref_name, 'ai-')
+        timeout-minutes: 10
+        env:
+          DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
+          SGDB_API_KEY: ${{ !startsWith(github.ref_name, 'ai-') && secrets.SGDB_API_KEY || '' }}
+        run: bash tools/ci/diagnose-compose-idle.sh
+
+      - name: Upload isolated Compose diagnostics
+        if: always() && steps.compose-idle-diagnostics.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-idle-diagnostics
+          path: app/build/compose-idle-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - uses: actions/upload-artifact@v4
         id: apk-upload
         with:
