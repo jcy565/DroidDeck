@@ -1,6 +1,7 @@
 package com.droiddeck.launcher.session
 
 import android.content.Context
+import com.droiddeck.launcher.compatibility.SettingsBackup
 import com.droiddeck.launcher.core.AppUiPrefs
 import com.droiddeck.launcher.gpu.FrameGen
 import com.droiddeck.launcher.input.ControllerPrefs
@@ -80,6 +81,35 @@ class SettingsResetTest {
         assertEquals(AppUiPrefs.DEFAULT_SCALE, AppUiPrefs.scale(app))
         assertEquals(FrameGen.Mode.OFF.engine, FrameGen.engine(app))
         assertFalse(prefs("steam_touch").contains("gyro"))
+    }
+
+    @Test fun resetInvalidatesPendingResolutionButPreservesBridgeApproval() {
+        val key = "displayResolution.steam"
+        val resolution = SettingsBackup.apply(app, key, null, "1600x900")
+        val bridge = SettingsBackup.apply(app, "bridgeProtonDxvk", null, "true")
+
+        assertTrue(SettingsReset.resetAll(app, gameProfiles = false))
+        val review = requireNotNull(SettingsBackup.review(app, key))
+        assertEquals(resolution.recordId, review.recordId)
+        assertNull(review.current)
+        assertTrue(review.invalidated)
+        assertEquals(bridge, SettingsBackup.review(app, "bridgeProtonDxvk"))
+    }
+
+    @Test fun resetOfLegacyResolutionRetiresOnlyItsScopesPreview() {
+        session.edit().putInt("resolutionCap.steam", 720).commit()
+        fun preview(mode: String) = SettingsBackup.capturePreview(app, "displayResolution.$mode") {
+            SessionPrefs.resolutionChoice(app, mode, 2400 to 1080)
+        }
+        val steam = preview("steam")
+        val desktop = preview("desktop")
+
+        assertTrue(SettingsReset.resetAll(app, gameProfiles = false))
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(app, "displayResolution.steam", steam.raw, "1600x900", steam)
+        }
+        assertEquals(desktop, preview("desktop"))
+        assertFalse(session.contains("displayResolution.steam"))
     }
 
     @Test fun aFailedDebugOptOutDoesNotHideTheEnabledPreference() {

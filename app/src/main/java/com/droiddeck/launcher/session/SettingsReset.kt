@@ -2,6 +2,7 @@ package com.droiddeck.launcher.session
 
 import android.content.Context
 import android.util.Log
+import com.droiddeck.launcher.compatibility.SettingsBackup
 import com.droiddeck.launcher.core.DownloadSource
 import com.droiddeck.launcher.core.GameEnvironment
 import com.droiddeck.launcher.input.ControllerPrefs
@@ -40,9 +41,8 @@ object SettingsReset {
 
     fun resetAll(context: Context, gameProfiles: Boolean, gameScopes: Collection<String> = emptyList()): Boolean {
         if (!SessionPrefs.setGameDebugLogsEnabled(context, false)) return false
-        var ok = true
+        var ok = SettingsBackup.resetSessionSettings(context, ::isSessionSetting)
         val session = context.getSharedPreferences("session", Context.MODE_PRIVATE)
-        session.edit().apply { session.all.keys.filter { isSessionSetting(it) }.forEach { remove(it) } }.commit()
         ControllerPrefs.resetAll(context)
         InputProfiles.resetAll(context)
         context.getSharedPreferences("app-ui", Context.MODE_PRIVATE).edit().clear().commit()

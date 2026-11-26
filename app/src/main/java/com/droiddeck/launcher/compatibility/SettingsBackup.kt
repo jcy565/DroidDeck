@@ -116,6 +116,28 @@ internal object SettingsBackup {
     private fun invalidateOnChange(all: Map<String, *>, key: String, value: Any,
         editor: android.content.SharedPreferences.Editor) {
         if (key !in supportedKeys || all[key] == value) return
+        invalidateReview(all, key, editor)
+    }
+
+    @Synchronized
+    fun resetSessionSettings(context: Context, isSetting: (String) -> Boolean): Boolean {
+        val p = prefs(context)
+        val all = p.all
+        val removed = all.keys.filter(isSetting).toSet()
+        val editor = p.edit()
+        removed.forEach { editor.remove(it) }
+        for (mode in listOf("steam", "desktop")) {
+            val key = "displayResolution.$mode"
+            if (key in removed || "customRes.$mode" in removed ||
+                "resolutionCap.$mode" in removed || "shape" in removed) {
+                invalidateReview(all, key, editor)
+            }
+        }
+        return editor.commit()
+    }
+
+    private fun invalidateReview(all: Map<String, *>, key: String,
+        editor: android.content.SharedPreferences.Editor) {
         val b = prefix(key)
         editor.putString(revisionKey(key), UUID.randomUUID().toString())
         if (recordFields.any { all.containsKey(b + it) }) editor.putBoolean(b + "invalidated", true)
