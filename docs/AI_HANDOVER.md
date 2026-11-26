@@ -144,3 +144,5 @@ SettingsReset.resetAll removed resolution and legacy inputs directly from sessio
 ## Component preparation CI timeout
 
 Compose verification run 45790544329 reached the Ubuntu package install timeout (120 s) and then the fallback index update timeout (60 s) in job 139808311804. APK tests did not run. The component preparation step now allows 180 s for each index refresh and 300 s per installation, with apt translation downloads disabled. Mirror fallback and strict update failures remain enabled. The combined staging branch includes f4ccc58 for the next full Android run.
+
+Run 45791605074 passed Python/native, store and Xbox checks. Its component job 139811934730 downloaded 11 of the 12 remaining Ubuntu packages on fallback and was still transferring the last 17.5 MB Mesa package when the 300-second install deadline expired (exit 124). The component-only install deadline is now 720 seconds, leaving the per-connection timeouts, mirror fallback, signed indexes and job timeout in place.

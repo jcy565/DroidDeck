@@ -238,7 +238,7 @@ jobs:
       - name: Prepare required Linux build tools once
         env:
           APT_UPDATE_TIMEOUT: 180s
-          APT_INSTALL_TIMEOUT: 300s
+          APT_INSTALL_TIMEOUT: 720s
           COMPONENTS_TO_BUILD: >-
             ${{ steps.preloads.outputs.cache-hit != 'true' && 'runtime' || '' }}
             ${{ steps.component-preloads.outputs.arm64 != 'true' && 'arm64-preloads' || '' }}
