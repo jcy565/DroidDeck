@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = android.app.Application::class)
+@Config(sdk = [28, 34], application = android.app.Application::class)
 class RobolectricComposeRuleTest {
     private fun dropPendingUiDispatch() {
         val ui = UiDispatch()
