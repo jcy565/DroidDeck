@@ -45,6 +45,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("게임 호환성 기록")
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
+            Text(if (gameVersion == null) "설치 버전: 확인되지 않음" else "설치 버전: $gameVersion")
             report?.let { current ->
                 Text(current.description)
                 current.advice.forEach { Text("• " + it) }

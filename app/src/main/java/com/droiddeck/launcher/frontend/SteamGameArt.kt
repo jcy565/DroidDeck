@@ -27,7 +27,7 @@ object SteamGameArt {
         return Library.SteamGame(
             game.appId, game.name, cover ?: game.art, game.library, game.gameId,
             hero ?: game.hero, game.lastPlayed, game.gameFiles, game.protonPrefix, icon ?: game.icon, game.source, game.storeId,
-            logo ?: game.logo,
+            logo ?: game.logo, game.installedAt, game.installedVersion,
         )
     }
 

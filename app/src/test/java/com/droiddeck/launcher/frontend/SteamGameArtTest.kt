@@ -27,7 +27,7 @@ class SteamGameArtTest {
         SessionPrefs.setAddedGamesDirs(app, emptyList())
     }
 
-    private fun game(art: File? = null) = Library.SteamGame(620, "Portal 2", art, "Steam library")
+    private fun game(art: File? = null) = Library.SteamGame(620, "Portal 2", art, "Steam library", installedVersion = "12345")
 
     private fun image(name: String) = File(tmp.root, name).apply { writeBytes(ByteArray(8)) }
 
@@ -39,6 +39,8 @@ class SteamGameArtTest {
 
         val shown = SteamGameArt.withOverrides(app, game(stock))
         assertTrue(shown.art!!.name.matches(Regex("chosen-p-\\d+\\.png")))
+        assertEquals("12345", shown.installedVersion)
+        assertEquals("12345", shown.withArt(null, null, null).installedVersion)
         val states = SteamGameArt.describe(app, game(stock))
         assertTrue(states.first { it.slot == AddedGameArt.Slot.COVER }.chosen)
         assertFalse(states.first { it.slot == AddedGameArt.Slot.BACKGROUND }.chosen)

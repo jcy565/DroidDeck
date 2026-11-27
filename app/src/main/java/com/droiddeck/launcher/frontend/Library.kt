@@ -19,9 +19,10 @@ object Library {
         val storeId: String? = null,
         val logo: File? = null,
         val installedAt: Long = 0L,
+        val installedVersion: String? = null,
     ) {
         fun withArt(art: File?, hero: File?, icon: File?, logo: File? = this.logo) =
-            SteamGame(appId, name, art, library, gameId, hero, lastPlayed, gameFiles, protonPrefix, icon, source, storeId, logo, installedAt)
+            SteamGame(appId, name, art, library, gameId, hero, lastPlayed, gameFiles, protonPrefix, icon, source, storeId, logo, installedAt, installedVersion)
 
         val gameIdString: String get() = java.lang.Long.toUnsignedString(gameId)
         val launchKey: String get() = if (storeId != null) "$source:$storeId" else gameIdString
@@ -156,6 +157,7 @@ object Library {
                         protonPrefix = protonPrefix(context, appId.toLong(), library, roots),
                         icon = images.icon(),
                         logo = images.find(STEAM_LOGOS),
+                        installedVersion = com.droiddeck.launcher.compatibility.InstalledGameVersion.steamBuildId(text, appId),
                     ))
                 }
         }
