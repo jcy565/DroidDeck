@@ -381,6 +381,7 @@ android.sourceSets.main.jniLibs.srcDir(vkbridgeJniLibsDir)
 tasks.named('preBuild').configure { dependsOn(buildVkBridgeServer) }
 
 dependencies {
+    implementation project(':ai-core')
     if (experimentalLocalAi) {
         implementation 'com.google.mediapipe:tasks-genai:0.10.35'
     }

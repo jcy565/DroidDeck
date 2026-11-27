@@ -91,6 +91,7 @@ internal object GameAgent {
 
     suspend fun run(request: Request, allowed: () -> Boolean,
         modelFactory: () -> GameAgentModel, timeoutMillis: Long = 60_000): Result {
+        AiHostBridge.requireCompatible()
         require(timeoutMillis in 1..120_000)
         currentCoroutineContext().ensureActive()
         check(allowed()) { "Game or memory budget blocks AI work" }
@@ -107,13 +108,16 @@ internal object GameAgent {
     }
 
     fun externalPrompt(request: Request, exchangeId: String): String {
+        AiHostBridge.requireCompatible()
         require(exchangeId.matches(Regex("[a-f0-9-]{36}")))
         return prepare(request).prompt + "\nExternal exchange: include the additional string field \"exchange_id\": \"" +
             exchangeId + "\" in the same JSON response. Do not include markdown or any other fields."
     }
 
-    fun acceptExternal(request: Request, output: String, exchangeId: String): Result =
-        validate(request, prepare(request), output, exchangeId)
+    fun acceptExternal(request: Request, output: String, exchangeId: String): Result {
+        AiHostBridge.requireCompatible()
+        return validate(request, prepare(request), output, exchangeId)
+    }
 
     private fun validate(request: Request, input: Input, output: String, exchangeId: String?): Result {
         require(output.length <= MAX_OUTPUT_CHARS)

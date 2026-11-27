@@ -24,6 +24,7 @@ import java.io.File
 @Composable
 internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val aiAvailability = remember { AiHostBridge.availability() }
     val scope = rememberCoroutineScope()
     val backups = File(context.filesDir, "game-patch-backups")
     val draftDirectory = File(context.filesDir, "translation-drafts")
@@ -55,7 +56,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
 
     fun allowsAgentWork(): Boolean {
         val memory = GameplayBudget.memory(context)
-        return GameplayBudget.allowsOptionalAnalysis(context) &&
+        return AiHostBridge.availability().enabled && GameplayBudget.allowsOptionalAnalysis(context) &&
             memory != null && memory.availableBytes >= 2L * 1024 * 1024 * 1024
     }
 
@@ -132,7 +133,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         }
     }
     val modelImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null && LocalAgentRuntime.enabled) runAction {
+        if (uri != null && aiAvailability.enabled && LocalAgentRuntime.enabled) runAction {
+            AiHostBridge.requireCompatible()
             require(uri.scheme == "content")
             val digest = modelDigest
             withContext(Dispatchers.IO) {
@@ -157,6 +159,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             Text("오프라인 규칙 기반 도우미")
             if (config || log || translationTable) {
+                Text("엔진 API ${AiHostBridge.HOST_API} · AI 모듈 ${aiAvailability.version ?: "없음"}")
+                aiAvailability.reason?.let { Text(it + " 기본 파일 도구는 계속 사용할 수 있습니다.") }
+            }
+            if (aiAvailability.enabled && (config || log || translationTable)) {
                 Text("ChatGPT 앱 연동 · 수동 작업 교환")
                 Text("별도 API 키나 로컬 모델 없이 사용합니다. 요청에 선택한 파일 내용이 포함됩니다. 개인정보, 계정 정보, 저작권 제한 자료를 공유하지 마세요. 자동 전송 또는 자동 익명화는 하지 않습니다.")
                 OutlinedTextField(exchangeInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) {
@@ -185,6 +191,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         label = { Text("공유할 요청 전문") }, maxLines = 8)
                     TextButton(enabled = !busy && pendingExport == null, onClick = {
                         try {
+                            AiHostBridge.requireCompatible()
                             context.startActivity(Intent.createChooser(
                                 Intent(Intent.ACTION_SEND).setType("text/plain")
                                     .putExtra(Intent.EXTRA_TEXT, pending.prompt), "ChatGPT로 공유"))
@@ -219,7 +226,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     TextButton(enabled = !busy, onClick = { exchange = null; exchangeReply = "" }) { Text("AI 작업 취소") }
                 }
             }
-            if (LocalAgentRuntime.enabled && (config || log || translationTable)) {
+            if (aiAvailability.enabled && LocalAgentRuntime.enabled && (config || log || translationTable)) {
                 Text("실험용 온디바이스 AI · 검증되지 않은 모델 실행 기능")
                 Text("신뢰할 수 있는 배포처의 호환 .task 모델과 SHA-256이 필요합니다. SDK 진단 정보 수집 여부는 아직 검증되지 않았습니다.")
                 OutlinedTextField(modelDigest, { if (it.length <= 64) modelDigest = it },
