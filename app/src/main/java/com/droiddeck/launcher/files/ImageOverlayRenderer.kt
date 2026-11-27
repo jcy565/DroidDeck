@@ -8,6 +8,7 @@ import android.graphics.LinearGradient
 import android.graphics.Shader
 import android.graphics.Typeface
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
@@ -156,31 +157,86 @@ internal object ImageOverlayRenderer {
         }
     }
 
+    internal class DdsReview(
+        val identity: ImageDraftStore.Identity, val stats: DdsCopyReview.Stats,
+        val bitmap: Bitmap, private val bytes: ByteArray
+    ) {
+        fun writeTo(output: FileOutputStream) { output.write(bytes) }
+        fun matches(saved: ByteArray): Boolean = bytes.contentEquals(saved)
+    }
+
+    fun prepareDdsReview(file: File, expected: ImageDraftStore.Identity, preview: Bitmap,
+        regions: List<DdsCopyEncoder.Rect>, checkpoint: () -> Unit): DdsReview {
+        checkpoint()
+        require(file.extension.lowercase() == "dds" && ImageDraftStore.identity(file) == expected)
+        require(!preview.isRecycled)
+        val source = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
+        val hash = MessageDigest.getInstance("SHA-256").digest(source)
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        require(hash == expected.digest)
+        val runtime = Runtime.getRuntime()
+        val available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
+        require(available >= source.size.toLong() * 3 + 32L * 1024 * 1024) { "DDS 검토 메모리가 부족합니다." }
+        val output = ByteArrayOutputStream(source.size)
+        DdsCopyEncoder.writeCopy(source, preview.width, preview.height, regions, output, { x, y, block ->
+            for (i in 0..15) block[i] = preview.getPixel(
+                minOf(preview.width - 1, x + i % 4), minOf(preview.height - 1, y + i / 4))
+        }, checkpoint)
+        val candidate = output.toByteArray()
+        val stats = DdsCopyReview.validate(source, candidate, regions, checkpoint)
+        val sample = ImageOverlayPlan.comparisonSample(preview.width, preview.height)
+        val bitmap = ImageAssetDecoder.decode(candidate, "dds", sample, false, checkpoint)
+        try {
+            require(bitmap.width.toLong() * bitmap.height <= 1_048_576L)
+            checkpoint()
+            require(ImageDraftStore.identity(file) == expected)
+            return DdsReview(expected, stats, bitmap, candidate)
+        } catch (failure: Throwable) {
+            bitmap.recycle()
+            throw failure
+        }
+    }
+
+    fun saveReviewedDds(file: File, expected: ImageDraftStore.Identity, review: DdsReview,
+        checkpoint: () -> Unit): File {
+        checkpoint()
+        require(file.extension.lowercase() == "dds" && review.identity == expected)
+        require(ImageDraftStore.identity(file) == expected)
+        val parent = requireNotNull(file.canonicalFile.parentFile)
+        require(Files.isDirectory(parent.toPath(), NOFOLLOW_LINKS))
+        val output = Files.createTempFile(parent.toPath(), "dd-translated-", ".dds").toFile()
+        try {
+            FileOutputStream(output).use { review.writeTo(it); it.fd.sync() }
+            val saved = Files.newInputStream(output.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
+            require(review.matches(saved)) { "저장한 DDS가 검토본과 일치하지 않습니다." }
+            checkpoint()
+            require(ImageDraftStore.identity(file) == expected)
+            return output
+        } catch (failure: Throwable) {
+            Files.deleteIfExists(output.toPath())
+            throw failure
+        }
+    }
+
     /** Allocate a fresh unique file in the original folder; never open the original for writing. */
     fun saveCopy(file: File, expected: ImageDraftStore.Identity, preview: Bitmap,
-        asTga: Boolean = false, ddsRegions: List<DdsCopyEncoder.Rect>? = null, checkpoint: () -> Unit): File {
+        asTga: Boolean = false, checkpoint: () -> Unit): File {
         checkpoint()
         require(ImageDraftStore.identity(file) == expected)
         require(!preview.isRecycled && preview.width.toLong() * preview.height <= ImageOverlayPlan.MAX_EXPORT_PIXELS)
         val parent = requireNotNull(file.canonicalFile.parentFile)
         require(Files.isDirectory(parent.toPath(), NOFOLLOW_LINKS))
         require(!asTga || file.extension.lowercase() == "tga")
-        require(ddsRegions == null || (!asTga && file.extension.lowercase() == "dds"))
-        val suffix = if (asTga) ".tga" else if (ddsRegions != null) ".dds" else ".png"
+        val suffix = if (asTga) ".tga" else ".png"
         val output = Files.createTempFile(parent.toPath(), "dd-translated-", suffix).toFile()
         try {
             FileOutputStream(output).use {
-                if (asTga || ddsRegions != null) {
+                if (asTga) {
                     val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
                     val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
                         .joinToString("") { "%02x".format(it.toInt() and 255) }
                     require(hash == expected.digest)
-                    if (ddsRegions != null) {
-                        DdsCopyEncoder.writeCopy(bytes, preview.width, preview.height, ddsRegions, it, { x, y, block ->
-                            for (i in 0..15) block[i] = preview.getPixel(
-                                minOf(preview.width - 1, x + i % 4), minOf(preview.height - 1, y + i / 4))
-                        }, checkpoint)
-                    } else TgaImage.writeCopy(bytes, preview.width, preview.height, it, { y, row ->
+                    TgaImage.writeCopy(bytes, preview.width, preview.height, it, { y, row ->
                         preview.getPixels(row, 0, preview.width, 0, y, preview.width, 1)
                     }, checkpoint)
                 } else require(preview.compress(Bitmap.CompressFormat.PNG, 100, it)) { "PNG 생성 실패" }

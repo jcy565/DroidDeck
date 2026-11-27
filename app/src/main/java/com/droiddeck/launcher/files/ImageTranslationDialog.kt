@@ -262,25 +262,47 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 }) { Text("검토한 이미지 TGA 복사본 저장") }
                             }
                             if (file.extension.lowercase() == "dds") {
-                                Text("DDS는 번역 영역과 겹치는 압축 블록만 손실 재압축합니다. 그 밖의 블록은 원본 그대로 보존하지만 재압축 영역의 색상·투명도와 게임 호환성은 별도 확인이 필요합니다.")
+                                var review by remember(bitmap) { mutableStateOf<ImageOverlayRenderer.DdsReview?>(null) }
+                                Text("번역 영역과 겹치는 블록만 손실 재압축합니다. 저장 전 실제 압축 결과를 검토하세요.")
                                 TextButton(enabled = !busy && identity != null && !showOriginal, onClick = {
                                     val expected = requireNotNull(identity)
                                     val edits = regionEdits.toMap()
+                                    review = null
                                     draftAction {
-                                        val saved = withContext(Dispatchers.IO) {
+                                        review = withContext(Dispatchers.IO) {
                                             val boxes = ImageOverlayPlan.originalSize(
                                                 ImageOverlayPlan.prepare(result, edits), result.width, result.height,
                                                 bitmap.width, bitmap.height).map {
                                                 DdsCopyEncoder.Rect(it.box.left, it.box.top, it.box.right, it.box.bottom)
                                             }
-                                            ImageOverlayRenderer.saveCopy(file, expected, bitmap, ddsRegions = boxes) {
+                                            ImageOverlayRenderer.prepareDdsReview(file, expected, bitmap, boxes) {
                                                 ensureActive()
                                                 check(allowed())
                                             }
                                         }
-                                        message = "새 DDS 복사본 저장: ${saved.name}. 재압축 결과를 확인하세요."
+                                        message = "실제 DDS 재압축 검토본입니다. 색상·글자·투명도를 확인하세요."
                                     }
-                                }) { Text("DDS 복사본 저장 (손실 재압축)") }
+                                }) { Text("DDS 재압축 미리보기 생성") }
+                                review?.let { candidate ->
+                                    Text("변경 블록 ${candidate.stats.changedBlocks} / ${candidate.stats.totalBlocks} · 편집 허용 ${candidate.stats.editableBlocks}")
+                                    Text("원본 헤더 및 영역 밖 압축 블록 일치 검증 완료 · 축소 미리보기")
+                                    val compressed = remember(candidate) { candidate.bitmap.asImageBitmap() }
+                                    Image(bitmap = compressed, contentDescription = "재압축 DDS 검토본",
+                                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
+                                    TextButton(enabled = !busy && identity != null && !showOriginal, onClick = {
+                                        val expected = requireNotNull(identity)
+                                        draftAction {
+                                            val saved = withContext(Dispatchers.IO) {
+                                                ImageOverlayRenderer.saveReviewedDds(file, expected, candidate) {
+                                                    ensureActive()
+                                                    check(allowed())
+                                                }
+                                            }
+                                            message = "검토한 DDS 복사본 저장: ${saved.name}. 저장 데이터 일치 확인."
+                                        }
+                                    }) { Text("검토한 DDS 복사본 저장") }
+                                    TextButton(enabled = !busy, onClick = { review = null }) { Text("DDS 검토본 닫기") }
+                                }
                             }
                             TextButton(enabled = !busy, onClick = { imagePreview = null; originalPreview = null; showOriginal = false }) { Text("미리보기 닫기") }
                         }

@@ -39,6 +39,24 @@ class DdsCopyEncoderTest {
         }
     }
 
+    @Test fun rejectsChangesOutsideReviewedBlocksAndHeader() {
+        for (format in DdsImage.Format.values()) {
+            val source = fixture(format, 7, 5, DdsCopyEncoder.encodeBlock(format, IntArray(16) { 0xff0000ff.toInt() }))
+            val regions = listOf(DdsCopyEncoder.Rect(0, 0, 4, 4))
+            val output = ByteArrayOutputStream()
+            DdsCopyEncoder.writeCopy(source, 7, 5, regions, output,
+                { _, _, pixels -> pixels.fill(0xffff0000.toInt()) })
+            val candidate = output.toByteArray()
+            assertEquals(DdsCopyReview.Stats(4, 1, 1), DdsCopyReview.validate(source, candidate, regions))
+            val changedHeader = candidate.copyOf().apply { this[32] = 1 }
+            val changedOutside = candidate.copyOf().apply { this[128 + format.blockBytes] =
+                (this[128 + format.blockBytes].toInt() xor 1).toByte() }
+            assertTrue(runCatching { DdsCopyReview.validate(source, changedHeader, regions) }.isFailure)
+            assertTrue(runCatching { DdsCopyReview.validate(source, changedOutside, regions) }.isFailure)
+            assertTrue(runCatching { DdsCopyReview.validate(source, candidate, regions) { error("cancel") } }.isFailure)
+        }
+    }
+
     @Test fun handlesAlphaAndRejectsUnsupportedBc1PartialAlpha() {
         val f = DdsImage.Format.DXT1
         val p = IntArray(16) { if (it % 2 == 0) 0 else 0xffff0000.toInt() }
