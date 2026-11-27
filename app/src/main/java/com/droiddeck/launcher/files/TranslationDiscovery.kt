@@ -9,7 +9,7 @@ import java.nio.file.attribute.BasicFileAttributes
 /** Read-only discovery, never a permission to apply a patch. */
 internal object TranslationDiscovery {
     private val formats = setOf("csv", "tsv", "json")
-    data class Candidate(val relative: String, val rows: Int)
+    data class Candidate(val relative: String, val rows: Int, val digest: String)
     data class Report(val candidates: List<Candidate>, val examined: Int, val rejected: Int, val partial: Boolean)
 
     fun inspect(root: File, visitLimit: Int = 5000, probeLimit: Int = 32,
@@ -41,14 +41,18 @@ internal object TranslationDiscovery {
                 }
                 examined++
                 val relative = start.relativize(path).toString()
-                val count = try {
+                val candidate = try {
                     if (attrs.size() !in 1L..TranslationLimits.MAX_PATCH_BYTES.toLong()) null
                     else validate(root, relative)
                 } catch (_: IOException) { null }
                   catch (_: IllegalArgumentException) { null }
+                  catch (e: IllegalStateException) {
+                      if (e is java.util.concurrent.CancellationException) throw e
+                      null
+                  }
                   catch (_: SecurityException) { null }
                 checkpoint()
-                if (count == null) rejected++ else candidates.add(Candidate(relative, count))
+                if (candidate == null) rejected++ else candidates.add(candidate)
                 return step
             }
             override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult {
@@ -76,16 +80,20 @@ internal object TranslationDiscovery {
         return file
     }
 
-    private fun validate(root: File, relative: String): Int {
+    private fun validate(root: File, relative: String): Candidate {
         val file = resolve(root, relative)
-        val source = LocalGameAdvisor.decode(GamePatchStore.readTarget(file))
+        val bytes = GamePatchStore.readTarget(file)
+        val source = LocalGameAdvisor.decode(bytes)
         require(GamePatchAuthor.matchesTranslationExtension(source, file.extension))
-        return GamePatchAuthor.extract(source).size
+        val rows = GamePatchAuthor.extract(source).size
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        return Candidate(relative, rows, digest)
     }
 
     /** Recheck current path and format before navigating to the existing editor. */
     fun open(root: File, candidate: Candidate): File {
-        require(validate(root, candidate.relative) == candidate.rows) { "파일이 변경되었습니다. 다시 탐색하세요." }
+        require(validate(root, candidate.relative) == candidate) { "파일이 변경되었습니다. 다시 탐색하세요." }
         return resolve(root, candidate.relative)
     }
 }
