@@ -395,6 +395,27 @@ class SettingsBackupTest {
         assertEquals(before, prefs.all)
     }
 
+    @Test fun malformedUnbackedRevisionCannotBeOverwrittenByApply() {
+        prefs.edit().putString("ai.revision.$key", "bad").commit()
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.capturePreview(context, key) { "720p" }
+        }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720")
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun wronglyTypedRevisionCannotBeOverwrittenByApply() {
+        prefs.edit().putInt("ai.revision.$key", 1).commit()
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720")
+        }
+        assertEquals(before, prefs.all)
+    }
+
     @Test fun malformedArchivedRevisionIsVisibleButNotTrusted() {
         val review = SettingsBackup.apply(context, key, null, "1280x720")
         SettingsBackup.keepCurrentAndArchive(context, review, true)

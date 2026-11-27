@@ -44,8 +44,16 @@ internal object SettingsBackup {
         return "ai.revision.$key"
     }
 
-    private fun revision(context: Context, key: String): String? =
-        prefs(context).getString(revisionKey(key), null)
+    private fun revision(context: Context, key: String): String? {
+        val all = prefs(context).all
+        val field = revisionKey(key)
+        if (!all.containsKey(field)) return null
+        val id = all[field] as? String ?: error("잘못된 설정 변경 이력")
+        val canonical = try { UUID.fromString(id).toString() }
+            catch (_: IllegalArgumentException) { error("잘못된 설정 변경 이력") }
+        check(id == canonical) { "잘못된 설정 변경 이력" }
+        return id
+    }
 
     data class PreviewSnapshot(val key: String, val raw: String?, val effective: String, val revision: String?)
 
@@ -78,8 +86,9 @@ internal object SettingsBackup {
         require(expectedRaw != proposed)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         check(recordFields.none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
+        val currentRevision = revision(context, key)
         check(expectedPreview == null || (expectedPreview.key == key && expectedPreview.raw == expectedRaw &&
-            expectedPreview.revision == revision(context, key))) { "미리보기 이후 설정이 변경되었습니다." }
+            expectedPreview.revision == currentRevision)) { "미리보기 이후 설정이 변경되었습니다." }
         check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
         val recordId = UUID.randomUUID().toString()
         val newRevision = UUID.randomUUID().toString()

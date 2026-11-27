@@ -26,5 +26,23 @@ internal object DroidDeckSettingsPreview {
         return Change(Setting.PROTON_DXVK_BRIDGE, snapshot.effective, proposed.toString(), "global", snapshot, null)
     }
 
+    /** Explicit, read-only alternatives sharing a snapshot within each scope.
+     * Values are output choices, not measured game resolution or performance. */
+    fun alternatives(context: Context, panel: Pair<Int, Int>): List<Change> {
+        check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+        val result = buildList {
+            for (mode in listOf("steam", "desktop")) {
+                val first = outputResolution(context, mode, panel, "1280x720")
+                add(first)
+                add(first.copy(proposed = "1600x900"))
+            }
+            val bridge = protonDxvkBridge(context, true)
+            add(bridge)
+            add(bridge.copy(proposed = "false"))
+        }
+        check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+        return result
+    }
+
     fun changed(change: Change): Boolean = change.before != change.proposed
 }

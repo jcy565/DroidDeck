@@ -44,6 +44,34 @@ class DroidDeckSettingsTransactionTest {
         assertFalse(prefs.contains("displayResolution.desktop"))
     }
 
+    @Test fun alternativesShareScopeSnapshotsAndDoNotWrite() {
+        SessionPrefs.setResolutionChoice(context, "steam", "1280x720")
+        SessionPrefs.setResolutionChoice(context, "desktop", "900p")
+        SessionPrefs.setBridgeProtonDxvk(context, true)
+        val before = prefs.all
+        val options = DroidDeckSettingsPreview.alternatives(context, panel)
+        assertEquals(6, options.size)
+        val groups = options.groupBy { it.scope }
+        assertEquals(setOf("steam", "desktop", "global"), groups.keys)
+        groups.values.forEach { group ->
+            assertEquals(2, group.size)
+            assertEquals(group[0].snapshot, group[1].snapshot)
+            assertEquals(group[0].before, group[1].before)
+        }
+        assertEquals(setOf("1280x720", "1600x900"), groups.getValue("steam").map { it.proposed }.toSet())
+        assertEquals(setOf("true", "false"), groups.getValue("global").map { it.proposed }.toSet())
+        assertEquals(2, options.count { !DroidDeckSettingsPreview.changed(it) })
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun invalidPanelCannotProduceAlternatives() {
+        val before = prefs.all
+        assertThrows(IllegalArgumentException::class.java) {
+            DroidDeckSettingsPreview.alternatives(context, 0 to 1080)
+        }
+        assertEquals(before, prefs.all)
+    }
+
     @Test fun resolutionPreviewRejectsChangedPanel() {
         val change = preview()
         assertThrows(IllegalArgumentException::class.java) {
