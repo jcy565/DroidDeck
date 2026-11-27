@@ -36,11 +36,16 @@ public final class AiCore {
         private final String id;
 
         public Exchange(String target, String source, Map<String, String> edits) {
+            this(target, source, edits, UUID.randomUUID().toString());
+        }
+
+        public Exchange(String target, String source, Map<String, String> edits, String restoredId) {
+            if (!UUID.fromString(restoredId).toString().equals(restoredId)) throw new IllegalArgumentException("Invalid exchange ID");
             if (Objects.requireNonNull(target).trim().isEmpty()) throw new IllegalArgumentException("Empty target");
             this.target = target;
             this.source = Objects.requireNonNull(source);
             this.edits = Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(edits)));
-            this.id = UUID.randomUUID().toString();
+            this.id = restoredId;
         }
 
         public String id() { return id; }

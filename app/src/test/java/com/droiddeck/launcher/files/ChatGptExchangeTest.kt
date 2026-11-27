@@ -40,4 +40,15 @@ class ChatGptExchangeTest {
         edits["b"] = "새 번역"
         assertTrue(runCatching { ChatGptExchange.accept(p, target, rows, edits, valid) }.isFailure)
     }
+
+    @Test fun savedRequestRestoresExactIdAndRejectsChangedSource() {
+        val p = ChatGptExchange.create(target, request)
+        val saved = ChatGptExchange.checkpoint(p, target, source, emptyMap())
+        val resumed = ChatGptExchange.restore(saved, target, "ini", source, emptyMap())
+        assertEquals(p.id, resumed.id)
+        assertEquals(p.prompt, resumed.prompt)
+        assertTrue(ChatGptExchange.accept(resumed, target, source, emptyMap(), reply(p)) is GameAgent.Result.Patch)
+        assertTrue(runCatching { ChatGptExchange.restore(saved, target, "ini", source + " ", emptyMap()) }.isFailure)
+        assertTrue(runCatching { ChatGptExchange.restore(saved, "/other/settings.ini", "ini", source, emptyMap()) }.isFailure)
+    }
 }

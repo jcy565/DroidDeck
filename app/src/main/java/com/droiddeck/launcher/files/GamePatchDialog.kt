@@ -29,6 +29,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val backups = File(context.filesDir, "game-patch-backups")
     val draftDirectory = File(context.filesDir, "translation-drafts")
+    val exchangeCheckpointFile = File(context.noBackupFilesDir, "ai-exchange/checkpoint.bin")
     val modelDirectory = File(context.filesDir, "local-agent-models")
     val managedModelDirectory = File(context.filesDir, "managed-ai-models")
     val glossaryDirectory = File(context.filesDir, "ai-data-glossary")
@@ -241,7 +242,43 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }
                     message = "아래 요청 전문을 검토한 후 공유하세요. 실제 전송은 직접 선택합니다."
                 } }) { Text("AI 작업 요청 생성") }
+                Text("앱 전환 후 작업을 재개하려면 요청 정보를 저장하세요. 요청 문구와 식별자·해시만 이 기기의 백업 제외 앱 저장소에 보관합니다. 원본·로그·번역문은 저장하지 않습니다. 번역 초안은 별도로 저장해야 합니다.")
+                TextButton(enabled = !busy && pendingExport == null && (!translationTable || translationRows.isNotEmpty()),
+                    onClick = { runAction {
+                        val edits = if (translationTable) translations.toMap() else emptyMap()
+                        val expected = translationSource
+                        val restored = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            val saved = ExchangeCheckpoint.load(exchangeCheckpointFile) ?: error("저장된 AI 요청이 없습니다.")
+                            val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+                            if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
+                            ChatGptExchange.restore(saved, file.canonicalPath, file.extension, source, edits)
+                        }
+                        exchangeInstruction = restored.request.instruction
+                        if (translationTable) translationIndex = restored.request.start
+                        exchangeReply = ""
+                        exchange = restored
+                        message = "저장된 AI 요청을 복구했습니다. 기존 ChatGPT 응답을 붙여넣으세요."
+                    } }) { Text("저장된 AI 요청 재개") }
+                TextButton(enabled = !busy, onClick = { runAction {
+                    val removed = withContext(Dispatchers.IO) {
+                        val saved = ExchangeCheckpoint.load(exchangeCheckpointFile)
+                        saved != null && ExchangeCheckpoint.clear(exchangeCheckpointFile, saved.id)
+                    }
+                    message = if (removed) "저장된 AI 요청 정보를 삭제했습니다." else "저장된 AI 요청이 없습니다."
+                } }) { Text("저장된 AI 요청 정보 지우기") }
                 exchange?.let { pending ->
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        val edits = if (translationTable) translations.toMap() else emptyMap()
+                        withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+                            val saved = ChatGptExchange.checkpoint(pending, file.canonicalPath, source, edits)
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            ExchangeCheckpoint.save(exchangeCheckpointFile, saved)
+                        }
+                        message = "현재 요청의 재개 정보를 저장했습니다. 이전 저장 요청은 교체됐습니다."
+                    } }) { Text("현재 요청 저장 (이전 저장 요청 교체)") }
                     OutlinedTextField(pending.prompt, {}, readOnly = true,
                         label = { Text("공유할 요청 전문") }, maxLines = 8)
                     TextButton(enabled = !busy && pendingExport == null, onClick = {
@@ -275,6 +312,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             }
                             is GameAgent.Result.Advice -> { preview = null; message = result.explanation + "\n" + result.evidence }
                         }
+                        val cleanupFailed = withContext(Dispatchers.IO) {
+                            runCatching { ExchangeCheckpoint.clear(exchangeCheckpointFile, pending.id) }.isFailure
+                        }
+                        if (cleanupFailed) message += " · 저장된 요청 정보 정리 실패"
                         exchange = null
                         exchangeReply = ""
                     } }) { Text("AI 결과 검증 및 초안 반영") }
