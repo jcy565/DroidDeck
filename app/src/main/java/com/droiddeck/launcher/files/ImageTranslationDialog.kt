@@ -170,10 +170,8 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                     Text("현재 빌드에는 실험용 OCR이 포함되지 않았습니다. 추출한 글자를 직접 붙여넣어 번역할 수 있습니다.")
                 }
                 OutlinedTextField(source, { value ->
-                    if (value.length <= ImageTranslationInput.MAX_TEXT) {
-                        if (source != value) {
-                            clearRegions()
-                        }
+                    if (value != source && value.length <= ImageTranslationInput.MAX_TEXT) {
+                        clearRegions()
                         source = value
                         translated = ""
                     }
