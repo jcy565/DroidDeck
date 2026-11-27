@@ -4,6 +4,6 @@ import java.io.File
 
 internal object ImageOcrRuntime {
     const val enabled = false
-    suspend fun recognize(file: File, script: ImageTranslationInput.Script, rotation: ImageTranslationInput.Rotation, allowed: () -> Boolean): String =
+    suspend fun recognize(file: File, script: ImageTranslationInput.Script, rotation: ImageTranslationInput.Rotation, allowed: () -> Boolean): ImageTextRegions.Result =
         error("이 빌드에는 실험용 이미지 인식 기능이 포함되지 않았습니다.")
 }
