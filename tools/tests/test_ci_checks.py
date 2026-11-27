@@ -46,6 +46,16 @@ class CiChecksTest(unittest.TestCase):
         self.assertIn("outputs.doNotCacheIf('CI executes the test suite on every run') { true }", gradle)
         self.assertIn('outputs.upToDateWhen { false }', gradle)
 
+    def test_ocr_variant_is_shared_by_build_tests_and_isolated_diagnostics(self):
+        build = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']['build']
+        flag = 'ORG_GRADLE_PROJECT_experimentalImageOcr'
+        self.assertEqual(build['env'][flag],
+                         "${{ github.ref_name == 'ai-chatgpt-exchange-next' && 'true' || 'false' }}")
+        steps = {step.get('id'): step for step in build['steps']}
+        for name in ('build', 'unit-tests', 'compose-idle-diagnostics'):
+            self.assertNotIn(flag, steps[name].get('env', {}))
+            self.assertNotIn('experimentalImageOcr', steps[name]['run'])
+
     def test_independent_jobs_wait_only_for_the_pinned_source(self):
         jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
         for name in ('xbox', 'python-tests', 'components-runner'):
