@@ -2,6 +2,7 @@ package com.droiddeck.launcher.ui
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -14,10 +15,12 @@ class ComposeIdleWatchdogTest {
     }
 
     @Test fun quickTestKeepsItsResultAndCancelsPendingSamples() {
+        val count = AtomicInteger()
         val result = ComposeIdleWatchdog.observe("quick", listOf(60_000L), {
-            fail("Should not emit a pending sample")
+            count.incrementAndGet()
         }) { 42 }
         assertEquals(42, result)
+        assertEquals(0, count.get())
     }
 
     @Test fun stalledTestEmitsBoundedStackReport() {
