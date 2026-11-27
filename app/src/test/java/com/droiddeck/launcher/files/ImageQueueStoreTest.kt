@@ -26,6 +26,25 @@ class ImageQueueStoreTest {
         assertEquals(changed.copy(root = root.canonicalFile), ImageQueueStore.load(dir, root))
     }
 
+    @Test fun mergesPagesWithoutDuplicatesOrRevisionReplacement() {
+        val root = temp.newFolder()
+        val dir = temp.newFolder()
+        val first = ImageAssetDiscovery.Candidate("a.png", 32, 16, 3, "a".repeat(64))
+        val second = first.copy(relative = "b.dds")
+        val one = ImageAssetDiscovery.Queue(root, listOf(first))
+        val two = ImageAssetDiscovery.Queue(root, listOf(first, second))
+        assertEquals(listOf(first), ImageQueueStore.merge(dir, one).candidates)
+        assertEquals(listOf(first, second), ImageQueueStore.merge(dir, two).candidates)
+        assertEquals(listOf(first, second), ImageQueueStore.merge(dir, two).candidates)
+        val changed = one.copy(candidates = listOf(first.copy(digest = "b".repeat(64))))
+        assertTrue(runCatching { ImageQueueStore.merge(dir, changed) }.isFailure)
+        assertEquals(listOf(first, second), ImageQueueStore.load(dir, root)?.candidates)
+        val tooMany = one.copy(candidates = (0..19).map { first.copy(relative = "x$it.png") })
+        assertTrue(runCatching { ImageQueueStore.merge(dir, tooMany) }.isFailure)
+        assertEquals(listOf(first, second), ImageQueueStore.load(dir, root)?.candidates)
+        assertTrue(runCatching { ImageQueueStore.combine(one, two.copy(root = temp.newFolder())) }.isFailure)
+    }
+
     @Test fun continuesWithoutReprobingExaminedFiles() {
         val root = temp.newFolder()
         repeat(13) { File(root, "$it.png").writeBytes(byteArrayOf(1)) }

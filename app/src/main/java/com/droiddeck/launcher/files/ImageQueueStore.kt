@@ -62,6 +62,31 @@ internal object ImageQueueStore {
         } finally { Files.deleteIfExists(temp.toPath()) }
     }
 
+    /** Keep existing order and never silently accept a changed source revision. */
+    fun combine(existing: ImageAssetDiscovery.Queue?, incoming: ImageAssetDiscovery.Queue): ImageAssetDiscovery.Queue {
+        val root = rootPath(incoming.root)
+        if (existing != null) require(rootPath(existing.root) == root) { "서로 다른 폴더의 목록은 합칠 수 없습니다." }
+        val combined = linkedMapOf<String, ImageAssetDiscovery.Candidate>()
+        for (candidate in existing?.candidates.orEmpty() + incoming.candidates) {
+            validate(candidate)
+            val previous = combined[candidate.relative]
+            require(previous == null || previous == candidate) {
+                "이미 저장한 원본과 달라진 파일이 있습니다. 기존 목록은 변경하지 않았습니다."
+            }
+            combined[candidate.relative] = candidate
+            require(combined.size <= 20) { "작업 목록은 최대 20개입니다. 기존 목록은 변경하지 않았습니다." }
+        }
+        return ImageAssetDiscovery.Queue(File(root), combined.values.toList())
+    }
+
+    /** Serialize load/merge/save so a failed merge leaves the existing record intact. */
+    @Synchronized
+    fun merge(directory: File, incoming: ImageAssetDiscovery.Queue): ImageAssetDiscovery.Queue {
+        val merged = combine(load(directory, incoming.root), incoming)
+        save(directory, merged)
+        return merged
+    }
+
     @Synchronized
     fun load(directory: File, root: File): ImageAssetDiscovery.Queue? {
         val path = rootPath(root)

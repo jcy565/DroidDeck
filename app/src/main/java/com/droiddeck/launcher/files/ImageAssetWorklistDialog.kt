@@ -82,7 +82,7 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("선택한 ${queue.candidates.size}개 파일 · 각 편집기에서 초안을 직접 저장하세요.")
-                Text("목록 저장은 같은 폴더의 이전 작업 목록을 교체합니다. 저장한 목록은 폴더 속성에서 복원할 수 있습니다.")
+                Text("현재 목록을 기존 저장 목록에 추가할 수 있습니다. 같은 파일은 중복 추가하지 않으며 변경된 원본은 자동 교체하지 않습니다.")
                 TextButton(enabled = !busy, onClick = {
                     busy = true
                     message = ""
@@ -90,14 +90,14 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                         try {
                             withContext(Dispatchers.IO) {
                                 check(GameplayBudget.allowsOptionalAnalysis(context))
-                                ImageQueueStore.save(File(context.noBackupFilesDir, "image-worklists"), queue)
+                                ImageQueueStore.merge(File(context.noBackupFilesDir, "image-worklists"), queue)
                             }
-                            message = "이미지 작업 목록 저장 완료"
+                            message = "이미지 작업 목록 추가 완료. 전체 목록은 폴더 속성에서 복원하세요."
                         } catch (e: CancellationException) { throw e }
                         catch (e: Exception) { message = e.message ?: "작업 목록 저장 실패" }
                         finally { busy = false }
                     }
-                }) { Text("현재 작업 목록 저장 (기존 목록 교체)") }
+                }) { Text("현재 작업 목록을 저장 목록에 추가") }
                 Text("초안 저장은 번역 완료나 게임 적용을 뜻하지 않습니다.")
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)

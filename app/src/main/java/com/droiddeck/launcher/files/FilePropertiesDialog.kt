@@ -170,7 +170,7 @@ internal fun FilePropertiesDialog(
                             Text("이미지 후보 ${report.candidates.size}개 · 검사 ${report.examined}개 · 제외 ${report.rejected}개" +
                                 if (report.partial) " (부분 탐색)" else "")
                             Text("파일 형식과 크기만 검사했습니다. 외국어 포함 여부는 편집기에서 확인하세요.")
-                            Text("이번 페이지 선택은 다음 탐색 시 초기화됩니다. 먼저 작업 목록을 저장하세요.")
+                            Text("이번 페이지 선택은 다음 탐색 시 초기화됩니다. 선택한 이미지를 저장 목록에 추가한 뒤 다음 페이지를 탐색하세요. 목록은 폴더별 최대 20개입니다.")
                             TextButton(enabled = !busy && report.canContinue, onClick = { scanImages(true) }) { Text("다음 이미지 탐색 (이전 검사 제외)") }
                             TextButton(enabled = !busy && report.candidates.isNotEmpty(), onClick = {
                                 selectedImages = if (selectedImages.size == report.candidates.size) emptySet()
@@ -185,6 +185,30 @@ internal fun FilePropertiesDialog(
                                     Text("${item.relative} · ${item.width} × ${item.height}px")
                                 }
                             }
+                            TextButton(enabled = !busy && selectedImages.isNotEmpty(), onClick = {
+                                val incoming = ImageAssetDiscovery.Queue(file, report.candidates.filter { it.relative in selectedImages })
+                                busy = true
+                                imageMessage = ""
+                                scope.launch {
+                                    try {
+                                        val merged = withContext(Dispatchers.IO) {
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                            for (item in incoming.candidates) {
+                                                ensureActive()
+                                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                                ImageAssetDiscovery.open(incoming.root, item)
+                                            }
+                                            ensureActive()
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                            ImageQueueStore.merge(File(context.noBackupFilesDir, "image-worklists"), incoming)
+                                        }
+                                        imageMessage = "저장 목록에 추가 완료 · 총 ${merged.candidates.size}개"
+                                        selectedImages = emptySet()
+                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                    catch (e: Exception) { imageMessage = e.message ?: "이미지 작업 목록 추가 실패" }
+                                    finally { busy = false }
+                                }
+                            }) { Text("선택한 이미지를 저장 목록에 추가") }
                             TextButton(enabled = !busy && selectedImages.isNotEmpty(), onClick = {
                                 onImageQueue(ImageAssetDiscovery.Queue(file,
                                     report.candidates.filter { it.relative in selectedImages }))
