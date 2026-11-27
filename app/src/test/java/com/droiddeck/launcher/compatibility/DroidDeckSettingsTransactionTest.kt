@@ -72,6 +72,32 @@ class DroidDeckSettingsTransactionTest {
         assertEquals(before, prefs.all)
     }
 
+    @Test fun applyApprovalRequiresConfirmationAndFreshPanel() {
+        val change = preview()
+        val request = SettingsApplyApproval.prepare(change, panel)
+        val before = prefs.all
+        assertThrows(IllegalArgumentException::class.java) {
+            SettingsApplyApproval.execute(context, request, panel, false)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SettingsApplyApproval.execute(context, request, 1920 to 1080, true)
+        }
+        assertEquals(before, prefs.all)
+        SettingsApplyApproval.execute(context, request, panel, true)
+        assertEquals("1280x720", prefs.getString(key, null))
+    }
+
+    @Test fun applyApprovalRejectsRevertedNormalSetting() {
+        val request = SettingsApplyApproval.prepare(preview(), panel)
+        SessionPrefs.setResolutionChoice(context, "steam", "900p")
+        SessionPrefs.setResolutionChoice(context, "steam", "720p")
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsApplyApproval.execute(context, request, panel, true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
     @Test fun resolutionPreviewRejectsChangedPanel() {
         val change = preview()
         assertThrows(IllegalArgumentException::class.java) {

@@ -15,7 +15,7 @@ internal object DroidDeckSettingsTransaction {
             SessionPrefs.bridgeProtonDxvk(context).toString()
     }
 
-    private fun validate(change: DroidDeckSettingsPreview.Change, panel: Pair<Int, Int>) {
+    internal fun validate(change: DroidDeckSettingsPreview.Change, panel: Pair<Int, Int>) {
         require(change.before == change.snapshot.effective)
         when (change.setting) {
             DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION -> {

@@ -3,7 +3,9 @@ package com.droiddeck.launcher.compatibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -22,6 +24,7 @@ internal fun SettingsExperimentPreviewPanel() {
     val context = uiContext.applicationContext
     val scope = rememberCoroutineScope()
     var options by remember(context) { mutableStateOf<List<DroidDeckSettingsPreview.Change>?>(null) }
+    var request by remember(context) { mutableStateOf<SettingsApplyApproval.Request?>(null) }
     var busy by remember(context) { mutableStateOf(false) }
     var error by remember(context) { mutableStateOf<String?>(null) }
 
@@ -32,6 +35,7 @@ internal fun SettingsExperimentPreviewPanel() {
             if (!busy) {
                 busy = true
                 options = null
+                request = null
                 error = null
                 scope.launch {
                     try {
@@ -66,9 +70,40 @@ internal fun SettingsExperimentPreviewPanel() {
                 choices.forEach { change ->
                     val proposed = display(change.proposed)
                     val status = if (DroidDeckSettingsPreview.changed(change)) "변경 후보" else "현재 설정과 동일"
-                    Text("$proposed — $status")
+                    if (DroidDeckSettingsPreview.changed(change)) {
+                        Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
+                            try {
+                                request = SettingsApplyApproval.prepare(change, SessionDisplay.panelSize(uiContext))
+                            } catch (_: Exception) {
+                                options = null
+                                error = "설정 또는 화면이 변경되었습니다. 다시 비교해 주세요."
+                            }
+                        }) { Text("$proposed — $status 검토") }
+                    } else Text("$proposed — $status")
                 }
             }
         }
+    }
+    request?.let { reviewed ->
+        val change = reviewed.change
+        val label = when (change.scope) {
+            "steam" -> "Steam 출력 해상도"
+            "desktop" -> "데스크톱 출력 해상도"
+            else -> "Proton DXVK 브리지 (전체)"
+        }
+        AlertDialog(
+            onDismissRequest = { request = null },
+            title = { Text("설정 변경 검토") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label)
+                    Text("현재 설정: " + change.before)
+                    Text("제안 설정: " + change.proposed)
+                    Text("기존 저장값: " + (change.snapshot.raw ?: "없음"))
+                    Text("게임별 설정이 아닙니다. 적용 기능은 검증 전까지 비활성화되어 있습니다.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { request = null }) { Text("닫기") } }
+        )
     }
 }
