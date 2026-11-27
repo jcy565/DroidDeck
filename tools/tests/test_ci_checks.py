@@ -165,6 +165,25 @@ esac
                 self.assertTrue((dest / 'run.log').is_file())
                 self.assertEqual((dest / 'results/test.xml').read_text().strip(), method)
 
+    def test_staging_build_is_explicit_and_isolated_from_original(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())
+        # PyYAML YAML 1.1 treats the unquoted GitHub Actions "on" key as True.
+        triggers = workflow.get('on', workflow.get(True))
+        self.assertIn('ai-recovery-review-next', triggers['push']['branches'])
+        gate = workflow['jobs']['source']['if']
+        self.assertIn('ai-compatibility-history', gate)
+        self.assertIn('ai-recovery-review-next', gate)
+        self.assertIn("contains(github.event.head_commit.message, '[build apk]')", gate)
+        self.assertIn('github.ref_name', workflow['concurrency']['group'])
+        self.assertIn("github.event_name == 'push'", workflow['concurrency']['group'])
+        steps = workflow['jobs']['build']['steps']
+        diagnostic = next(s for s in steps if s.get('name') == 'Retain checked APK for failed test investigation')
+        self.assertIn('ai-recovery-review-next', diagnostic['if'])
+        self.assertIn("steps.unit-tests.outcome == 'failure'", diagnostic['if'])
+        self.assertNotIn('continue-on-error', next(s for s in steps if s.get('id') == 'unit-tests'))
+        for name in ('sign', 'packs'):
+            self.assertIn("refs/heads/main", workflow['jobs'][name]['if'])
+
     def test_ai_ci_worker_recycling_keeps_unfiltered_test_gate(self):
         gradle = (ROOT / 'app/build.gradle').read_text()
         self.assertIn("if (ciBuild && providers.environmentVariable('GITHUB_REF_NAME').getOrNull()?.startsWith('ai-')) {\n                forkEvery = 10L", gradle)
