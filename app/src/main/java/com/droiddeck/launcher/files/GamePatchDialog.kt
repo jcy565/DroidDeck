@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import android.content.Intent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
     var pendingExport by remember(file) { mutableStateOf<ByteArray?>(null) }
     var agentInstruction by remember(file) { mutableStateOf("") }
+    var exchangeInstruction by remember(file) { mutableStateOf("") }
+    var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
+    var exchangeReply by remember(file) { mutableStateOf("") }
     var modelDigest by remember(file) { mutableStateOf("") }
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
@@ -152,6 +156,69 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = { if (!busy && pendingExport == null) onDismiss() }, title = { Text(file.name) }, text = {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             Text("오프라인 규칙 기반 도우미")
+            if (config || log || translationTable) {
+                Text("ChatGPT 앱 연동 · 수동 작업 교환")
+                Text("별도 API 키나 로컬 모델 없이 사용합니다. 요청에 선택한 파일 내용이 포함됩니다. 개인정보, 계정 정보, 저작권 제한 자료를 공유하지 마세요. 자동 전송 또는 자동 익명화는 하지 않습니다.")
+                OutlinedTextField(exchangeInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) {
+                    exchangeInstruction = it
+                    exchange = null
+                    exchangeReply = ""
+                } }, enabled = !busy, label = { Text("ChatGPT 작업 요청") })
+                TextButton(enabled = !busy && pendingExport == null && exchangeInstruction.isNotBlank() &&
+                    (!translationTable || translationRows.isNotEmpty()), onClick = { runAction {
+                    exchange = null
+                    exchangeReply = ""
+                    val instruction = exchangeInstruction
+                    val edits = if (translationTable) translations.toMap() else emptyMap()
+                    val start = if (translationTable) translationIndex else 0
+                    val expected = translationSource
+                    exchange = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+                        if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
+                        ChatGptExchange.create(file.canonicalPath, GameAgent.Request(instruction, file.extension, source, edits, start))
+                    }
+                    message = "아래 요청 전문을 검토한 후 공유하세요. 실제 전송은 직접 선택합니다."
+                } }) { Text("AI 작업 요청 생성") }
+                exchange?.let { pending ->
+                    OutlinedTextField(pending.prompt, {}, readOnly = true,
+                        label = { Text("공유할 요청 전문") }, maxLines = 8)
+                    TextButton(enabled = !busy && pendingExport == null, onClick = {
+                        try {
+                            context.startActivity(Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).setType("text/plain")
+                                    .putExtra(Intent.EXTRA_TEXT, pending.prompt), "ChatGPT로 공유"))
+                        } catch (_: Exception) { message = "공유 화면을 열지 못했습니다. 요청 전문을 직접 복사하세요." }
+                    }) { Text("검토 후 요청 공유") }
+                    OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
+                        enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
+                    TextButton(enabled = !busy && pendingExport == null && exchangeReply.isNotBlank(), onClick = { runAction {
+                        val reply = exchangeReply
+                        val edits = if (translationTable) translations.toMap() else emptyMap()
+                        val result = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+                            val result = ChatGptExchange.accept(pending, file.canonicalPath, source, edits, reply)
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            if (!log) require(original() == source) { "원본이 변경됐습니다." }
+                            result
+                        }
+                        when (result) {
+                            is GameAgent.Result.Patch -> { preview = result.preview; message = result.explanation }
+                            is GameAgent.Result.Translation -> {
+                                translations = result.edits
+                                translationIndex = result.next.coerceAtMost(translationRows.lastIndex)
+                                preview = null
+                                message = result.explanation + " · 초안을 검토하고 저장하세요."
+                            }
+                            is GameAgent.Result.Advice -> { preview = null; message = result.explanation + "\n" + result.evidence }
+                        }
+                        exchange = null
+                        exchangeReply = ""
+                    } }) { Text("AI 결과 검증 및 초안 반영") }
+                    TextButton(enabled = !busy, onClick = { exchange = null; exchangeReply = "" }) { Text("AI 작업 취소") }
+                }
+            }
             if (LocalAgentRuntime.enabled && (config || log || translationTable)) {
                 Text("실험용 온디바이스 AI · 검증되지 않은 모델 실행 기능")
                 Text("신뢰할 수 있는 배포처의 호환 .task 모델과 SHA-256이 필요합니다. SDK 진단 정보 수집 여부는 아직 검증되지 않았습니다.")
