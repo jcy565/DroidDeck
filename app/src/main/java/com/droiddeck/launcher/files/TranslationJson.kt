@@ -78,7 +78,8 @@ internal object TranslationJson {
         }
     }
 
-    fun entries(source: String): List<Entry> {
+    fun entries(source: String, maxEntries: Int = 100): List<Entry> {
+        require(maxEntries in 1..102)
         require(source.length <= 262144)
         val reader = Reader(source)
         reader.expect('{')
@@ -90,7 +91,7 @@ internal object TranslationJson {
                 reader.expect(':')
                 val (text, start, end) = reader.string()
                 require(ids.add(id)) { "중복 JSON 키입니다." }
-                require(rows.size < 100) { "최대 100개 문장을 지원합니다." }
+                require(rows.size < maxEntries) { "번역 항목 한도를 초과했습니다." }
                 rows.add(Entry(id, text, start, end))
             } while (reader.take(','))
             reader.expect('}')
@@ -99,7 +100,7 @@ internal object TranslationJson {
         return rows
     }
 
-    private fun quote(text: String): String {
+    fun quote(text: String): String {
         validUnicode(text)
         return buildString {
             append('"')

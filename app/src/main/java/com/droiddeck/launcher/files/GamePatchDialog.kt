@@ -83,6 +83,37 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = "패치 ZIP을 저장했습니다. 게임 파일은 변경하지 않았습니다."
         }
     }
+    val batchExporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        val payload = pendingExport
+        pendingExport = null
+        if (uri != null && payload != null) runAction {
+            require(uri.scheme == "content")
+            withContext(Dispatchers.IO) {
+                context.contentResolver.openOutputStream(uri, "w")?.use { it.write(payload) }
+                    ?: error("번역 작업 파일을 저장하지 못했습니다.")
+            }
+            message = "번역 작업 파일을 저장했습니다. 원본은 변경되지 않았습니다."
+        }
+    }
+    val batchImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runAction {
+            require(uri.scheme == "content")
+            val source = requireNotNull(translationSource)
+            val previous = translations.toMap()
+            val merged = withContext(Dispatchers.IO) {
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+                require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                val payload = context.contentResolver.openInputStream(uri)?.use {
+                    LocalGameAdvisor.decode(GamePatchStore.readLimited(it))
+                } ?: error("번역 작업 파일을 읽을 수 없습니다.")
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+                TranslationBatch.merge(file.canonicalPath, source, payload, previous)
+            }
+            translations = merged
+            preview = null
+            message = "일괄 번역 내용을 초안에 반영했습니다. 검토 후 저장하거나 패치를 제작하세요."
+        }
+    }
     LaunchedEffect(file) {
         if (!log) {
             val history = withContext(Dispatchers.IO) {
@@ -177,6 +208,24 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
                     Text(row.text)
                     Text("입력한 번역: ${translations.size} / ${translationRows.size} (최종 검증 전)")
+                    Text("번역 작업 JSON을 내보내고 row. 항목의 값만 번역한 후 불러올 수 있습니다. 파일은 자동 전송되지 않습니다.")
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        val source = requireNotNull(translationSource)
+                        pendingExport = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                            TranslationBatch.export(file.canonicalPath, source).toByteArray(Charsets.UTF_8)
+                        }
+                        try {
+                            batchExporter.launch(file.name + ".translation.json")
+                        } catch (e: Exception) {
+                            pendingExport = null
+                            throw e
+                        }
+                    } }) { Text("번역 작업 파일 내보내기") }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = {
+                        batchImporter.launch(arrayOf("application/json", "text/plain"))
+                    }) { Text("일괄 번역 파일 불러오기") }
                     OutlinedTextField(translations[row.id].orEmpty(), { value ->
                         if (value.length <= 1000) {
                             translations = if (value.isEmpty()) translations - row.id
