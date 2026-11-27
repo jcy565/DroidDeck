@@ -42,7 +42,10 @@ object SettingsReset {
         if (!SessionPrefs.setGameDebugLogsEnabled(context, false)) return false
         var ok = true
         val session = context.getSharedPreferences("session", Context.MODE_PRIVATE)
-        session.edit().apply { session.all.keys.filter { isSessionSetting(it) }.forEach { remove(it) } }.commit()
+        if (!com.droiddeck.launcher.compatibility.SettingsBackup.resetNormalSessionSettings(context, ::isSessionSetting)) {
+            Log.w(TAG, "Could not persist session settings reset")
+            return false
+        }
         ControllerPrefs.resetAll(context)
         InputProfiles.resetAll(context)
         context.getSharedPreferences("app-ui", Context.MODE_PRIVATE).edit().clear().commit()

@@ -138,9 +138,33 @@ internal object SettingsBackup {
         e.apply()
     }
 
+    /** Normal reset retains its existing key filter but invalidates outstanding
+     * approvals for removed settings and their legacy resolution dependencies.
+     * Preserve journal and archive contents even if the filter is overly broad. */
+    @Synchronized
+    fun resetNormalSessionSettings(context: Context, shouldRemove: (String) -> Boolean): Boolean {
+        val p = prefs(context)
+        val all = p.all
+        val removed = all.keys.filter { !it.startsWith("ai.") && shouldRemove(it) }.toSet()
+        val e = p.edit()
+        removed.forEach { e.remove(it) }
+        for (key in supportedKeys) {
+            val affected = key in removed || (key.startsWith("displayResolution.") &&
+                ("shape" in removed || "resolutionCap." + key.substringAfter('.') in removed ||
+                    "customRes." + key.substringAfter('.') in removed))
+            if (affected) invalidateRevision(all, key, e)
+        }
+        return e.commit()
+    }
+
     private fun invalidateOnChange(all: Map<String, *>, key: String, value: Any,
         editor: android.content.SharedPreferences.Editor) {
         if (key !in supportedKeys || all[key] == value) return
+        invalidateRevision(all, key, editor)
+    }
+
+    private fun invalidateRevision(all: Map<String, *>, key: String,
+        editor: android.content.SharedPreferences.Editor) {
         val b = prefix(key)
         editor.putString(revisionKey(key), UUID.randomUUID().toString())
         if (recordFields.any { all.containsKey(b + it) }) editor.putBoolean(b + "invalidated", true)

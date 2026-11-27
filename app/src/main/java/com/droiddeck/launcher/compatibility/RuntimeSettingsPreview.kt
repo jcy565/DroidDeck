@@ -27,6 +27,19 @@ internal object RuntimeSettingsPreview {
         Setting.FEX_PRESET -> emptySet()
     }
 
+    /** Only ordinary compatibility/performance presets exposed by the existing
+     * selector. Default/experimental/special-purpose presets are not suggested. */
+    fun fexCandidates(): Set<String> {
+        val supported = setOf("STABILITY", "COMPATIBILITY", "INTERMEDIATE", "PERFORMANCE_TSO", "PERFORMANCE")
+        return com.droiddeck.launcher.core.FexPreset.all.map { it.id }
+            .filter { it in supported }.toSet()
+    }
+
+    fun fexAlternatives(snapshot: Snapshot): List<Change> {
+        val candidates = fexCandidates()
+        return candidates.map { preview(snapshot, Setting.FEX_PRESET, it, candidates) }
+    }
+
     fun preview(snapshot: Snapshot, setting: Setting, proposed: String,
         supportedIds: Set<String>): Change {
         require(proposed.isNotBlank() && proposed.length <= 256)

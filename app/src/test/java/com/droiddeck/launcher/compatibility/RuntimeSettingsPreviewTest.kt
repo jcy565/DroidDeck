@@ -16,6 +16,14 @@ class RuntimeSettingsPreviewTest {
         }
     }
 
+    @Test fun fexAlternativesUseOrdinaryExistingPresetsOnly() {
+        val choices = RuntimeSettingsPreview.fexAlternatives(snapshot)
+        val ids = choices.map { it.proposed }.toSet()
+        assertEquals(setOf("STABILITY", "COMPATIBILITY", "INTERMEDIATE", "PERFORMANCE_TSO", "PERFORMANCE"), ids)
+        assertTrue(ids.all { id -> com.droiddeck.launcher.core.FexPreset.all.any { it.id == id } })
+        assertTrue(choices.all { it.setting == RuntimeSettingsPreview.Setting.FEX_PRESET && it.before == snapshot.fexPreset })
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnknownCandidate() {
         RuntimeSettingsPreview.preview(snapshot, RuntimeSettingsPreview.Setting.LINUX_DRIVER, "missing", emptySet())

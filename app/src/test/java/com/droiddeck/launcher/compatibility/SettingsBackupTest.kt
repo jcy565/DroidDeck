@@ -503,6 +503,53 @@ class SettingsBackupTest {
         assertTrue(entry().availableActions.isEmpty())
     }
 
+    @Test fun normalResetInvalidatesPendingBackupAndPreservesJournal() {
+        val old = SettingsBackup.apply(context, key, null, "1280x720")
+        assertTrue(SettingsBackup.resetNormalSessionSettings(context) { it == key })
+        assertFalse(prefs.contains(key))
+        val review = requireNotNull(SettingsBackup.review(context, key))
+        assertTrue(review.invalidated)
+        assertEquals(old.recordId, review.recordId)
+        assertNotEquals(old.revision, review.revision)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, old, true)
+        }
+    }
+
+    @Test fun normalResetOfLegacyShapeInvalidatesBothResolutionScopes() {
+        val desktop = "displayResolution.desktop"
+        prefs.edit().putString("shape", "16:9").commit()
+        val steamPreview = SettingsBackup.capturePreview(context, key) { "720p" }
+        val desktopPreview = SettingsBackup.capturePreview(context, desktop) { "720p" }
+        val bridgePreview = SettingsBackup.capturePreview(context, "bridgeProtonDxvk") { "false" }
+        assertTrue(SettingsBackup.resetNormalSessionSettings(context) { it == "shape" })
+        assertNotEquals(steamPreview.revision, SettingsBackup.capturePreview(context, key) { "720p" }.revision)
+        assertNotEquals(desktopPreview.revision, SettingsBackup.capturePreview(context, desktop) { "720p" }.revision)
+        assertEquals(bridgePreview, SettingsBackup.capturePreview(context, "bridgeProtonDxvk") { "false" })
+    }
+
+    @Test fun normalResetOfLegacyScopeDoesNotInvalidateOtherScope() {
+        prefs.edit().putInt("resolutionCap.steam", 720).commit()
+        val desktop = "displayResolution.desktop"
+        val other = SettingsBackup.capturePreview(context, desktop) { "720p" }
+        val before = SettingsBackup.capturePreview(context, key) { "720p" }
+        assertTrue(SettingsBackup.resetNormalSessionSettings(context) { it.startsWith("resolutionCap.") })
+        assertEquals(other, SettingsBackup.capturePreview(context, desktop) { "720p" })
+        assertNotEquals(before.revision, SettingsBackup.capturePreview(context, key) { "720p" }.revision)
+    }
+
+    @Test fun broadResetFilterPreservesArchiveAndPendingRecord() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, first, true)
+        val next = SettingsBackup.apply(context, key, "1280x720", "1600x900")
+        assertTrue(SettingsBackup.resetNormalSessionSettings(context) { true })
+        assertEquals(first, SettingsBackup.archivedReview(context, key))
+        val pending = requireNotNull(SettingsBackup.review(context, key))
+        assertEquals(next.recordId, pending.recordId)
+        assertTrue(pending.invalidated)
+        assertFalse(prefs.contains(key))
+    }
+
     @Test fun archiveDistinguishesMissingCurrentValueFromRealAbsence() {
         val approved = SettingsBackup.apply(context, key, null, "1280x720")
         SettingsBackup.keepCurrentAndArchive(context, approved, true)
