@@ -8,7 +8,7 @@ import java.util.UUID
 internal object SettingsBackup {
     data class RecoveryReview internal constructor(
         val key: String, val before: String?, val applied: String, val current: String?,
-        val recordId: String?, val invalidated: Boolean = false,
+        val recordId: String?, val revision: String?, val invalidated: Boolean = false,
     ) {
         val matchesApplied: Boolean get() = !invalidated && current == applied
     }
@@ -22,7 +22,7 @@ internal object SettingsBackup {
     )
 
     private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
-    private val archiveFields = recordFields + "current"
+    private val archiveFields = recordFields + listOf("current", "revision")
     private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
 
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
@@ -81,16 +81,17 @@ internal object SettingsBackup {
             expectedPreview.revision == revision(context, key))) { "미리보기 이후 설정이 변경되었습니다." }
         check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
         val recordId = UUID.randomUUID().toString()
+        val newRevision = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
             .putString(b + "id", recordId)
-            .putString(revisionKey(key), UUID.randomUUID().toString())
+            .putString(revisionKey(key), newRevision)
             .putBoolean(b + "present", expectedRaw != null)
         if (expectedRaw != null) e.putString(b + "before", expectedRaw)
         else e.remove(b + "before")
         if (key == "bridgeProtonDxvk") e.putBoolean(key, proposed.toBooleanStrict())
         else e.putString(key, proposed)
         check(e.commit()) { "설정 저장 실패: 현재 상태를 다시 확인하세요." }
-        RecoveryReview(key, expectedRaw, proposed, proposed, recordId)
+        RecoveryReview(key, expectedRaw, proposed, proposed, recordId, newRevision)
     }
 
     /** Preserve ordinary settings behavior (apply, not commit), while retiring
@@ -173,14 +174,14 @@ internal object SettingsBackup {
             }
             val archive = archivePrefix(key)
             val archiveOccupied = archiveFields.any { all.containsKey(archive + it) }
-            val archived = if (archiveOccupied) readReview(key, all, archive, archive + "current")
+            val archived = if (archiveOccupied) readReview(key, all, archive, archive + "current", archive + "revision")
                 ?.takeIf { it.recordId != null } else null
             ReviewEntry(key, status, review, archiveOccupied, archived)
         }
     }
 
     private fun readReview(key: String, all: Map<String, *>,
-        b: String = prefix(key), currentKey: String = key): RecoveryReview? {
+        b: String = prefix(key), currentKey: String = key, revisionField: String = revisionKey(key)): RecoveryReview? {
         val applied = all[b + "applied"] as? String ?: return null
         if (!validProposed(key, applied)) return null
         val present = all[b + "present"] as? Boolean ?: return null
@@ -203,7 +204,8 @@ internal object SettingsBackup {
         val invalidated = if (all.containsKey(b + "invalidated")) {
             all[b + "invalidated"] as? Boolean ?: return null
         } else false
-        return RecoveryReview(key, before, applied, current, recordId, invalidated)
+        val revision = if (all.containsKey(revisionField)) all[revisionField] as? String ?: return null else null
+        return RecoveryReview(key, before, applied, current, recordId, revision, invalidated)
     }
 
     /** One immutable archive slot per key. Never overwrite an earlier archive.
@@ -222,6 +224,7 @@ internal object SettingsBackup {
             check(review.recordId != null && review == expected) { "복구 기록이 변경되었거나 이전 형식입니다." }
             check(archiveFields.none { all.containsKey(archive + it) }) { "보관된 이전 기록이 있습니다." }
             val e = p.edit()
+            review.revision?.let { e.putString(archive + "revision", it) }
             for (field in recordFields) {
                 when (val value = all[b + field]) {
                     null -> check(!all.containsKey(b + field))
@@ -245,7 +248,7 @@ internal object SettingsBackup {
     @Synchronized
     fun archivedReview(context: Context, key: String): RecoveryReview? {
         val archive = archivePrefix(key)
-        return readReview(key, prefs(context).all, archive, archive + "current")
+        return readReview(key, prefs(context).all, archive, archive + "current", archive + "revision")
             ?.takeIf { it.recordId != null }
     }
 

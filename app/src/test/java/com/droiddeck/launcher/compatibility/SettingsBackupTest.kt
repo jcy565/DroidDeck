@@ -294,6 +294,30 @@ class SettingsBackupTest {
         assertEquals(conflict, SettingsBackup.archivedReview(context, key))
     }
 
+    @Test fun conflictArchiveRequiresAnotherReviewAfterChangingAwayAndBack() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val stale = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.writeNormalResolution(context, "steam", "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, stale, true)
+        }
+        assertNull(SettingsBackup.archivedReview(context, key))
+        val fresh = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.keepCurrentAndArchive(context, fresh, true)
+        SettingsBackup.writeNormalResolution(context, "steam", "1280x720")
+        assertEquals(fresh, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun archiveFromBeforeRevisionTrackingRemainsReadable() {
+        val original = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, original, true)
+        prefs.edit().remove("ai.archive.$key.revision").commit()
+        assertEquals(original.copy(revision = null), SettingsBackup.archivedReview(context, key))
+    }
+
     @Test fun archiveRequiresFreshApprovalAndIdleAdmission() {
         val first = SettingsBackup.apply(context, key, null, "1280x720")
         assertThrows(IllegalArgumentException::class.java) {

@@ -146,3 +146,9 @@ SettingsReset.resetAll removed resolution and legacy inputs directly from sessio
 Compose verification run 45790544329 reached the Ubuntu package install timeout (120 s) and then the fallback index update timeout (60 s) in job 139808311804. APK tests did not run. The component preparation step now allows 180 s for each index refresh and 300 s per installation, with apt translation downloads disabled. Mirror fallback and strict update failures remain enabled. The combined staging branch includes f4ccc58 for the next full Android run.
 
 Run 45791605074 passed Python/native, store and Xbox checks. Its component job 139811934730 downloaded 11 of the 12 remaining Ubuntu packages on fallback and was still transferring the last 17.5 MB Mesa package when the 300-second install deadline expired (exit 124). The component-only install deadline is now 720 seconds, leaving the per-connection timeouts, mirror fallback, signed indexes and job timeout in place.
+
+## Conflict archive approval
+
+An isolated JVM reproduction accepted an old conflict review after the resolution changed away and back. Pending reviews now capture the per-setting revision. Archiving checks it under the existing lock and stores the reviewed revision with the historical snapshot. Archives without a revision remain readable. Added two regression cases.
+
+All 34 SettingsBackupTest cases passed locally using Robolectric 4.16.1 on SDK 28, JUnit 4.13.2, and the repository's SettingsBackup, SessionDriverGate and GameplayBudget. The isolated harness supplied idle session state. The full app and Compose suite were not part of that run. In Actions run 45793446652, the Python/native job passed on rerun. The APK job stopped at the human-authorship check before Android compilation or testing. The fork's authorship policy requires an owner decision before changing the official CI path.
