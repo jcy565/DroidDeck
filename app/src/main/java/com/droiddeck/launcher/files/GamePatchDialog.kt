@@ -29,6 +29,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val backups = File(context.filesDir, "game-patch-backups")
     val draftDirectory = File(context.filesDir, "translation-drafts")
     val modelDirectory = File(context.filesDir, "local-agent-models")
+    val managedModelDirectory = File(context.filesDir, "managed-ai-models")
     val glossaryDirectory = File(context.filesDir, "ai-data-glossary")
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
@@ -53,6 +54,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
     var exchangeReply by remember(file) { mutableStateOf("") }
     var modelDigest by remember(file) { mutableStateOf("") }
+    var pendingModel by remember(file) { mutableStateOf<AiModelUpdates.Pending?>(null) }
+    var managedRevision by remember(file) { mutableStateOf<Int?>(null) }
+    val managedModels = AiGlossaryUpdates.configured
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
     fun allowsAgentWork(): Boolean {
@@ -147,6 +151,32 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = "모델 체크섬 확인 및 가져오기 완료. 실제 모델 호환성은 실행 시 확인합니다."
         }
     }
+    val modelManifestImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && aiAvailability.enabled && LocalAgentRuntime.enabled && managedModels) runAction {
+            pendingModel = null
+            require(uri.scheme == "content")
+            pendingModel = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use {
+                    AiModelUpdates.inspect(it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                } ?: error("모델 명세를 읽을 수 없습니다.")
+            }
+            message = "서명된 모델 명세를 검증했습니다. 아래 정보를 확인하고 모델 파일을 선택하세요."
+        }
+    }
+    val managedModelImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && aiAvailability.enabled && LocalAgentRuntime.enabled && managedModels) runAction {
+            val pending = requireNotNull(pendingModel)
+            require(uri.scheme == "content")
+            val manifest = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use {
+                    AiModelUpdates.install(managedModelDirectory, pending, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                } ?: error("모델 파일을 읽을 수 없습니다.")
+            }
+            managedRevision = manifest.revision
+            pendingModel = null
+            message = "모델 버전 ${manifest.revision}의 서명과 파일 해시를 확인했습니다. 실제 추론 호환성은 아직 검증되지 않았습니다."
+        }
+    }
     val glossaryImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && aiAvailability.enabled && AiGlossaryUpdates.configured) runAction {
             require(uri.scheme == "content")
@@ -160,6 +190,11 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         }
     }
     LaunchedEffect(file) {
+        if (aiAvailability.enabled && LocalAgentRuntime.enabled && managedModels) {
+            managedRevision = withContext(Dispatchers.IO) {
+                runCatching { AiModelUpdates.active(managedModelDirectory)?.revision }.getOrNull()
+            }
+        }
         if (!log) {
             val history = withContext(Dispatchers.IO) {
                 runCatching { GamePatchStore.history(root, file.name, backups) }.getOrNull()
@@ -242,14 +277,40 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             if (aiAvailability.enabled && LocalAgentRuntime.enabled && (config || log || translationTable)) {
                 Text("실험용 온디바이스 AI · 검증되지 않은 모델 실행 기능")
                 Text("신뢰할 수 있는 배포처의 호환 .task 모델과 SHA-256이 필요합니다. SDK 진단 정보 수집 여부는 아직 검증되지 않았습니다.")
-                OutlinedTextField(modelDigest, { if (it.length <= 64) modelDigest = it },
-                    label = { Text("모델 SHA-256") }, enabled = !busy, singleLine = true)
-                TextButton(enabled = !busy && pendingExport == null && LocalModelStore.validDigest(modelDigest),
-                    onClick = { modelImporter.launch(arrayOf("*/*")) }) { Text("로컬 모델 가져오기") }
+                if (managedModels) {
+                    Text("서명된 독립 모델 · 활성 버전: ${managedRevision ?: "없음 또는 비호환"}")
+                    Text("최대 두 개의 서로 다른 모델 파일 보관. 기존 모델은 자동 삭제하지 않습니다.")
+                    TextButton(enabled = !busy && pendingExport == null, onClick = {
+                        modelManifestImporter.launch(arrayOf("*/*"))
+                    }) { Text("서명된 모델 명세 선택") }
+                    pendingModel?.let { pending ->
+                        Text("버전 ${pending.manifest.revision} · ${pending.manifest.bytes}바이트")
+                        Text("SHA-256: ${pending.manifest.sha256}")
+                        TextButton(enabled = !busy && pendingExport == null, onClick = {
+                            managedModelImporter.launch(arrayOf("*/*"))
+                        }) { Text("검토 후 모델 파일 가져오기") }
+                        TextButton(enabled = !busy, onClick = { pendingModel = null }) { Text("모델 업데이트 취소") }
+                    }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        val prior = withContext(Dispatchers.IO) {
+                            AiModelUpdates.rollback(managedModelDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                        }
+                        managedRevision = prior.revision
+                        pendingModel = null
+                        message = "이전 모델 버전 ${prior.revision}으로 복구했습니다."
+                    } }) { Text("이전 AI 모델 복구") }
+                } else {
+                    Text("배포용 신뢰 키 미설정: 아래는 실험용 체크섬 가져오기입니다.")
+                    OutlinedTextField(modelDigest, { if (it.length <= 64) modelDigest = it },
+                        label = { Text("모델 SHA-256") }, enabled = !busy, singleLine = true)
+                    TextButton(enabled = !busy && pendingExport == null && LocalModelStore.validDigest(modelDigest),
+                        onClick = { modelImporter.launch(arrayOf("*/*")) }) { Text("로컬 모델 가져오기") }
+                }
                 OutlinedTextField(agentInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) agentInstruction = it },
                     enabled = !busy, label = { Text("AI에게 작업 요청") })
                 TextButton(enabled = !busy && pendingExport == null && agentInstruction.isNotBlank() &&
-                    LocalModelStore.validDigest(modelDigest) && (!translationTable || translationRows.isNotEmpty()),
+                    (if (managedModels) managedRevision != null else LocalModelStore.validDigest(modelDigest)) &&
+                    (!translationTable || translationRows.isNotEmpty()),
                     onClick = {
                         if (!busy && pendingExport == null) {
                             busy = true
@@ -265,7 +326,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                                         check(allowsAgentWork())
                                         val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                                         if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
-                                        val model = LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
+                                        val model = if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
+                                            else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)
                                         val result = GameAgent.run(request, ::allowsAgentWork,
                                             { LocalAgentRuntime.open(context, model, ::allowsAgentWork) }, 120_000)

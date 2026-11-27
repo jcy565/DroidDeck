@@ -15,7 +15,7 @@ import java.util.Base64
 internal object AiGlossaryUpdates {
     val configured: Boolean get() = BuildConfig.AI_DATA_PUBLIC_KEY.isNotBlank()
 
-    private fun key(): PublicKey {
+    internal fun key(): PublicKey {
         check(configured) { "AI 데이터 서명 키가 등록되지 않은 빌드입니다." }
         return KeyFactory.getInstance("RSA").generatePublic(
             X509EncodedKeySpec(Base64.getDecoder().decode(BuildConfig.AI_DATA_PUBLIC_KEY)))
