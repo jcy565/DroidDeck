@@ -7,6 +7,8 @@ import android.view.SurfaceView
 import android.view.View
 import androidx.compose.runtime.MutableState
 import com.droiddeck.launcher.SessionActivity
+import com.droiddeck.launcher.session.SessionState
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -28,9 +30,14 @@ class GlassesOutputHandoffTest {
     private lateinit var activity: SessionActivity
     private lateinit var phone: SurfaceView
     private lateinit var screen: GlassesScreen
+    private var previousSessionId: String? = null
 
     @Before fun setup() {
+        previousSessionId = SessionState.sessionId
         activity = Robolectric.buildActivity(SessionActivity::class.java).get()
+        val sessionId = "glasses-output-test"
+        SessionState.sessionId = sessionId
+        ReflectionHelpers.setField(activity, "callbackSessionId", sessionId)
         phone = SurfaceView(activity)
         ReflectionHelpers.setField(activity, "surfaceView", phone)
         ReflectionHelpers.setField(activity, "ended", true)
@@ -40,6 +47,15 @@ class GlassesOutputHandoffTest {
         shadowOf(display).setFlags(Display.FLAG_PRESENTATION)
         screen = GlassesScreen(activity, display, 60, activity)
         ReflectionHelpers.setField(activity, "glassesScreen", screen)
+    }
+
+    @After fun restoreSessionId() { SessionState.sessionId = previousSessionId }
+
+    @Test fun staleSessionDestructionDoesNotClearCurrentOutputHint() {
+        attach(screen.holder)
+        SessionState.sessionId = "new-glasses-session"
+        activity.surfaceDestroyed(screen.holder)
+        assertTrue(active())
     }
 
     @Test fun selectingGlassesDoesNotHidePhoneOrClaimOutputBeforeAttachment() {

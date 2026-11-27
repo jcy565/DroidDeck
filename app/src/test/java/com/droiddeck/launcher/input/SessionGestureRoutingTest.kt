@@ -10,6 +10,8 @@ import com.droiddeck.launcher.SessionActivity
 import com.droiddeck.launcher.session.SessionPrefs
 import com.droiddeck.launcher.session.SessionService
 import com.droiddeck.launcher.session.SessionState
+import com.droiddeck.launcher.session.SessionPhase
+import org.junit.Before
 import com.droiddeck.launcher.wayland.WaylandCompositor
 import java.time.Duration
 import org.junit.After
@@ -39,7 +41,17 @@ class SessionGestureRoutingTest {
     private val scrollDeltas = mutableListOf<Pair<Float, Float>>()
     private var keyboards = 0
 
+    private var previousSessionId: String? = null
+    private var previousPhase = SessionPhase.IDLE
+
+    @Before fun rememberSessionState() {
+        previousSessionId = SessionState.sessionId
+        previousPhase = SessionState.phase
+    }
+
     @After fun tearDown() {
+        SessionState.sessionId = previousSessionId
+        SessionState.phase = previousPhase
         if (::gestures.isInitialized) gestures.cancel()
         if (::launcherScroll.isInitialized) launcherScroll.cancel()
         if (::directHold.isInitialized) directHold.cancel()
@@ -195,6 +207,10 @@ class SessionGestureRoutingTest {
         SessionState.steamUi = "bigpicture"
         SessionState.suspended = false
         activity = Robolectric.buildActivity(SessionActivity::class.java).get()
+        val sessionId = "gesture-routing-test"
+        SessionState.sessionId = sessionId
+        SessionState.phase = SessionPhase.PREPARING
+        setField("callbackSessionId", sessionId)
         steamTap = ThreeFingerTap(8f)
         gestures = TouchscreenGestures(8f, object : TouchscreenGestures.Output {
             override fun moveTo(x: Float, y: Float) {}

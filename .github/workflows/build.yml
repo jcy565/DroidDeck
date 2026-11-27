@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next ]
+    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next, ai-chatgpt-exchange-next ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   source:
     name: Pin source tree
-    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -631,6 +631,7 @@ jobs:
           set -o pipefail
           python3 tools/powervr/fetch.py
           python3 tools/release/runtime_inputs.py record
+          if [[ "$GITHUB_REF_NAME" == "ai-chatgpt-exchange-next" ]]; then export ORG_GRADLE_PROJECT_experimentalImageOcr=true; fi
           ./gradlew assembleRelease --console=plain -PndkVersion="$NDK_VERSION" 2>&1 | tee /tmp/build.log
           python3 tools/release/check_session_assets.py app/build/outputs/apk/release/app-release.apk
           python3 tools/release/runtime_inputs.py apk app/build/outputs/apk/release/app-release.apk
@@ -778,6 +779,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p app/build
+          if [[ "$GITHUB_REF_NAME" == "ai-chatgpt-exchange-next" ]]; then export ORG_GRADLE_PROJECT_experimentalImageOcr=true; fi
           ./gradlew testReleaseUnitTest --console=plain --info --stacktrace -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee app/build/unit-tests.log
 
       - name: Summarize Android test XML
@@ -806,7 +808,7 @@ jobs:
           retention-days: 14
 
       - name: Retain checked APK for failed test investigation
-        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next"]'), github.ref_name)
+        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next"]'), github.ref_name)
         uses: actions/upload-artifact@v4
         with:
           name: diagnostic-apk-tests-failed

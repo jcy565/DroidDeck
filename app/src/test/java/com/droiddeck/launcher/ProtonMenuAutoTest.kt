@@ -37,8 +37,10 @@ class ProtonMenuAutoTest {
     private lateinit var root: File
     private val attempts = mutableListOf<String>()
     private var idle = true
+    private var previousSessionId: String? = null
 
     @Before fun setup() {
+        previousSessionId = SessionState.sessionId
         activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         root = LinuxRuntime.rootDir(activity)
         for (path in listOf("usr/bin/gamescope", "usr/local/bin/droiddeck-session", "opt/android-host/proot", "opt/android-host/loader")) {
@@ -68,6 +70,7 @@ class ProtonMenuAutoTest {
     }
 
     @After fun reset() {
+        SessionState.sessionId = previousSessionId
         menu.protonBusyId = null
         menu.protonProblem = null
         menu.protonStage = null
@@ -278,6 +281,9 @@ class ProtonMenuAutoTest {
     private fun watchCancellation(phase: SessionPhase): SessionActivity {
         val session = Robolectric.buildActivity(SessionActivity::class.java).get()
         ReflectionHelpers.setField(session, "loading", LoadingState(session).apply { visible = false })
+        val sessionId = "proton-cancellation-test"
+        SessionState.sessionId = sessionId
+        ReflectionHelpers.setField(session, "callbackSessionId", sessionId)
         SessionState.phase = phase
         SessionState.stopRequested = true
         try {
