@@ -23,10 +23,11 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         val scope = rememberCoroutineScope()
         var report by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
         var busy by remember { mutableStateOf(true) }
+        var currentVersionOnly by remember { mutableStateOf(gameVersion != null) }
         var error by remember { mutableStateOf<String?>(null) }
 
         suspend fun refresh() {
-            report = service.report(gameId)
+            report = service.report(gameId, gameVersion = gameVersion.takeIf { currentVersionOnly })
         }
 
         LaunchedEffect(service) {
@@ -46,7 +47,29 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             Text("게임 호환성 기록")
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
             Text(if (gameVersion == null) "설치 버전: 확인되지 않음" else "설치 버전: $gameVersion")
+            if (gameVersion != null) {
+                Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
+                    busy = true
+                    currentVersionOnly = !currentVersionOnly
+                    report = null
+                    error = null
+                    scope.launch {
+                        try {
+                            refresh()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            error = "실행 기록을 읽지 못했습니다."
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }) { Text(if (currentVersionOnly) "모든 버전 보기" else "현재 설치 버전만 보기") }
+            }
+            Text(if (currentVersionOnly) "현재 설치 버전의 최근 20건 (버전 미확인 기록 제외)"
+                else "모든 버전의 최근 20건 (버전 미확인 기록 포함)")
             report?.let { current ->
+                if (current.observations.isEmpty() && currentVersionOnly) Text("현재 버전의 관측 기록이 없습니다.")
                 Text(current.description)
                 current.advice.forEach { Text("• " + it) }
             }
