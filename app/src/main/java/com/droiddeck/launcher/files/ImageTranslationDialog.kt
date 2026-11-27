@@ -87,7 +87,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
         title = { Text("이미지 번역 · ${file.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("PNG·JPEG·WebP, 일부 비압축·RLE TGA와 단일 레벨 DXT1·DXT3·DXT5 DDS 이미지의 문자 추출과 번역문 검토를 지원합니다. DDS는 PNG 복사본만 출력하며 밉맵·DX10·큐브맵은 지원하지 않습니다. TGA는 비압축 TGA 또는 PNG 복사본으로 내보낼 수 있습니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
+                Text("PNG·JPEG·WebP, 일부 비압축·RLE TGA와 단일 레벨 DXT1·DXT3·DXT5 DDS 이미지의 문자 추출과 번역문 검토를 지원합니다. DDS는 PNG 또는 기존 DXT 압축 형식의 복사본으로 출력할 수 있으며 밉맵·DX10·큐브맵은 지원하지 않습니다. TGA는 비압축 TGA 또는 PNG 복사본으로 내보낼 수 있습니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
                 Text("이미지 인식은 영어·일본어·중국어용 실험 기능입니다. EXIF 회전은 자동 보정하지 않으며, 잘못 인식된 문장은 직접 수정하세요.")
                 if (ImageOcrRuntime.enabled) {
                     Text("인식할 문자 선택: ${script.label}")
@@ -260,6 +260,27 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                         message = "새 TGA 복사본 저장: ${saved.name}. 원본은 수정하지 않았습니다."
                                     }
                                 }) { Text("검토한 이미지 TGA 복사본 저장") }
+                            }
+                            if (file.extension.lowercase() == "dds") {
+                                Text("DDS는 번역 영역과 겹치는 압축 블록만 손실 재압축합니다. 그 밖의 블록은 원본 그대로 보존하지만 재압축 영역의 색상·투명도와 게임 호환성은 별도 확인이 필요합니다.")
+                                TextButton(enabled = !busy && identity != null && !showOriginal, onClick = {
+                                    val expected = requireNotNull(identity)
+                                    val edits = regionEdits.toMap()
+                                    draftAction {
+                                        val saved = withContext(Dispatchers.IO) {
+                                            val boxes = ImageOverlayPlan.originalSize(
+                                                ImageOverlayPlan.prepare(result, edits), result.width, result.height,
+                                                bitmap.width, bitmap.height).map {
+                                                DdsCopyEncoder.Rect(it.box.left, it.box.top, it.box.right, it.box.bottom)
+                                            }
+                                            ImageOverlayRenderer.saveCopy(file, expected, bitmap, ddsRegions = boxes) {
+                                                ensureActive()
+                                                check(allowed())
+                                            }
+                                        }
+                                        message = "새 DDS 복사본 저장: ${saved.name}. 재압축 결과를 확인하세요."
+                                    }
+                                }) { Text("DDS 복사본 저장 (손실 재압축)") }
                             }
                             TextButton(enabled = !busy, onClick = { imagePreview = null; originalPreview = null; showOriginal = false }) { Text("미리보기 닫기") }
                         }

@@ -158,22 +158,29 @@ internal object ImageOverlayRenderer {
 
     /** Allocate a fresh unique file in the original folder; never open the original for writing. */
     fun saveCopy(file: File, expected: ImageDraftStore.Identity, preview: Bitmap,
-        asTga: Boolean = false, checkpoint: () -> Unit): File {
+        asTga: Boolean = false, ddsRegions: List<DdsCopyEncoder.Rect>? = null, checkpoint: () -> Unit): File {
         checkpoint()
         require(ImageDraftStore.identity(file) == expected)
         require(!preview.isRecycled && preview.width.toLong() * preview.height <= ImageOverlayPlan.MAX_EXPORT_PIXELS)
         val parent = requireNotNull(file.canonicalFile.parentFile)
         require(Files.isDirectory(parent.toPath(), NOFOLLOW_LINKS))
         require(!asTga || file.extension.lowercase() == "tga")
-        val output = Files.createTempFile(parent.toPath(), "dd-translated-", if (asTga) ".tga" else ".png").toFile()
+        require(ddsRegions == null || (!asTga && file.extension.lowercase() == "dds"))
+        val suffix = if (asTga) ".tga" else if (ddsRegions != null) ".dds" else ".png"
+        val output = Files.createTempFile(parent.toPath(), "dd-translated-", suffix).toFile()
         try {
             FileOutputStream(output).use {
-                if (asTga) {
+                if (asTga || ddsRegions != null) {
                     val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
                     val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
                         .joinToString("") { "%02x".format(it.toInt() and 255) }
                     require(hash == expected.digest)
-                    TgaImage.writeCopy(bytes, preview.width, preview.height, it, { y, row ->
+                    if (ddsRegions != null) {
+                        DdsCopyEncoder.writeCopy(bytes, preview.width, preview.height, ddsRegions, it, { x, y, block ->
+                            for (i in 0..15) block[i] = preview.getPixel(
+                                minOf(preview.width - 1, x + i % 4), minOf(preview.height - 1, y + i / 4))
+                        }, checkpoint)
+                    } else TgaImage.writeCopy(bytes, preview.width, preview.height, it, { y, row ->
                         preview.getPixels(row, 0, preview.width, 0, y, preview.width, 1)
                     }, checkpoint)
                 } else require(preview.compress(Bitmap.CompressFormat.PNG, 100, it)) { "PNG 생성 실패" }
