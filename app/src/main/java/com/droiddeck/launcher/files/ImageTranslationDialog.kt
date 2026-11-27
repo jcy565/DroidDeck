@@ -47,6 +47,13 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
 
     fun allowed(): Boolean = GameplayBudget.allowsOptionalAnalysis(context)
 
+    fun clearRegions() {
+        imagePreview = null
+        regions = null
+        regionEdits = emptyMap()
+        regionIndex = 0
+    }
+
     fun draftAction(action: suspend () -> Unit) {
         if (busy) return
         busy = true
@@ -80,16 +87,17 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                 if (ImageOcrRuntime.enabled) {
                     Text("인식할 문자 선택: ${script.label}")
                     ImageTranslationInput.Script.values().forEach { option ->
-                        TextButton(enabled = !busy && option != script, onClick = { script = option }) {
+                        TextButton(enabled = !busy && option != script, onClick = { clearRegions(); script = option }) {
                             Text(option.label)
                         }
                     }
                     Text("인식 회전 각도: ${rotation.degrees}°")
                     TextButton(enabled = !busy, onClick = {
                         val options = ImageTranslationInput.Rotation.values()
+                        clearRegions()
                         rotation = options[(rotation.ordinal + 1) % options.size]
                     }) { Text("시계 방향 90° 회전") }
-                    Text("다시 인식하면 현재 텍스트와 번역 초안이 교체됩니다. 필요하면 먼저 복사하세요.")
+                    Text("언어·회전 변경 시 영역 편집이 초기화됩니다. 다시 인식하면 현재 텍스트와 번역 초안도 교체됩니다. 먼저 초안을 저장하세요.")
                     Text("Google ML Kit가 기기에서 이미지 문자를 인식합니다. SDK의 사용량·성능 통계가 Google로 전송될 수 있습니다. 이미지나 인식 결과는 ML Kit 서버로 전송되지 않습니다.")
                     TextButton(enabled = !busy && identity != null, onClick = {
                         val expected = requireNotNull(identity)
@@ -157,11 +165,11 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                         .putExtra(Intent.EXTRA_TEXT, prompt), "영역 번역 요청"))
                             } catch (e: Exception) { message = e.message ?: "공유 실패" }
                         }) { Text("선택 영역 번역 요청") }
-                        Text("영역별 번역 ${regionEdits.values.count { it.isNotBlank() }}/${result.regions.size}개 · 임시 편집")
+                        Text("영역별 번역 ${regionEdits.values.count { it.isNotBlank() }}/${result.regions.size}개 · 초안 저장 가능")
                         TextButton(enabled = !busy && regionEdits.isNotEmpty(), onClick = {
                             try {
                                 translated = ImageTextRegions.summary(result, regionEdits)
-                                message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 저장되지 않습니다."
+                                message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 초안 저장 버튼으로 별도 보관할 수 있습니다."
                             } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
                         }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
                         Text("검은 배경과 흰 글자로 번역 영역을 덮는 실험용 PNG 복사본입니다. 원래 배경을 복원하지 않으며 일부 원문이 남을 수 있습니다. 축소 인식 해상도로 출력합니다.")
@@ -222,10 +230,12 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         message = "번역문을 복사했습니다."
                     } catch (e: Exception) { message = e.message ?: "복사 실패" }
                 }) { Text("번역문 복사") }
-                Text("초안을 저장하면 원문과 번역문, 언어·회전 설정이 앱 전용 저장소에 보관됩니다. 자동 전송되지 않습니다. 민감한 텍스트는 저장하지 마세요.")
+                Text("초안을 저장하면 원문과 번역문, 영역 위치·번역, 언어·회전 설정이 앱 전용 저장소에 보관됩니다. 자동 전송되지 않습니다. 민감한 텍스트는 저장하지 마세요.")
                 TextButton(enabled = !busy && identity != null && source.isNotBlank(), onClick = {
                     val expected = requireNotNull(identity)
-                    val draft = ImageDraftStore.Draft(source, translated, script, rotation)
+                    val savedRegions = regions?.takeIf { rotation == ImageTranslationInput.Rotation.NONE && it.regions.isNotEmpty() }
+                    val draft = ImageDraftStore.Draft(source, translated, script, rotation,
+                        savedRegions, if (savedRegions == null) emptyMap() else regionEdits.toMap())
                     draftAction {
                         withContext(Dispatchers.IO) {
                             check(allowed())
@@ -247,8 +257,8 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         if (draft == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
                         else {
                             imagePreview = null
-                            regions = null
-                            regionEdits = emptyMap()
+                            regions = draft.regions
+                            regionEdits = draft.edits
                             regionIndex = 0
                             source = draft.source
                             translated = draft.translated
@@ -259,7 +269,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                     }
                 }) { Text("저장 초안 불러오기 (현재 편집 내용 교체)") }
                 if (message.isNotEmpty()) Text(message)
-                Text("닫기 전에 초안을 직접 저장하세요. 영역별 위치는 저장되지 않습니다. 실시간 화면 번역은 지원하지 않습니다.")
+                Text("닫기 전에 초안을 직접 저장하세요. 영역별 위치도 초안에 저장됩니다. 미리보기는 다시 생성하세요. 실시간 화면 번역은 지원하지 않습니다.")
             }
         },
         confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },

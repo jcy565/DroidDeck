@@ -10,10 +10,12 @@ import java.security.MessageDigest
 /** Explicit private drafts; exact image revision and selected path are part of the identity. */
 internal object ImageDraftStore {
     private const val MAGIC = "DDIMAGE1"
+    private const val REGION_MAGIC = "DDIMAGE2"
     private const val LIMIT = 65536
     data class Identity(val path: String, val digest: String)
     data class Draft(val source: String, val translated: String,
-        val script: ImageTranslationInput.Script, val rotation: ImageTranslationInput.Rotation)
+        val script: ImageTranslationInput.Script, val rotation: ImageTranslationInput.Rotation,
+        val regions: ImageTextRegions.Result? = null, val edits: Map<Int, String> = emptyMap())
 
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
     private fun hex(bytes: ByteArray) = digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -40,6 +42,16 @@ internal object ImageDraftStore {
     private fun validate(draft: Draft) {
         ImageTranslationInput.validateText(draft.source)
         if (draft.translated.isNotEmpty()) ImageTranslationInput.validateText(draft.translated)
+        val regions = draft.regions
+        if (regions == null) {
+            require(draft.edits.isEmpty())
+            return
+        }
+        require(draft.rotation == ImageTranslationInput.Rotation.NONE && regions.text == draft.source)
+        val checked = ImageTextRegions.build(regions.text, regions.width, regions.height,
+            regions.regions.asSequence().map { it.box to it.text })
+        require(checked.regions == regions.regions && !checked.partial)
+        if (draft.edits.isNotEmpty()) ImageTextRegions.summary(regions, draft.edits)
     }
 
     @Synchronized
@@ -52,12 +64,27 @@ internal object ImageDraftStore {
         require(!Files.exists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         val body = ByteArrayOutputStream().also { bytes ->
             DataOutputStream(bytes).use {
-                it.writeUTF(MAGIC)
+                it.writeUTF(if (draft.regions == null) MAGIC else REGION_MAGIC)
                 it.writeUTF(name(expected))
                 it.writeUTF(draft.script.name)
                 it.writeUTF(draft.rotation.name)
                 it.writeUTF(draft.source)
                 it.writeUTF(draft.translated)
+                draft.regions?.let { result ->
+                    it.writeInt(result.width)
+                    it.writeInt(result.height)
+                    it.writeBoolean(result.partial)
+                    it.writeInt(result.regions.size)
+                    result.regions.forEach { region ->
+                        it.writeInt(region.id)
+                        it.writeInt(region.box.left)
+                        it.writeInt(region.box.top)
+                        it.writeInt(region.box.right)
+                        it.writeInt(region.box.bottom)
+                        it.writeUTF(region.text)
+                        it.writeUTF(draft.edits[region.id].orEmpty())
+                    }
+                }
             }
         }.toByteArray()
         require(body.size + 32 <= LIMIT)
@@ -94,10 +121,30 @@ internal object ImageDraftStore {
         val body = bytes.copyOfRange(32, bytes.size)
         require(MessageDigest.isEqual(bytes.copyOfRange(0, 32), digest(body))) { "이미지 번역 초안이 손상됐습니다." }
         return DataInputStream(ByteArrayInputStream(body)).use {
-            require(it.readUTF() == MAGIC && it.readUTF() == name(expected))
+            val magic = it.readUTF()
+            require(magic in setOf(MAGIC, REGION_MAGIC) && it.readUTF() == name(expected))
             val script = ImageTranslationInput.Script.valueOf(it.readUTF())
             val rotation = ImageTranslationInput.Rotation.valueOf(it.readUTF())
-            val draft = Draft(it.readUTF(), it.readUTF(), script, rotation)
+            val source = it.readUTF()
+            val translated = it.readUTF()
+            val draft = if (magic == REGION_MAGIC) {
+                val width = it.readInt()
+                val height = it.readInt()
+                val partial = it.readBoolean()
+                val count = it.readInt()
+                require(count in 0..ImageTextRegions.MAX_REGIONS)
+                val edits = linkedMapOf<Int, String>()
+                val regions = List(count) { _ ->
+                    val id = it.readInt()
+                    val box = ImageTextRegions.Box(it.readInt(), it.readInt(), it.readInt(), it.readInt())
+                    val text = it.readUTF()
+                    val edit = it.readUTF()
+                    if (edit.isNotEmpty()) edits[id] = edit
+                    ImageTextRegions.Region(id, box, text)
+                }
+                Draft(source, translated, script, rotation,
+                    ImageTextRegions.Result(source, width, height, regions, partial), edits.toMap())
+            } else Draft(source, translated, script, rotation)
             require(it.read() == -1)
             validate(draft)
             draft
