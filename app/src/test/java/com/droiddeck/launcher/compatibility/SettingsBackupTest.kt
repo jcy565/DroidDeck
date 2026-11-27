@@ -670,4 +670,52 @@ class SettingsBackupTest {
         val review = SettingsBackup.apply(context, key, null, "1280x720") { true }
         assertEquals(review, SettingsBackup.review(context, key))
     }
+
+    @Test fun missingRevisionLeavesPendingBackupReadOnly() {
+        val previous = SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().remove("ai.revision.$key").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(SettingsBackup.ReviewStatus.LEGACY_BACKUP, entry.status)
+        val review = requireNotNull(entry.review)
+        assertEquals(previous.recordId, review.recordId)
+        assertNull(review.revision)
+        assertTrue(entry.availableActions.isEmpty())
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restore(context, key, true)
+        }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, review, true)
+        }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, review, true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun missingRevisionDoesNotOfferArchiveForConflictingRecord() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        prefs.edit().remove("ai.revision.$key").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(SettingsBackup.ReviewStatus.CONFLICT, entry.status)
+        assertTrue(entry.availableActions.isEmpty())
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, requireNotNull(entry.review), true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun lostRevisionInOneScopeDoesNotPreventOtherScopeRecovery() {
+        val other = "displayResolution.desktop"
+        SettingsBackup.apply(context, key, null, "1280x720")
+        val desktopReview = SettingsBackup.apply(context, other, null, "1600x900")
+        prefs.edit().remove("ai.revision.$key").commit()
+        val preserved = SettingsBackup.review(context, key)
+        SettingsBackup.restoreReviewed(context, desktopReview, true)
+        assertNull(SettingsBackup.raw(context, other))
+        assertEquals(preserved, SettingsBackup.review(context, key))
+        assertEquals("1280x720", SettingsBackup.raw(context, key))
+    }
 }

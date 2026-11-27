@@ -27,7 +27,7 @@ internal object SettingsBackup {
         val availableActions: Set<ReviewAction>
             get() {
                 val record = review ?: return emptySet()
-                if (record.recordId == null) return emptySet()
+                if (record.recordId == null || record.revision == null) return emptySet()
                 return buildSet {
                     if (status == ReviewStatus.READY && record.matchesApplied) add(ReviewAction.RESTORE)
                     if ((status == ReviewStatus.READY || status == ReviewStatus.CONFLICT) &&
@@ -202,7 +202,7 @@ internal object SettingsBackup {
             val review = readReview(key, all)
             val status = when {
                 review != null && !review.matchesApplied -> ReviewStatus.CONFLICT
-                review != null && review.recordId == null -> ReviewStatus.LEGACY_BACKUP
+                review != null && (review.recordId == null || review.revision == null) -> ReviewStatus.LEGACY_BACKUP
                 review != null -> ReviewStatus.READY
                 recordFields.any { all.containsKey(b + it) } -> ReviewStatus.INVALID_BACKUP
                 else -> ReviewStatus.NO_BACKUP
@@ -261,7 +261,9 @@ internal object SettingsBackup {
             val b = prefix(key)
             val archive = archivePrefix(key)
             val review = checkNotNull(readReview(key, all))
-            check(review.recordId != null && review == expected) { "복구 기록이 변경되었거나 이전 형식입니다." }
+            check(review.recordId != null && review.revision != null && review == expected) {
+                "복구 기록이 변경되었거나 이전 형식입니다."
+            }
             check(archiveFields.none { all.containsKey(archive + it) }) { "보관된 이전 기록이 있습니다." }
             val e = p.edit()
             for (field in recordFields) {
@@ -282,6 +284,9 @@ internal object SettingsBackup {
                 else -> error("잘못된 현재 설정 형식")
             }
             review.revision?.let { e.putString(archive + "revision", it) }
+            check(p.all == all && GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) {
+                "보관 확인 중 설정 또는 실행 상태가 변경되었습니다."
+            }
             check(e.commit()) { "백업 보관 실패: 현재 상태를 다시 확인하세요." }
         }
     }
@@ -318,8 +323,11 @@ internal object SettingsBackup {
         val p = prefs(context)
         val b = prefix(key)
         check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
-        val review = checkNotNull(review(context, key)) { "복구 기록을 확인할 수 없습니다." }
-        check(review.recordId != null) { "이전 형식의 백업은 자동 복구할 수 없습니다." }
+        val all = p.all
+        val review = checkNotNull(readReview(key, all)) { "복구 기록을 확인할 수 없습니다." }
+        check(review.recordId != null && review.revision != null) {
+            "이전 형식 또는 변경 이력이 누락된 백업은 복구할 수 없습니다."
+        }
         check(expected == null || review == expected) { "복구 기록이 변경되었습니다." }
         check(review.matchesApplied) { "설정 충돌: 복구를 보류합니다." }
         val e = p.edit()
@@ -331,6 +339,9 @@ internal object SettingsBackup {
         }
         recordFields.forEach { e.remove(b + it) }
         e.putString(revisionKey(key), UUID.randomUUID().toString())
+        check(p.all == all && GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) {
+            "복구 확인 중 설정 또는 실행 상태가 변경되었습니다."
+        }
         check(e.commit()) { "복구 저장 실패: 현재 상태를 다시 확인하세요." }
     }
 }
