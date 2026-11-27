@@ -21,7 +21,7 @@ internal object ImageOcrRuntime {
     const val enabled = true
     private val occupied = AtomicBoolean(false)
 
-    suspend fun recognize(file: File, script: ImageTranslationInput.Script, allowed: () -> Boolean): String {
+    suspend fun recognize(file: File, script: ImageTranslationInput.Script, rotation: ImageTranslationInput.Rotation, allowed: () -> Boolean): String {
         check(allowed()) { "게임 실행 또는 메모리 상태로 이미지 인식을 보류했습니다." }
         check(occupied.compareAndSet(false, true)) { "이전 이미지 인식 작업이 아직 종료되지 않았습니다." }
         try {
@@ -49,7 +49,7 @@ internal object ImageOcrRuntime {
                 val recognized = try {
                     // Keep bitmap/client alive until the native task finishes, even if the UI closes.
                     suspendCoroutine<String> { continuation ->
-                        client.process(InputImage.fromBitmap(bitmap, 0)).addOnCompleteListener { task ->
+                        client.process(InputImage.fromBitmap(bitmap, rotation.degrees)).addOnCompleteListener { task ->
                             if (task.isSuccessful) continuation.resume(task.result.text)
                             else continuation.resumeWithException(task.exception ?: IllegalStateException("이미지 인식 실패"))
                         }
