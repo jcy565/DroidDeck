@@ -395,6 +395,29 @@ class SettingsBackupTest {
         assertEquals(before, prefs.all)
     }
 
+    @Test fun malformedArchivedRevisionIsVisibleButNotTrusted() {
+        val review = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, review, true)
+        prefs.edit().putString("ai.archive.$key.revision", "bad").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun orphanedArchiveRevisionPreventsOverwrite() {
+        val review = SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putString("ai.archive.$key.revision", java.util.UUID.randomUUID().toString()).commit()
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, review, true)
+        }
+        assertEquals(before, prefs.all)
+        assertEquals(review, SettingsBackup.review(context, key))
+    }
+
     @Test fun oldArchiveWithoutRevisionRemainsReadable() {
         val review = SettingsBackup.apply(context, key, null, "1280x720")
         SettingsBackup.keepCurrentAndArchive(context, review, true)
