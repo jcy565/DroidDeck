@@ -27,6 +27,24 @@ internal object RuntimeSettingsPreview {
         Setting.FEX_PRESET -> emptySet()
     }
 
+    data class DriverOption(val change: Change, val name: String, val detail: String)
+    data class DriverComparison(val linuxSelected: String, val androidSelected: String,
+        val linux: List<DriverOption>, val android: List<DriverOption>)
+
+    /** Snapshot the selector's existing local inventory only; no refresh, install or writes. */
+    fun compareLocalDrivers(state: com.droiddeck.launcher.ui.GpuDriversState): DriverComparison {
+        check(state.busy == null && !state.checking)
+        val snapshot = Snapshot(state.linuxSelected, state.androidSelected, "")
+        fun options(setting: Setting, rows: List<com.droiddeck.launcher.ui.DriverRow>): List<DriverOption> {
+            val supported = driverCandidates(state, setting)
+            return rows.asSequence().filter { it.id in supported && it.id.length <= 256 &&
+                it.id.none { char -> char.isISOControl() } }.distinctBy { it.id }
+                .map { DriverOption(preview(snapshot, setting, it.id, supported), it.name, it.detail) }.toList()
+        }
+        return DriverComparison(state.linuxSelected, state.androidSelected,
+            options(Setting.LINUX_DRIVER, state.linuxRows), options(Setting.ANDROID_DRIVER, state.androidRows))
+    }
+
     /** Only ordinary compatibility/performance presets exposed by the existing
      * selector. Default/experimental/special-purpose presets are not suggested. */
     fun fexCandidates(): Set<String> {

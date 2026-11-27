@@ -254,6 +254,7 @@ internal fun GpuDriversBody(
             GPU_MODE_PAIR -> PairBody(gpu, actions)
             else -> MixBody(single, actions, slotFocus, onOpenSlot)
         }
+        com.droiddeck.launcher.compatibility.RuntimeDriverPreviewPanel(gpu)
     }
 }
 

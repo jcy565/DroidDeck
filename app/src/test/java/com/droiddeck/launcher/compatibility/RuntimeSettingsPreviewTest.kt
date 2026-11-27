@@ -16,6 +16,33 @@ class RuntimeSettingsPreviewTest {
         }
     }
 
+    @Test fun localDriverComparisonExcludesAutoDownloadsAndInvalidIds() {
+        fun row(id: String) = com.droiddeck.launcher.ui.DriverRow(id, id, "", true)
+        val auto = com.droiddeck.launcher.gpu.TurnipDriver.AUTO
+        val state = com.droiddeck.launcher.ui.GpuDriversState(
+            linuxRows = listOf(row(""), row("linux-local"), row("linux-local"), row("bad\nvalue"), row("x".repeat(257))),
+            androidRows = listOf(row(auto), row("android-local")),
+            linuxSelected = "linux-current", androidSelected = auto,
+            linuxDownloads = listOf(com.droiddeck.launcher.ui.DownloadRow("remote", "Remote", "")),
+        )
+        val result = RuntimeSettingsPreview.compareLocalDrivers(state)
+        assertEquals("linux-current", result.linuxSelected)
+        assertEquals(auto, result.androidSelected)
+        assertEquals(listOf("linux-local"), result.linux.map { it.change.proposed })
+        assertEquals(listOf("android-local"), result.android.map { it.change.proposed })
+        assertEquals("linux-current", result.linux.single().change.before)
+        assertEquals(auto, result.android.single().change.before)
+    }
+
+    @Test fun localDriverComparisonRefusesBusySelector() {
+        assertThrows(IllegalStateException::class.java) {
+            RuntimeSettingsPreview.compareLocalDrivers(com.droiddeck.launcher.ui.GpuDriversState(busy = "pair"))
+        }
+        assertThrows(IllegalStateException::class.java) {
+            RuntimeSettingsPreview.compareLocalDrivers(com.droiddeck.launcher.ui.GpuDriversState(checking = true))
+        }
+    }
+
     @Test fun fexAlternativesUseOrdinaryExistingPresetsOnly() {
         val choices = RuntimeSettingsPreview.fexAlternatives(snapshot)
         val ids = choices.map { it.proposed }.toSet()
