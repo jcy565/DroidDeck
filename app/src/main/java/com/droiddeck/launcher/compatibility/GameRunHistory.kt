@@ -28,8 +28,7 @@ internal class GameRunHistory(context: Context) :
     }
 
     fun record(observation: Observation) {
-        require(observation.gameId.isNotBlank() && observation.gameId.length <= 256)
-        require(observation.gameVersion == null || observation.gameVersion.length <= 128)
+        GameHistoryQuery.validateIdentity(observation.gameId, observation.gameVersion)
         require(observation.recordedAt >= 0)
         val db = writableDatabase
         db.beginTransaction()
@@ -49,12 +48,9 @@ internal class GameRunHistory(context: Context) :
     }
 
     fun recent(gameId: String, limit: Int = 20, gameVersion: String? = null): List<Observation> {
-        require(gameId.isNotBlank() && gameId.length <= 256)
-        require(gameVersion == null || (gameVersion.isNotBlank() && gameVersion.length <= 128))
-        val selection = if (gameVersion == null) "game_id = ?" else "game_id = ? AND game_version = ?"
-        val args = if (gameVersion == null) arrayOf(gameId) else arrayOf(gameId, gameVersion)
+        val selection = GameHistoryQuery.recent(gameId, limit, gameVersion)
         return readableDatabase.query("runs", arrayOf("game_id", "game_version", "outcome", "recorded_at"),
-            selection, args, null, null, "id DESC", limit.coerceIn(1, 100).toString()).use { cursor ->
+            selection.where, selection.args.toTypedArray(), null, null, "id DESC", selection.limit.toString()).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(Observation(cursor.getString(0),
                     if (cursor.isNull(1)) null else cursor.getString(1),

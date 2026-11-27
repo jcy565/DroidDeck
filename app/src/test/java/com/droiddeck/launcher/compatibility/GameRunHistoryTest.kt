@@ -66,6 +66,19 @@ class GameRunHistoryTest {
         assertEquals(listOf(entry), history.recent("steam:1", gameVersion = version))
     }
 
+    @Test fun malformedVersionsCannotCreateNewHistoryRows() {
+        history.record(observation("steam:1", 1))
+        for (bad in listOf("", " ", "a\nb", "x".repeat(129))) {
+            assertThrows(IllegalArgumentException::class.java) {
+                history.record(observation("steam:1", 2).copy(gameVersion = bad))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                history.recent("steam:1", gameVersion = bad)
+            }
+        }
+        assertEquals(listOf(observation("steam:1", 1)), history.recent("steam:1"))
+    }
+
     @Test fun boundsStorageAndQuerySize() {
         history.record(observation("old", 0))
         repeat(500) { history.record(observation("new", it.toLong())) }
