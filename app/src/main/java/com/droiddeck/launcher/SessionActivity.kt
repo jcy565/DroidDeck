@@ -672,7 +672,12 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AgentGuest.readyListener = agentReadyListener
+        if (com.droiddeck.launcher.session.SessionStartupDecision.waitForTeardown(SessionState.phase)) {
+            runtimeRemovalBlocked = true
+            android.widget.Toast.makeText(this, R.string.session_wait_teardown, android.widget.Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         if (com.droiddeck.launcher.runtime.LinuxRuntimeInstaller.isRemoving() ||
             com.droiddeck.launcher.runtime.LinuxRuntimeInstaller.isMaintaining()) {
             runtimeRemovalBlocked = true
@@ -716,6 +721,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         } else if (intent.getBooleanExtra(EXTRA_STEAMVR, false) && SessionState.mode == SessionService.MODE_STEAM) {
             SessionState.steamVr = true
         }
+        AgentGuest.readyListener = agentReadyListener
         if (SessionState.steamVr) Glasses.prepareSteamVrStart()
         if (intent.action == SessionService.ACTION_AGENT_START) {
             SessionEvents.record("agent.start_requested", mapOf("mode" to SessionState.mode))

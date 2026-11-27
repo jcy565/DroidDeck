@@ -330,6 +330,12 @@ class SessionService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, buildNotification())
+        if (SessionStartupDecision.waitForTeardown(SessionState.phase)) {
+            // The in-flight teardown owns the service lifetime. Do not stop it
+            // here or let a new launch replace its shared session state.
+            Toast.makeText(this, R.string.session_wait_teardown, Toast.LENGTH_LONG).show()
+            return START_NOT_STICKY
+        }
         if (SessionState.running) return START_NOT_STICKY
         if (SessionState.stopRequested) {
             SessionState.running = true

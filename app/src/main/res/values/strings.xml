@@ -1640,6 +1640,7 @@
     <string name="drivers_installed_pick_either">Installed %1$s - pick it in either list to set both drivers</string>
     <string name="drivers_installed_pick">Installed %1$s - pick it in the menu</string>
 
+    <string name="session_wait_teardown">The previous session is stopping. Try again after it ends.</string>
     <string name="session_wait_removal">Wait for runtime removal to finish</string>
     <string name="session_title_game">Game</string>
     <string name="session_touch_auto_touchpad">touchpad</string>
