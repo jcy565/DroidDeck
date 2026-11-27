@@ -19,15 +19,21 @@ internal object ImageTranslationInput {
 
     fun read(input: InputStream): ByteArray {
         val output = ByteArrayOutputStream()
+        readChunks(input) { bytes, count -> output.write(bytes, 0, count) }
+        return output.toByteArray()
+    }
+
+    fun readChunks(input: InputStream, consume: (ByteArray, Int) -> Unit) {
         val buffer = ByteArray(8192)
+        var total = 0
         while (true) {
             val n = input.read(buffer)
             if (n < 0) break
-            require(output.size() + n <= MAX_BYTES) { "이미지 파일은 최대 8MiB까지 지원합니다." }
-            output.write(buffer, 0, n)
+            require(total + n <= MAX_BYTES) { "이미지 파일은 최대 8MiB까지 지원합니다." }
+            consume(buffer, n)
+            total += n
         }
-        require(output.size() > 0)
-        return output.toByteArray()
+        require(total > 0)
     }
 
     fun sampleSize(width: Int, height: Int): Int {

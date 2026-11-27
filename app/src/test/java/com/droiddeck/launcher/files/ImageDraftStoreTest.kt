@@ -1,7 +1,10 @@
 package com.droiddeck.launcher.files
 
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.nio.file.Files
+import java.security.MessageDigest
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -11,6 +14,33 @@ class ImageDraftStoreTest {
     @get:Rule val temporary = TemporaryFolder()
     private val draft = ImageDraftStore.Draft("こんにちは\nHello", "안녕하세요",
         ImageTranslationInput.Script.JAPANESE, ImageTranslationInput.Rotation.CLOCKWISE_90)
+
+    @Test fun streamedIdentityCanLoadAndDeleteAPreviouslySavedDraft() {
+        val image = temporary.newFile("old-menu.png")
+        image.outputStream().use {
+            it.write(ByteArray(8192) { index -> index.toByte() })
+            it.write('X'.code)
+        }
+        val id = ImageDraftStore.identity(image)
+        assertEquals("45b5d4a71815afb033c3faf9aa879114a977cab0d47aa123183a6a1756953474", id.digest)
+        val digest = MessageDigest.getInstance("SHA-256")
+        val pathHash = digest.digest(image.canonicalPath.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        val oldName = "$pathHash-${id.digest}"
+        val directory = temporary.newFolder("old-records")
+        val body = ByteArrayOutputStream()
+        DataOutputStream(body).use {
+            listOf("DDIMAGE1", oldName, draft.script.name, draft.rotation.name, draft.source, draft.translated)
+                .forEach(it::writeUTF)
+        }
+        val bytes = body.toByteArray()
+        val record = File(directory, "$oldName.draft")
+        record.writeBytes(digest.digest(bytes) + bytes)
+        assertEquals(draft, ImageDraftStore.load(directory, id))
+        assertTrue(ImageDraftStore.deleteIfUnchanged(directory, image, id, draft))
+        assertFalse(record.exists())
+        assertEquals(id, ImageDraftStore.identity(image))
+    }
 
     @Test fun savesAndReopensOnlyExactImageRevision() {
         val root = temporary.newFolder("game")

@@ -18,20 +18,23 @@ internal object ImageDraftStore {
         val regions: ImageTextRegions.Result? = null, val edits: Map<Int, String> = emptyMap())
 
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
-    private fun hex(bytes: ByteArray) = digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+    private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
 
     fun identity(file: File): Identity {
         require(file.extension.lowercase() in ImageTranslationInput.extensions)
         require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         require(file.length() in 1L..ImageTranslationInput.MAX_BYTES.toLong())
-        val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
-        return Identity(file.canonicalPath, hex(bytes))
+        val hash = MessageDigest.getInstance("SHA-256")
+        Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { input ->
+            ImageTranslationInput.readChunks(input) { bytes, count -> hash.update(bytes, 0, count) }
+        }
+        return Identity(file.canonicalPath, hex(hash.digest()))
     }
 
     private fun name(identity: Identity): String {
         require(identity.path.isNotBlank() && identity.digest.matches(Regex("[0-9a-f]{64}")))
-        return hex(identity.path.toByteArray(Charsets.UTF_8)) + "-" + identity.digest
+        return hex(digest(identity.path.toByteArray(Charsets.UTF_8))) + "-" + identity.digest
     }
 
     private fun location(directory: File, identity: Identity): File {
