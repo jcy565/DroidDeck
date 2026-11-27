@@ -29,6 +29,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         var currentVersionOnly by remember { mutableStateOf(observedVersion != null) }
         var draft by remember { mutableStateOf<GameObservationDraft.Draft?>(null) }
         var error by remember { mutableStateOf<String?>(null) }
+        var showTimeline by remember { mutableStateOf(false) }
 
         suspend fun refresh() {
             report = service.report(gameId, gameVersion = observedVersion.takeIf { currentVersionOnly })
@@ -125,6 +126,21 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                     Text("이전 버전의 결과로 현재 버전의 호환성을 판단할 수 없습니다.")
                 }
                 current.advice.forEach { Text("• " + it) }
+                if (current.observations.isNotEmpty()) {
+                    TextButton(onClick = { showTimeline = !showTimeline }) {
+                        Text(if (showTimeline) "실행 기록 상세 닫기" else "실행 기록 상세 보기")
+                    }
+                    if (showTimeline) {
+                        Text("최근 저장 순서 · 이 기록은 개별 관측 결과이며 성능을 보장하지 않습니다.")
+                        val formatter = java.text.DateFormat.getDateTimeInstance(
+                            java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT
+                        )
+                        GameHistoryTimeline.rows(current.observations).forEach { row ->
+                            Text(formatter.format(java.util.Date(row.recordedAt)) +
+                                " · 버전: " + (row.version ?: "미확인") + " · " + row.label)
+                        }
+                    }
+                }
             }
             error?.let { Text(it) }
             if (busy) Text("처리 중")
