@@ -20,12 +20,16 @@ internal class GameCompatibilityService(context: Context) {
     }
 
     suspend fun report(gameId: String, limit: Int = 20, gameVersion: String? = null): Report = withContext(Dispatchers.IO) {
-        check(GameplayBudget.allowsOptionalAnalysis(appContext)) { "게임 또는 메모리 상태 때문에 이력 분석을 보류합니다." }
+        ensureAnalysisAvailable()
         GameRunHistory(appContext).use { history ->
             val recent = history.recent(gameId, limit, gameVersion)
-            check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+            ensureAnalysisAvailable()
             analyze(recent)
         }
+    }
+
+    private fun ensureAnalysisAvailable() {
+        if (!GameplayBudget.allowsOptionalAnalysis(appContext)) throw HistoryReadDeferred()
     }
 
     data class LogReport(val history: Report, val logDiagnosis: String, val limitation: String)

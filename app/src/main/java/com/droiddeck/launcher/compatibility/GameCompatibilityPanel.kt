@@ -31,8 +31,30 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         var error by remember { mutableStateOf<String?>(null) }
         var showTimeline by remember { mutableStateOf(false) }
 
-        suspend fun refresh() {
-            report = service.report(gameId, gameVersion = observedVersion.takeIf { currentVersionOnly })
+        suspend fun refresh(saved: Boolean = false) {
+            report = null
+            try {
+                report = service.report(gameId, gameVersion = observedVersion.takeIf { currentVersionOnly })
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = HistoryReadFeedback.failure(saved, e is HistoryReadDeferred)
+            }
+        }
+
+        fun requestRefresh(toggleVersion: Boolean = false) {
+            if (busy || draft != null) return
+            busy = true
+            error = null
+            report = null
+            if (toggleVersion) currentVersionOnly = !currentVersionOnly
+            scope.launch {
+                try {
+                    refresh()
+                } finally {
+                    busy = false
+                }
+            }
         }
 
         fun confirmObservation(selected: GameObservationDraft.Draft, attribution: GameObservationDraft.Attribution) {
@@ -56,11 +78,11 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                         currentVersionOnly = false
                         report = null
                     }
-                    refresh()
+                    refresh(saved = true)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    error = if (saved) "기록은 저장됐지만 조회에 실패했습니다."
+                    error = if (saved) HistoryReadFeedback.failure(true, false)
                     else "기록 저장에 실패했습니다."
                 } finally {
                     busy = false
@@ -71,10 +93,6 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         LaunchedEffect(service) {
             try {
                 refresh()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = "실행 기록을 읽지 못했습니다."
             } finally {
                 busy = false
             }
@@ -86,24 +104,8 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
             Text(if (observedVersion == null) "설치 버전: 확인되지 않음" else "설치 버전 (최근 조회): $observedVersion")
             if (observedVersion != null) {
-                Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
-                    if (!busy) {
-                        busy = true
-                        currentVersionOnly = !currentVersionOnly
-                        report = null
-                        error = null
-                        scope.launch {
-                            try {
-                                refresh()
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (_: Exception) {
-                                error = "실행 기록을 읽지 못했습니다."
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    }
+                Button(modifier = Modifier.fillMaxWidth(), enabled = !busy && draft == null, onClick = {
+                    requestRefresh(toggleVersion = true)
                 }) { Text(if (currentVersionOnly) "현재 버전 기록 · 전체 버전 보기" else "전체 버전 기록 · 현재 버전 보기") }
             }
             Text(if (currentVersionOnly) "현재 버전 최근 20건 (버전 미확인 제외)"
@@ -143,6 +145,9 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                 }
             }
             error?.let { Text(it) }
+            TextButton(enabled = !busy && draft == null, onClick = { requestRefresh() }) {
+                Text("실행 기록 다시 조회")
+            }
             if (busy) Text("처리 중")
             SettingsExperimentPreviewPanel()
             RuntimeFexPreviewPanel(profileKey)
