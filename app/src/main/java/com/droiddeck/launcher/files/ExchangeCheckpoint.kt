@@ -63,6 +63,15 @@ internal object ExchangeCheckpoint {
         }
     }
 
+    /** Explicit user discard only; never used for automatic response cleanup. */
+    @Synchronized fun discard(file: File): Boolean {
+        require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
+        val path = file.toPath()
+        if (Files.notExists(path, NOFOLLOW_LINKS)) return false
+        require(Files.isRegularFile(path, NOFOLLOW_LINKS)) { "Invalid checkpoint path" }
+        return Files.deleteIfExists(path)
+    }
+
     @Synchronized fun clear(file: File, id: String): Boolean {
         val saved = load(file) ?: return false
         return saved.id == id && Files.deleteIfExists(file.toPath())
