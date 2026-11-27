@@ -14,7 +14,7 @@ import java.security.MessageDigest
 
 internal object ImageOverlayRenderer {
     fun render(file: File, expected: ImageDraftStore.Identity, result: ImageTextRegions.Result,
-        edits: Map<Int, String>, checkpoint: () -> Unit): Bitmap {
+        edits: Map<Int, String>, style: ImageOverlayPlan.Background, checkpoint: () -> Unit): Bitmap {
         checkpoint()
         val plan = ImageOverlayPlan.prepare(result, edits)
         require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
@@ -28,16 +28,31 @@ internal object ImageOverlayRenderer {
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         require(bounds.outMimeType in setOf("image/png", "image/jpeg", "image/webp"))
         val sample = ImageTranslationInput.sampleSize(bounds.outWidth, bounds.outHeight)
+        val width = bounds.outWidth
+        val height = bounds.outHeight
+        require(width.toLong() * height <= ImageOverlayPlan.MAX_EXPORT_PIXELS) {
+            "원본 해상도는 최대 8Mi 픽셀까지 출력할 수 있습니다."
+        }
+        fun matchesFrame(original: Int, decoded: Int): Boolean =
+            decoded in (original / sample).coerceAtLeast(1)..((original + sample - 1) / sample)
+        require(matchesFrame(width, result.width) && matchesFrame(height, result.height)) {
+            "인식 이미지와 원본 해상도가 맞지 않습니다."
+        }
+        val mapped = ImageOverlayPlan.originalSize(plan, result.width, result.height, width, height)
+        val runtime = Runtime.getRuntime()
+        val heapFree = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
+        require(heapFree >= width.toLong() * height * 4 + 32L * 1024 * 1024) {
+            "이미지를 출력할 메모리가 부족합니다."
+        }
         checkpoint()
         val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
             BitmapFactory.Options().apply {
-                inSampleSize = sample
+                inSampleSize = 1
                 inMutable = true
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }))
         try {
-            require(bitmap.width == result.width && bitmap.height == result.height &&
-                bitmap.width.toLong() * bitmap.height <= 4_194_304L) { "인식 이미지 크기가 달라졌습니다." }
+            require(bitmap.width == width && bitmap.height == height) { "원본 이미지 크기가 달라졌습니다." }
             val canvas = Canvas(bitmap)
             val background = Paint().apply { color = Color.BLACK }
             val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -45,9 +60,27 @@ internal object ImageOverlayRenderer {
                 typeface = Typeface.DEFAULT
                 textAlign = Paint.Align.CENTER
             }
-            for (item in plan) {
+            for (item in mapped) {
                 checkpoint()
                 val b = item.box
+                val palette = when (style) {
+                    ImageOverlayPlan.Background.BLACK -> ImageOverlayPlan.Palette(Color.BLACK, Color.WHITE)
+                    ImageOverlayPlan.Background.MATCH_FLAT -> {
+                        val samples = mutableListOf<Int>()
+                        for (i in 0..4) {
+                            val x = b.left + (b.right - b.left - 1) * i / 4
+                            val y = b.top + (b.bottom - b.top - 1) * i / 4
+                            samples.add(bitmap.getPixel(x, b.top))
+                            samples.add(bitmap.getPixel(x, b.bottom - 1))
+                            samples.add(bitmap.getPixel(b.left, y))
+                            samples.add(bitmap.getPixel(b.right - 1, y))
+                        }
+                        ImageOverlayPlan.flatPalette(samples)
+                            ?: error("단색 배경을 확인할 수 없습니다. 검은 배경 방식으로 다시 검토하세요.")
+                    }
+                }
+                background.color = palette.background
+                ink.color = palette.foreground
                 val w = (b.right - b.left - 4).toFloat()
                 val h = (b.bottom - b.top - 4).toFloat()
                 var size = minOf(h, 128f)
@@ -80,7 +113,7 @@ internal object ImageOverlayRenderer {
         checkpoint: () -> Unit): File {
         checkpoint()
         require(ImageDraftStore.identity(file) == expected)
-        require(!preview.isRecycled && preview.width.toLong() * preview.height <= 4_194_304L)
+        require(!preview.isRecycled && preview.width.toLong() * preview.height <= ImageOverlayPlan.MAX_EXPORT_PIXELS)
         val parent = requireNotNull(file.canonicalFile.parentFile)
         require(Files.isDirectory(parent.toPath(), NOFOLLOW_LINKS))
         val output = Files.createTempFile(parent.toPath(), "dd-translated-", ".png").toFile()

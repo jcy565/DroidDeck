@@ -20,6 +20,30 @@ class ImageOverlayPlanTest {
         assertTrue(runCatching { ImageOverlayPlan.prepare(r, mapOf(2 to "종료")) }.isFailure)
     }
 
+    @Test fun scalesSharedEdgesToOriginalDimensions() {
+        val r = result(ImageTextRegions.Box(30, 10, 50, 30))
+        val plan = ImageOverlayPlan.prepare(r, mapOf(1 to "시작", 2 to "종료"))
+        val mapped = ImageOverlayPlan.originalSize(plan, 100, 100, 201, 199)
+        assertEquals(ImageTextRegions.Box(20, 19, 60, 59), mapped.first().box)
+        assertEquals(mapped.first().box.right, mapped.last().box.left)
+        assertEquals(plan, ImageOverlayPlan.originalSize(plan, 100, 100, 100, 100))
+        assertTrue(runCatching { ImageOverlayPlan.originalSize(plan, 100, 100, 4096, 4096) }.isFailure)
+        assertTrue(runCatching { ImageOverlayPlan.originalSize(plan, 100, 100, 99, 100) }.isFailure)
+    }
+
+    @Test fun flatPaletteRejectsTransparencyAndComplexEdges() {
+        val light = 0xffeeeeee.toInt()
+        val dark = 0xff102030.toInt()
+        assertEquals(ImageOverlayPlan.Palette(light, 0xff000000.toInt()),
+            ImageOverlayPlan.flatPalette(List(20) { light }))
+        assertEquals(ImageOverlayPlan.Palette(dark, 0xffffffff.toInt()),
+            ImageOverlayPlan.flatPalette(List(20) { dark }))
+        assertNull(ImageOverlayPlan.flatPalette(List(19) { light } + dark))
+        assertNull(ImageOverlayPlan.flatPalette(List(19) { light } + 0x00101010))
+        assertNull(ImageOverlayPlan.flatPalette(List(7) { light }))
+        assertNotNull(ImageOverlayPlan.flatPalette(List(10) { 0xffe0e0e0.toInt() } + List(10) { light }))
+    }
+
     @Test fun refusesInvalidPlanAndSmallRegion() {
         val r = result(ImageTextRegions.Box(50, 50, 60, 61))
         assertTrue(runCatching { ImageOverlayPlan.prepare(r, mapOf(2 to "종료")) }.isFailure)

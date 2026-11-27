@@ -36,6 +36,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     var translated by remember(file) { mutableStateOf("") }
     var regions by remember(file) { mutableStateOf<ImageTextRegions.Result?>(null) }
     var imagePreview by remember(file) { mutableStateOf<Bitmap?>(null) }
+    var backgroundStyle by remember(file) { mutableStateOf(ImageOverlayPlan.Background.MATCH_FLAT) }
     var regionIndex by remember(file) { mutableStateOf(0) }
     var regionEdits by remember(file) { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
@@ -172,19 +173,26 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 초안 저장 버튼으로 별도 보관할 수 있습니다."
                             } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
                         }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
-                        Text("검은 배경과 흰 글자로 번역 영역을 덮는 실험용 PNG 복사본입니다. 원래 배경을 복원하지 않으며 일부 원문이 남을 수 있습니다. 축소 인식 해상도로 출력합니다.")
+                        Text("최대 8Mi 픽셀의 원본 해상도 PNG 복사본을 생성합니다. 단색 배경을 추정하거나 검은 배경으로 덮습니다. 복잡한 배경 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
+                        Text("배경 방식: " + if (backgroundStyle == ImageOverlayPlan.Background.MATCH_FLAT) "단색 추정" else "검은 배경")
+                        TextButton(enabled = !busy, onClick = {
+                            imagePreview = null
+                            backgroundStyle = if (backgroundStyle == ImageOverlayPlan.Background.MATCH_FLAT)
+                                ImageOverlayPlan.Background.BLACK else ImageOverlayPlan.Background.MATCH_FLAT
+                        }) { Text("배경 방식 변경") }
                         TextButton(enabled = !busy && identity != null && regionEdits.isNotEmpty(), onClick = {
                             val expected = requireNotNull(identity)
                             val edits = regionEdits.toMap()
+                            val style = backgroundStyle
                             imagePreview = null
                             draftAction {
                                 imagePreview = withContext(Dispatchers.IO) {
-                                    ImageOverlayRenderer.render(file, expected, result, edits) {
+                                    ImageOverlayRenderer.render(file, expected, result, edits, style) {
                                         ensureActive()
                                         check(allowed()) { "게임 또는 메모리 상태로 이미지 작업을 중단했습니다." }
                                     }
                                 }
-                                message = "번역 이미지 미리보기입니다. 내용을 확인하세요."
+                                message = "원본 해상도 번역 이미지 미리보기입니다. 글자와 배경을 확인하세요."
                             }
                         }) { Text("번역 이미지 미리보기 생성") }
                         imagePreview?.let { bitmap ->
