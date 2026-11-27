@@ -40,6 +40,14 @@ internal object GamePatchAuthor {
         return parts
     }
 
+    /** Structural validation only; does not assess linguistic quality. */
+    fun validTranslation(original: String, translated: String): Boolean =
+        try {
+            tokens(original) == tokens(translated)
+        } catch (_: IllegalArgumentException) {
+            false
+        }
+
     fun matchesTranslationExtension(source: String, extension: String): Boolean =
         if (TranslationJson.isCandidate(source)) extension.equals("json", ignoreCase = true)
         else TranslationTable.matchesExtension(source, extension)
@@ -75,7 +83,7 @@ internal object GamePatchAuthor {
         val rows = extract(source).associateBy { it.id }
         require(edits.isNotEmpty() && edits.keys.all { it in rows })
         for ((id, translated) in edits) {
-            require(tokens(rows.getValue(id).text) == tokens(translated)) {
+            require(validTranslation(rows.getValue(id).text, translated)) {
                 "변수와 이스케이프의 종류·개수·순서를 유지하세요: $id"
             }
         }

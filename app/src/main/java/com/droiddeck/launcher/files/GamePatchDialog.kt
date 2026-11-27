@@ -208,6 +208,36 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
                     Text(row.text)
                     Text("입력한 번역: ${translations.size} / ${translationRows.size} (최종 검증 전)")
+                    TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
+                        val source = requireNotNull(translationSource)
+                        val edits = translations.toMap()
+                        val result = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                            val result = TranslationReuse.fill(source, edits)
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            result
+                        }
+                        translations = result.edits
+                        preview = null
+                        message = "동일 원문 번역 재사용 ${result.added}개, 충돌·검증 보류 ${result.conflicts}개. 문맥에 맞는지 확인하세요."
+                    } }) { Text("동일 원문 번역 재사용") }
+                    TextButton(enabled = !busy, onClick = { runAction {
+                        val source = requireNotNull(translationSource)
+                        val edits = translations.toMap()
+                        val review = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                            TranslationReuse.review(source, edits)
+                        }
+                        review.nextUnfinished(translationRows.map { it.id }, translationIndex)?.let {
+                            translationIndex = it
+                        }
+                        message = "형식 통과 ${review.count(TranslationReuse.Status.READY)}개, " +
+                            "미입력 ${review.count(TranslationReuse.Status.MISSING)}개, " +
+                            "원문 그대로 ${review.count(TranslationReuse.Status.UNCHANGED)}개, " +
+                            "형식 오류 ${review.count(TranslationReuse.Status.INVALID)}개. 번역 품질은 직접 검토하세요."
+                    } }) { Text("번역 검토·다음 미완료 문장") }
                     Text("번역 작업 JSON을 내보내고 row. 항목의 값만 번역한 후 불러올 수 있습니다. 파일은 자동 전송되지 않습니다.")
                     TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                         val source = requireNotNull(translationSource)
