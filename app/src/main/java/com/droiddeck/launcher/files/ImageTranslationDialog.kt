@@ -59,6 +59,25 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
     var pendingReplacement by remember { mutableStateOf<DraftReplacement?>(null) }
     var pendingDeletion by remember { mutableStateOf<ImageDraftStore.Draft?>(null) }
 
+    var savedDraft by remember { mutableStateOf<ImageDraftStore.Draft?>(null) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+
+    fun currentDraft(): ImageDraftStore.Draft {
+        val savedRegions = regions?.takeIf {
+            rotation == ImageTranslationInput.Rotation.NONE && it.regions.isNotEmpty()
+        }
+        return ImageDraftStore.Draft(source, translated, script, rotation, savedRegions,
+            if (savedRegions == null) emptyMap() else regionEdits)
+    }
+
+    fun requestClose() {
+        if (busy) return
+        val current = currentDraft()
+        val hasEdits = savedDraft?.let { current != it }
+            ?: (current.source.isNotEmpty() || current.translated.isNotEmpty() || current.edits.isNotEmpty())
+        if (hasEdits) confirmDiscard = true else onDismiss()
+    }
+
     fun allowed(): Boolean = GameplayBudget.allowsOptionalAnalysis(context)
 
     fun clearPreview() {
@@ -100,7 +119,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
     }
 
     AlertDialog(
-        onDismissRequest = { if (!busy) onDismiss() },
+        onDismissRequest = ::requestClose,
         title = { Text("이미지 번역 · ${file.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -346,9 +365,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                 Text("초안을 저장하면 원문과 번역문, 영역 위치·번역, 언어·회전 설정이 앱 전용 저장소에 보관됩니다. 자동 전송되지 않습니다. 민감한 텍스트는 저장하지 마세요.")
                 TextButton(enabled = !busy && identity != null && source.isNotBlank(), onClick = {
                     val expected = requireNotNull(identity)
-                    val savedRegions = regions?.takeIf { rotation == ImageTranslationInput.Rotation.NONE && it.regions.isNotEmpty() }
-                    val draft = ImageDraftStore.Draft(source, translated, script, rotation,
-                        savedRegions, if (savedRegions == null) emptyMap() else regionEdits.toMap())
+                    val draft = currentDraft()
                     draftAction {
                         val saved = withContext(Dispatchers.IO) {
                             check(allowed())
@@ -360,6 +377,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                                 }
                             }
                         }
+                        if (saved == null || saved == draft) savedDraft = draft
                         when (saved) {
                             null -> message = "이미지 번역 초안을 저장했습니다."
                             draft -> message = "같은 내용의 초안이 이미 저장되어 있습니다."
@@ -383,6 +401,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                             regions = draft.regions
                             regionEdits = draft.edits
                             regionIndex = 0
+                            savedDraft = draft
                             source = draft.source
                             translated = draft.translated
                             script = draft.script
@@ -406,8 +425,16 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                 Text("닫기 전에 초안을 직접 저장하세요. 영역별 위치도 초안에 저장됩니다. 미리보기는 다시 생성하세요. 실시간 화면 번역은 지원하지 않습니다.")
             }
         },
-        confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },
+        confirmButton = { TextButton(enabled = !busy, onClick = ::requestClose) { Text("닫기") } },
     )
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("저장하지 않은 편집 내용을 닫을까요?") },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("계속 편집") } },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("저장하지 않고 닫기") } },
+        )
+    }
     pendingReplacement?.let { review ->
         AlertDialog(
             onDismissRequest = { pendingReplacement = null },
@@ -432,6 +459,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                             ImageDraftStore.replaceIfUnchanged(draftDirectory, file, expected,
                                 review.saved, review.edited)
                         }
+                        if (replaced) savedDraft = review.edited
                         message = if (replaced) "이미지 번역 초안을 교체했습니다."
                             else "확인하는 동안 저장본이 바뀌었습니다. 다시 저장해 최신 내용을 확인하세요."
                     }
@@ -454,6 +482,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                             check(allowed())
                             ImageDraftStore.deleteIfUnchanged(draftDirectory, file, expected, reviewed)
                         }
+                        if (deleted) savedDraft = null
                         message = if (deleted) "저장된 초안을 삭제했습니다."
                             else "저장된 초안이 바뀌었거나 이미 삭제됐습니다. 다시 확인하세요."
                     }
