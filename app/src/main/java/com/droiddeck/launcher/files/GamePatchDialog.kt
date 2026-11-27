@@ -27,7 +27,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
     val log = file.extension.equals("log", true)
-    val tsv = file.extension.equals("tsv", true)
+    val translationTable = file.extension.lowercase() in setOf("tsv", "csv")
     var section by remember(file) { mutableStateOf("") }
     var key by remember(file) { mutableStateOf("") }
     var value by remember(file) { mutableStateOf("") }
@@ -148,8 +148,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     message = "설정형 모드 초안입니다. 실제 게임 동작은 확인되지 않았습니다."
                 } }) { Text("간단한 모드 제작") }
             }
-            if (tsv) {
-                Text("파일 기반 한글 패치 제작: id/text TSV · 자동 파일 번역 미지원")
+            if (translationTable) {
+                Text("파일 기반 한글 패치 제작: id/text TSV·CSV · 자동 파일 번역 미지원")
                 Text("화면 실시간 번역은 지원하지 않습니다. 초안을 저장해 나중에 이어서 작업할 수 있습니다.")
                 TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
@@ -163,6 +163,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }
                     val (rows, saved) = withContext(Dispatchers.IO) {
                         check(GameplayBudget.allowsOptionalAnalysis(context))
+                        require(TranslationTable.matchesExtension(source, file.extension)) { "파일 확장자와 실제 번역 형식이 다릅니다." }
                         val rows = GamePatchAuthor.extract(source)
                         rows to TranslationDraftStore.load(draftDirectory, file.canonicalPath, source)
                     }

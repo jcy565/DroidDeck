@@ -42,20 +42,19 @@ internal object GamePatchAuthor {
 
     fun extract(source: String): List<Row> {
         require(source.length <= 262144)
+        val format = TranslationTable.format(source)
         val lines = source.lineSequence().filter { it.isNotEmpty() }.iterator()
-        require(lines.hasNext() && lines.next() == "id\ttext") {
-            "첫 줄이 id와 text 열인 UTF-8 TSV만 지원합니다."
-        }
+        lines.next()
         val rows = mutableListOf<Row>()
         val ids = mutableSetOf<String>()
         for (line in lines) {
-            val parts = line.split('\t')
-            require(parts.size == 2 && keyPattern.matches(parts[0]) && ids.add(parts[0])) {
-                "중복 ID 또는 지원하지 않는 TSV 행입니다."
+            val parsed = TranslationTable.row(line, format)
+            require(keyPattern.matches(parsed.id) && ids.add(parsed.id)) {
+                "중복 ID 또는 지원하지 않는 번역 행입니다."
             }
-            tokens(parts[1])
+            tokens(parsed.text)
             require(rows.size < MAX_ROWS) { "최대 100개 문장을 지원합니다." }
-            rows.add(Row(parts[0], parts[1]))
+            rows.add(Row(parsed.id, parsed.text))
         }
         require(rows.isNotEmpty())
         return rows
@@ -69,14 +68,15 @@ internal object GamePatchAuthor {
                 "변수와 이스케이프의 종류·개수·순서를 유지하세요: $id"
             }
         }
+        val format = TranslationTable.format(source)
         var header = true
         val proposed = Regex("[^\\r\\n]+|\\r\\n|\\r|\\n").replace(source) { match ->
             val line = match.value
             if (line == "\r" || line == "\n" || line == "\r\n") line
             else if (header) { header = false; line }
             else {
-                val id = line.substringBefore('\t')
-                edits[id]?.let { "$id\t$it" } ?: line
+                val row = TranslationTable.row(line, format)
+                edits[row.id]?.let { if (it == row.text) line else TranslationTable.replace(row, it, format) } ?: line
             }
         }
         require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
