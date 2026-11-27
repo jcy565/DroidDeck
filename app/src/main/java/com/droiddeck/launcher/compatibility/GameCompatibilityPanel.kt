@@ -23,10 +23,11 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         val scope = rememberCoroutineScope()
         var report by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
         var busy by remember { mutableStateOf(true) }
+        var currentVersionOnly by remember { mutableStateOf(gameVersion != null) }
         var error by remember { mutableStateOf<String?>(null) }
 
         suspend fun refresh() {
-            report = service.report(gameId)
+            report = service.report(gameId, gameVersion = gameVersion.takeIf { currentVersionOnly })
         }
 
         LaunchedEffect(service) {
@@ -45,6 +46,28 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("게임 호환성 기록")
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
+            Text(if (gameVersion == null) "설치 버전: 확인되지 않음" else "설치 버전 (최근 조회): $gameVersion")
+            if (gameVersion != null) {
+                Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
+                    if (!busy) {
+                        busy = true
+                        currentVersionOnly = !currentVersionOnly
+                        report = null
+                        error = null
+                        scope.launch {
+                            try {
+                                refresh()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                error = "실행 기록을 읽지 못했습니다."
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    }
+                }) { Text(if (currentVersionOnly) "현재 버전 기록 · 전체 버전 보기" else "전체 버전 기록 · 현재 버전 보기") }
+            }
             report?.let { current ->
                 Text(current.description)
                 current.advice.forEach { Text("• " + it) }
