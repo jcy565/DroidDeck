@@ -37,6 +37,32 @@ class ImagePatchImportTest {
         assertFalse(File(game, names[2]).exists())
     }
 
+    @Test fun unchangedPayloadIsNotReportedAsAppliedOrReady() {
+        val game = temp.newFolder()
+        val output = temp.newFolder()
+        val storage = temp.newFolder()
+        val original = byteArrayOf(1, 2, 3)
+        val same = File(game, "same.png").apply { writeBytes(original) }
+        val edited = File(game, "edited.png").apply { writeBytes(original) }
+        val sources = listOf(same, edited).map { ImagePatchArchive.Source(it.name, hash(original), 3, 32, 32) }
+        val patch = ImagePatchArchive.create(game, output, sources,
+            { if (it.relative == same.name) original else byteArrayOf(4, 5, 6) })
+        val report = ImagePatchImport.inspect(game, patch.file, { _, _ -> })
+        assertEquals(listOf(ImagePatchImport.State.UNCHANGED, ImagePatchImport.State.READY),
+            report.entries.map { it.state })
+        assertTrue(runCatching { ImagePatchBackup.create(storage, game, report, { _, _ -> }) }.isFailure)
+        assertTrue(storage.listFiles()!!.isEmpty())
+        assertArrayEquals(original, same.readBytes())
+        assertArrayEquals(original, edited.readBytes())
+        same.writeBytes(byteArrayOf(9, 9, 9))
+        assertEquals(ImagePatchImport.State.MISMATCH,
+            ImagePatchImport.inspect(game, patch.file, { _, _ -> }).entries.first().state)
+        assertEquals(ImagePatchImport.State.INVALID_OUTPUT,
+            ImagePatchImport.inspect(game, patch.file, { _, _ -> error("invalid") }).entries.first().state)
+        // Original-backup archive format still supports identical payload bytes.
+        assertEquals(patch.rows, ImagePatchArchive.verify(patch.file))
+    }
+
     @Test fun rejectsBrokenArchiveAndOverlappingCacheRoot() {
         val game = temp.newFolder()
         val cache = temp.newFolder()

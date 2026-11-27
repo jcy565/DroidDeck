@@ -270,6 +270,7 @@ internal fun FilePropertiesDialog(
                             val label = when (entry.state) {
                                 ImagePatchImport.State.READY -> "원본 일치"
                                 ImagePatchImport.State.ALREADY_APPLIED -> "번역본과 동일"
+                                ImagePatchImport.State.UNCHANGED -> "변경 없음 · 원본과 번역본 동일"
                                 ImagePatchImport.State.MISSING -> "파일 없음"
                                 ImagePatchImport.State.UNSAFE -> "지원하지 않는 경로"
                                 ImagePatchImport.State.MISMATCH -> "원본 버전 불일치"
