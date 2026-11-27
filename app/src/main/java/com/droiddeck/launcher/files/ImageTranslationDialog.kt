@@ -37,6 +37,10 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     var regions by remember(file) { mutableStateOf<ImageTextRegions.Result?>(null) }
     var imagePreview by remember(file) { mutableStateOf<Bitmap?>(null) }
     var backgroundStyle by remember(file) { mutableStateOf(ImageOverlayPlan.Background.MATCH_FLAT) }
+    var foregroundStyle by remember(file) { mutableStateOf(ImageOverlayPlan.Foreground.AUTO) }
+    var fontWeight by remember(file) { mutableStateOf(ImageOverlayPlan.Weight.NORMAL) }
+    var originalPreview by remember(file) { mutableStateOf<Bitmap?>(null) }
+    var showOriginal by remember(file) { mutableStateOf(false) }
     var regionIndex by remember(file) { mutableStateOf(0) }
     var regionEdits by remember(file) { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
@@ -180,11 +184,24 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                             backgroundStyle = if (backgroundStyle == ImageOverlayPlan.Background.MATCH_FLAT)
                                 ImageOverlayPlan.Background.BLACK else ImageOverlayPlan.Background.MATCH_FLAT
                         }) { Text("배경 방식 변경") }
+                        Text("글자 색: " + foregroundStyle.label + " · 굵기: " + fontWeight.label)
+                        TextButton(enabled = !busy, onClick = {
+                            imagePreview = null
+                            val choices = ImageOverlayPlan.Foreground.values()
+                            foregroundStyle = choices[(foregroundStyle.ordinal + 1) % choices.size]
+                        }) { Text("글자 색 변경") }
+                        TextButton(enabled = !busy, onClick = {
+                            imagePreview = null
+                            fontWeight = if (fontWeight == ImageOverlayPlan.Weight.NORMAL)
+                                ImageOverlayPlan.Weight.BOLD else ImageOverlayPlan.Weight.NORMAL
+                        }) { Text("글자 굵기 변경") }
                         TextButton(enabled = !busy && identity != null && regionEdits.isNotEmpty(), onClick = {
                             val expected = requireNotNull(identity)
                             val edits = regionEdits.toMap()
-                            val style = backgroundStyle
+                            val style = ImageOverlayPlan.Appearance(backgroundStyle, foregroundStyle, fontWeight)
                             imagePreview = null
+                            originalPreview = null
+                            showOriginal = false
                             draftAction {
                                 imagePreview = withContext(Dispatchers.IO) {
                                     ImageOverlayRenderer.render(file, expected, result, edits, style) {
@@ -196,10 +213,28 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                             }
                         }) { Text("번역 이미지 미리보기 생성") }
                         imagePreview?.let { bitmap ->
-                            val display = remember(bitmap) { bitmap.asImageBitmap() }
-                            Image(bitmap = display, contentDescription = "번역 이미지 미리보기",
+                            val shown = if (showOriginal) originalPreview ?: bitmap else bitmap
+                            val display = remember(shown) { shown.asImageBitmap() }
+                            Text(if (showOriginal) "원본 이미지 (축소 보기)" else "번역 이미지")
+                            Image(bitmap = display, contentDescription = if (showOriginal) "원본 이미지" else "번역 이미지 미리보기",
                                 modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
                             TextButton(enabled = !busy && identity != null, onClick = {
+                                if (showOriginal) showOriginal = false
+                                else if (originalPreview != null) showOriginal = true
+                                else {
+                                    val expected = requireNotNull(identity)
+                                    draftAction {
+                                        originalPreview = withContext(Dispatchers.IO) {
+                                            ImageOverlayRenderer.originalPreview(file, expected) {
+                                                ensureActive()
+                                                check(allowed())
+                                            }
+                                        }
+                                        showOriginal = true
+                                    }
+                                }
+                            }) { Text(if (showOriginal) "번역본 보기" else "원본과 비교") }
+                            TextButton(enabled = !busy && identity != null && !showOriginal, onClick = {
                                 val expected = requireNotNull(identity)
                                 draftAction {
                                     val saved = withContext(Dispatchers.IO) {
@@ -211,7 +246,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                     message = "새 PNG 복사본 저장: ${saved.name}. 원본은 수정하지 않았습니다."
                                 }
                             }) { Text("검토한 이미지 PNG 복사본 저장") }
-                            TextButton(enabled = !busy, onClick = { imagePreview = null }) { Text("미리보기 닫기") }
+                            TextButton(enabled = !busy, onClick = { imagePreview = null; originalPreview = null; showOriginal = false }) { Text("미리보기 닫기") }
                         }
                     }
                 }

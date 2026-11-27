@@ -14,7 +14,7 @@ import java.security.MessageDigest
 
 internal object ImageOverlayRenderer {
     fun render(file: File, expected: ImageDraftStore.Identity, result: ImageTextRegions.Result,
-        edits: Map<Int, String>, style: ImageOverlayPlan.Background, checkpoint: () -> Unit): Bitmap {
+        edits: Map<Int, String>, style: ImageOverlayPlan.Appearance, checkpoint: () -> Unit): Bitmap {
         checkpoint()
         val plan = ImageOverlayPlan.prepare(result, edits)
         require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
@@ -57,13 +57,13 @@ internal object ImageOverlayRenderer {
             val background = Paint().apply { color = Color.BLACK }
             val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
-                typeface = Typeface.DEFAULT
+                typeface = if (style.weight == ImageOverlayPlan.Weight.BOLD) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
                 textAlign = Paint.Align.CENTER
             }
             for (item in mapped) {
                 checkpoint()
                 val b = item.box
-                val palette = when (style) {
+                val palette = when (style.background) {
                     ImageOverlayPlan.Background.BLACK -> ImageOverlayPlan.Palette(Color.BLACK, Color.WHITE)
                     ImageOverlayPlan.Background.MATCH_FLAT -> {
                         val samples = mutableListOf<Int>()
@@ -80,7 +80,7 @@ internal object ImageOverlayRenderer {
                     }
                 }
                 background.color = palette.background
-                ink.color = palette.foreground
+                ink.color = ImageOverlayPlan.foreground(palette, style.foreground)
                 val w = (b.right - b.left - 4).toFloat()
                 val h = (b.bottom - b.top - 4).toFloat()
                 var size = minOf(h, 128f)
@@ -101,6 +101,37 @@ internal object ImageOverlayRenderer {
             }
             checkpoint()
             require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+            return bitmap
+        } catch (failure: Throwable) {
+            bitmap.recycle()
+            throw failure
+        }
+    }
+
+    /** Bounded original preview, bound to the same source revision as the translation. */
+    fun originalPreview(file: File, expected: ImageDraftStore.Identity, checkpoint: () -> Unit): Bitmap {
+        checkpoint()
+        require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
+        require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        require(file.canonicalPath == expected.path)
+        val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
+        val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        require(hash == expected.digest) { "원본 이미지가 변경됐습니다." }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        require(bounds.outMimeType in setOf("image/png", "image/jpeg", "image/webp"))
+        val sample = ImageOverlayPlan.comparisonSample(bounds.outWidth, bounds.outHeight)
+        checkpoint()
+        val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }))
+        try {
+            require(bitmap.width.toLong() * bitmap.height <= 1_048_576L)
+            checkpoint()
+            require(ImageDraftStore.identity(file) == expected)
             return bitmap
         } catch (failure: Throwable) {
             bitmap.recycle()

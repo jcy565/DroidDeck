@@ -44,6 +44,20 @@ class ImageOverlayPlanTest {
         assertNotNull(ImageOverlayPlan.flatPalette(List(10) { 0xffe0e0e0.toInt() } + List(10) { light }))
     }
 
+    @Test fun foregroundOverridesAreExplicit() {
+        val palette = ImageOverlayPlan.Palette(0xffeeeeee.toInt(), 0xff000000.toInt())
+        assertEquals(palette.foreground, ImageOverlayPlan.foreground(palette, ImageOverlayPlan.Foreground.AUTO))
+        assertEquals(0xff000000.toInt(), ImageOverlayPlan.foreground(palette, ImageOverlayPlan.Foreground.BLACK))
+        assertEquals(0xffffffff.toInt(), ImageOverlayPlan.foreground(palette, ImageOverlayPlan.Foreground.WHITE))
+    }
+
+    @Test fun comparisonPreviewUsesBoundedPowerOfTwoSample() {
+        assertEquals(1, ImageOverlayPlan.comparisonSample(1024, 1024))
+        assertEquals(2, ImageOverlayPlan.comparisonSample(2048, 2048))
+        assertEquals(4, ImageOverlayPlan.comparisonSample(2049, 2049))
+        assertTrue(runCatching { ImageOverlayPlan.comparisonSample(0, 1024) }.isFailure)
+    }
+
     @Test fun refusesInvalidPlanAndSmallRegion() {
         val r = result(ImageTextRegions.Box(50, 50, 60, 61))
         assertTrue(runCatching { ImageOverlayPlan.prepare(r, mapOf(2 to "종료")) }.isFailure)

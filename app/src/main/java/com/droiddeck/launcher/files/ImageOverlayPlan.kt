@@ -6,6 +6,21 @@ internal object ImageOverlayPlan {
     const val MAX_EXPORT_PIXELS = 8_388_608L
     enum class Background { MATCH_FLAT, BLACK }
     data class Palette(val background: Int, val foreground: Int)
+    enum class Foreground(val label: String) { AUTO("자동"), BLACK("검정"), WHITE("흰색") }
+    enum class Weight(val label: String) { NORMAL("보통"), BOLD("굵게") }
+    data class Appearance(val background: Background, val foreground: Foreground, val weight: Weight)
+    fun foreground(palette: Palette, choice: Foreground): Int = when (choice) {
+        Foreground.AUTO -> palette.foreground
+        Foreground.BLACK -> 0xff000000.toInt()
+        Foreground.WHITE -> 0xffffffff.toInt()
+    }
+
+    fun comparisonSample(width: Int, height: Int): Int {
+        var sample = ImageTranslationInput.sampleSize(width, height)
+        while ((width.toLong() + sample - 1) / sample *
+            ((height.toLong() + sample - 1) / sample) > 1_048_576L) sample *= 2
+        return sample
+    }
 
     /** Use shared integer boundaries so adjacent OCR boxes never overlap after scaling. */
     fun originalSize(items: List<Item>, frameWidth: Int, frameHeight: Int,
