@@ -77,6 +77,8 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                 else "전체 버전 최근 20건 (버전 미확인 포함)")
             report?.let { current ->
                 if (currentVersionOnly && current.observations.isEmpty()) Text("현재 버전의 기록이 없습니다.")
+                if (!currentVersionOnly && current.observations.isNotEmpty())
+                    Text("전체 버전 통합 관측 요약 (현재 버전의 판정이 아님)")
                 Text(current.description)
                 if (!currentVersionOnly && current.observations.isNotEmpty()) {
                     val groups = GameHistoryByVersion.summarize(current.observations)

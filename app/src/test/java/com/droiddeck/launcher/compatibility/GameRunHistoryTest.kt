@@ -88,6 +88,25 @@ class GameRunHistoryTest {
         assertTrue(history.recent("steam:1", gameVersion = "1.2").isEmpty())
     }
 
+    @Test fun exactVersionFilterExcludesOtherVersionsUnknownAndOtherGames() {
+        history.record(observation("steam:1", 1).copy(gameVersion = "old"))
+        history.record(observation("steam:1", 2).copy(gameVersion = "new"))
+        history.record(observation("steam:1", 3))
+        history.record(observation("steam:2", 4).copy(gameVersion = "new"))
+        history.record(observation("steam:1", 5).copy(gameVersion = "new"))
+        assertEquals(listOf(5L, 2L), history.recent("steam:1", gameVersion = "new").map { it.recordedAt })
+        assertEquals(listOf(5L, 3L, 2L, 1L), history.recent("steam:1").map { it.recordedAt })
+        assertTrue(history.recent("steam:1", gameVersion = "missing").isEmpty())
+        assertEquals(5L, history.recent("steam:1", 1, "new").single().recordedAt)
+    }
+
+    @Test fun versionFilteringHappensBeforeLimitAndTreatsSqlCharactersLiterally() {
+        val version = "v' OR 1=1 --"
+        history.record(observation("steam:1", 1).copy(gameVersion = version))
+        repeat(25) { history.record(observation("steam:1", (it + 2).toLong()).copy(gameVersion = "other")) }
+        assertEquals(1L, history.recent("steam:1", 1, version).single().recordedAt)
+    }
+
     @Test fun boundsStorageAndQuerySize() {
         history.record(observation("old", 0))
         repeat(500) { history.record(observation("new", it.toLong())) }
