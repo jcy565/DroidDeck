@@ -168,6 +168,7 @@ fun FileManagerScreen(
     var imageTranslationTarget by remember { mutableStateOf<File?>(null) }
     var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
     var imageQueue by remember { mutableStateOf<ImageAssetDiscovery.Queue?>(null) }
+    var queuedImageIdentity by remember { mutableStateOf<ImageDraftStore.Identity?>(null) }
     var clipboardFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var isCutOperation by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
@@ -608,12 +609,18 @@ fun FileManagerScreen(
     }
     if (imageTranslationTarget == null && patchTarget == null) {
         imageQueue?.let { queue ->
-            ImageAssetWorklistDialog(queue, onOpen = { selected -> imageTranslationTarget = selected },
+            ImageAssetWorklistDialog(queue, onOpen = { selected, expected ->
+                queuedImageIdentity = expected
+                imageTranslationTarget = selected
+            },
                 onDismiss = { imageQueue = null })
         }
     }
     imageTranslationTarget?.let { file ->
-        ImageTranslationDialog(file) { imageTranslationTarget = null }
+        ImageTranslationDialog(file, expectedIdentity = queuedImageIdentity) {
+            imageTranslationTarget = null
+            queuedImageIdentity = null
+        }
     }
 
     if (selectedEntry != null && selectedEntry != showMenuFor) {

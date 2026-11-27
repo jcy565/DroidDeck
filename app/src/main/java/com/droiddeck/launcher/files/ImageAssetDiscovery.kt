@@ -11,7 +11,7 @@ import java.security.MessageDigest
 internal object ImageAssetDiscovery {
     data class Size(val width: Int, val height: Int)
     data class Candidate(val relative: String, val width: Int, val height: Int, val bytes: Long, val digest: String)
-    data class Report(val candidates: List<Candidate>, val examined: Int, val rejected: Int, val partial: Boolean)
+    data class Report(val candidates: List<Candidate>, val examined: Int, val rejected: Int, val partial: Boolean, val examinedPaths: Set<String> = emptySet(), val canContinue: Boolean = false)
     data class Queue(val root: File, val candidates: List<Candidate>) {
         init { require(candidates.size in 1..20 && candidates.map { it.relative }.distinct().size == candidates.size) }
     }
@@ -43,7 +43,7 @@ internal object ImageAssetDiscovery {
     }
 
     fun inspect(root: File, visitLimit: Int = 5000, probeLimit: Int = 32, resultLimit: Int = 20,
-        probe: (ByteArray, String) -> Size, checkpoint: () -> Unit = {}): Report {
+        probe: (ByteArray, String) -> Size, skip: Set<String> = emptySet(), checkpoint: () -> Unit = {}): Report {
         require(visitLimit in 1..5000 && probeLimit in 1..32 && resultLimit in 1..20)
         val start = root.toPath()
         require(Files.isDirectory(start, NOFOLLOW_LINKS))
@@ -52,6 +52,9 @@ internal object ImageAssetDiscovery {
         var rejected = 0
         var partial = false
         var bytesBudget = 64L * 1024 * 1024
+        require(skip.size <= 5000 && skip.all { it.length <= 4096 })
+        val seen = mutableSetOf<String>()
+        var canContinue = false
         val results = mutableListOf<Candidate>()
         fun next(): FileVisitResult {
             checkpoint()
@@ -68,14 +71,18 @@ internal object ImageAssetDiscovery {
                 val file = path.toFile()
                 if (!attrs.isRegularFile || file.extension.lowercase() !in ImageTranslationInput.extensions ||
                     file.name.startsWith("dd-translated-", ignoreCase = true)) return step
+                val relative = start.relativize(path).toString()
+                if (relative in skip) return step
+                if (relative.length > 4096) { partial = true; return step }
                 // Reserve a full per-file cap: concurrent growth cannot exceed the aggregate budget.
                 if (examined >= probeLimit || results.size >= resultLimit ||
                     bytesBudget < ImageTranslationInput.MAX_BYTES) {
                     partial = true
+                    canContinue = true
                     return FileVisitResult.TERMINATE
                 }
                 examined++
-                val relative = start.relativize(path).toString()
+                seen.add(relative)
                 val result = try {
                     if (attrs.size() !in 1L..ImageTranslationInput.MAX_BYTES.toLong()) null
                     else {
@@ -102,7 +109,7 @@ internal object ImageAssetDiscovery {
                 return FileVisitResult.CONTINUE
             }
         })
-        return Report(results.sortedBy { it.relative }, examined, rejected, partial)
+        return Report(results.sortedBy { it.relative }, examined, rejected, partial, seen, canContinue)
     }
 
     fun open(root: File, selected: Candidate): File {

@@ -65,6 +65,7 @@ internal fun FilePropertiesDialog(
     var imageReport by remember(file) { mutableStateOf<ImageAssetDiscovery.Report?>(null) }
     var imageMessage by remember(file) { mutableStateOf("") }
     var selectedImages by remember(file) { mutableStateOf(emptySet<String>()) }
+    var examinedImages by remember(file) { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(file.absolutePath) {
         attrs = withContext(Dispatchers.IO) { readFileAttrs(file) }
     }
@@ -121,16 +122,18 @@ internal fun FilePropertiesDialog(
                     }) { Text("폴더 사용량 분석") }
                     if (usage.isNotEmpty()) Text(usage)
                     if (onImageQueue != null) {
-                        TextButton(enabled = !busy, onClick = {
+                        fun scanImages(continueScan: Boolean) {
                             busy = true
                             imageReport = null
                             imageMessage = ""
                             selectedImages = emptySet()
+                            if (!continueScan) examinedImages = emptySet()
+                            val skip = examinedImages.toSet()
                             scope.launch {
                                 try {
-                                    imageReport = withContext(Dispatchers.IO) {
+                                    val result = withContext(Dispatchers.IO) {
                                         check(GameplayBudget.allowsOptionalAnalysis(context))
-                                        ImageAssetDiscovery.inspect(file, probe = { bytes, ext ->
+                                        ImageAssetDiscovery.inspect(file, skip = skip, probe = { bytes, ext ->
                                             val bounds = ImageAssetDecoder.bounds(bytes, ext)
                                             ImageAssetDiscovery.Size(bounds.width, bounds.height)
                                         }) {
@@ -138,16 +141,37 @@ internal fun FilePropertiesDialog(
                                             check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
                                         }
                                     }
+                                    examinedImages = skip + result.examinedPaths
+                                    imageReport = result
                                 } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                                 catch (e: Exception) { imageMessage = e.message ?: "이미지 탐색 실패" }
                                 finally { busy = false }
                             }
-                        }) { Text("이미지 한글화 대상 탐색") }
+                        }
+                        TextButton(enabled = !busy, onClick = { scanImages(false) }) { Text("이미지 한글화 대상 탐색") }
+                        TextButton(enabled = !busy, onClick = {
+                            busy = true
+                            imageMessage = ""
+                            scope.launch {
+                                try {
+                                    val saved = withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        ImageQueueStore.load(File(context.noBackupFilesDir, "image-worklists"), file)
+                                    }
+                                    if (saved == null) imageMessage = "저장된 이미지 작업 목록이 없습니다."
+                                    else onImageQueue(saved)
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (e: Exception) { imageMessage = e.message ?: "작업 목록 복원 실패" }
+                                finally { busy = false }
+                            }
+                        }) { Text("저장된 이미지 작업 목록 복원") }
                         if (imageMessage.isNotEmpty()) Text(imageMessage)
                         imageReport?.let { report ->
                             Text("이미지 후보 ${report.candidates.size}개 · 검사 ${report.examined}개 · 제외 ${report.rejected}개" +
                                 if (report.partial) " (부분 탐색)" else "")
                             Text("파일 형식과 크기만 검사했습니다. 외국어 포함 여부는 편집기에서 확인하세요.")
+                            Text("이번 페이지 선택은 다음 탐색 시 초기화됩니다. 먼저 작업 목록을 저장하세요.")
+                            TextButton(enabled = !busy && report.canContinue, onClick = { scanImages(true) }) { Text("다음 이미지 탐색 (이전 검사 제외)") }
                             TextButton(enabled = !busy && report.candidates.isNotEmpty(), onClick = {
                                 selectedImages = if (selectedImages.size == report.candidates.size) emptySet()
                                     else report.candidates.map { it.relative }.toSet()

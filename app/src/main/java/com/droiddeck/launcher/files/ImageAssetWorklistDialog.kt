@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: (File) -> Unit, onDismiss: () -> Unit) {
+internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: (File, ImageDraftStore.Identity) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val directory = File(context.noBackupFilesDir, "image-translation-drafts")
@@ -69,7 +69,7 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                         check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
                     }
                 }
-                onOpen(file)
+                onOpen(file, ImageDraftStore.Identity(file.canonicalPath, candidate.digest))
             } catch (e: CancellationException) { throw e }
               catch (e: Exception) { message = e.message ?: "파일 열기 실패" }
             finally { busy = false }
@@ -81,7 +81,23 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
         title = { Text("이미지 한글화 작업 목록") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("선택한 ${queue.candidates.size}개 파일 · 목록은 화면을 닫으면 사라집니다. 각 편집기에서 초안을 직접 저장하세요.")
+                Text("선택한 ${queue.candidates.size}개 파일 · 각 편집기에서 초안을 직접 저장하세요.")
+                Text("목록 저장은 같은 폴더의 이전 작업 목록을 교체합니다. 저장한 목록은 폴더 속성에서 복원할 수 있습니다.")
+                TextButton(enabled = !busy, onClick = {
+                    busy = true
+                    message = ""
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                ImageQueueStore.save(File(context.noBackupFilesDir, "image-worklists"), queue)
+                            }
+                            message = "이미지 작업 목록 저장 완료"
+                        } catch (e: CancellationException) { throw e }
+                        catch (e: Exception) { message = e.message ?: "작업 목록 저장 실패" }
+                        finally { busy = false }
+                    }
+                }) { Text("현재 작업 목록 저장 (기존 목록 교체)") }
                 Text("초안 저장은 번역 완료나 게임 적용을 뜻하지 않습니다.")
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)

@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
+internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStore.Identity? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var source by remember(file) { mutableStateOf("") }
@@ -75,7 +75,9 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
         try {
             identity = withContext(Dispatchers.IO) {
                 check(allowed())
-                ImageDraftStore.identity(file)
+                ImageDraftStore.identity(file).also {
+                    require(expectedIdentity == null || it == expectedIdentity) { "작업 목록의 원본이 변경됐습니다. 다시 탐색하세요." }
+                }
             }
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { message = e.message ?: "이미지 확인 실패. 다시 열어 주세요." }
