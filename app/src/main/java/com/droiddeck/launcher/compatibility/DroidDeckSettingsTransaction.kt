@@ -5,22 +5,22 @@ import com.droiddeck.launcher.session.SessionPrefs
 
 internal object DroidDeckSettingsTransaction {
     data class Receipt internal constructor(val change: DroidDeckSettingsPreview.Change,
-        val panel: Pair<Int, Int>, val recovery: SettingsBackup.RecoveryReview)
+        val panel: Pair<Int, Int>?, val recovery: SettingsBackup.RecoveryReview)
 
     private fun current(context: Context, change: DroidDeckSettingsPreview.Change,
-        panel: Pair<Int, Int>): String = when (change.setting) {
+        panel: Pair<Int, Int>?): String = when (change.setting) {
         DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION ->
-            SessionPrefs.resolutionChoice(context, change.scope, panel)
+            SessionPrefs.resolutionChoice(context, change.scope, requireNotNull(panel))
         DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE ->
             SessionPrefs.bridgeProtonDxvk(context).toString()
     }
 
-    private fun validate(change: DroidDeckSettingsPreview.Change, panel: Pair<Int, Int>) {
+    private fun validate(change: DroidDeckSettingsPreview.Change, panel: Pair<Int, Int>?) {
         require(change.before == change.snapshot.effective)
         when (change.setting) {
             DroidDeckSettingsPreview.Setting.OUTPUT_RESOLUTION -> {
                 require(change.scope in setOf("steam", "desktop"))
-                require(panel.first > 0 && panel.second > 0 && change.panel == panel)
+                require(panel != null && panel.first > 0 && panel.second > 0 && change.panel == panel)
                 require(change.proposed in setOf("1280x720", "1600x900"))
             }
             DroidDeckSettingsPreview.Setting.PROTON_DXVK_BRIDGE -> {
@@ -40,7 +40,7 @@ internal object DroidDeckSettingsTransaction {
      */
     @Synchronized
     fun apply(context: Context, change: DroidDeckSettingsPreview.Change,
-        panel: Pair<Int, Int>, approved: Boolean): Receipt {
+        panel: Pair<Int, Int>?, approved: Boolean): Receipt {
         require(approved)
         validate(change, panel)
         require(change.before != change.proposed)

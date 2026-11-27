@@ -32,12 +32,14 @@ internal fun SettingsRecoveryReviewPanel() {
     var message by remember(context) { mutableStateOf<String?>(null) }
     var pending by remember(context) { mutableStateOf<Confirmation?>(null) }
 
-    fun refresh(confirmed: Confirmation? = null) {
+    var editing by remember(context) { mutableStateOf<String?>(null) }
+
+    fun refresh(confirmed: Confirmation? = null, notice: String? = null) {
         if (busy) return
         busy = true
         pending = null
         entries = null
-        message = null
+        message = notice
         scope.launch {
             try {
                 if (confirmed != null) {
@@ -68,6 +70,13 @@ internal fun SettingsRecoveryReviewPanel() {
         }
     }
 
+    editing?.let { key ->
+        SettingsChangeDialog(key, settingLabel(key), onDismiss = { editing = null }) { notice ->
+            editing = null
+            refresh(notice = notice)
+        }
+    }
+
     pending?.let { confirmation ->
         val review = confirmation.review
         val label = settingLabel(review.key)
@@ -93,10 +102,10 @@ internal fun SettingsRecoveryReviewPanel() {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("설정 복구 기록")
+        Text("설정 변경 및 복구")
         Text("Steam·데스크톱 출력 해상도 및 Proton DXVK 설정은 선택한 게임에만 적용되는 값이 아닙니다.")
         Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = { refresh() }) {
-            Text(if (busy) "처리 중" else "복구 기록 확인")
+            Text(if (busy) "처리 중" else "설정 및 백업 조회")
         }
         message?.let { Text(it) }
         entries?.let { snapshot ->
@@ -111,6 +120,9 @@ internal fun SettingsRecoveryReviewPanel() {
                     SettingsBackup.ReviewStatus.READY -> "복구 검토 가능"
                 }
                 Text("$label: $status")
+                if (entry.status == SettingsBackup.ReviewStatus.NO_BACKUP) {
+                    TextButton(onClick = { editing = entry.key }) { Text("$label 변경") }
+                }
                 fun display(value: String?): String = value?.take(100) ?: "저장된 값 없음"
                 entry.review?.let { review ->
                     Text("이전: ${display(review.before)} / 적용: ${display(review.applied)} / 현재: ${display(review.current)}")
