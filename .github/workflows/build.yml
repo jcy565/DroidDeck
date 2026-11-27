@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next ]
+    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   source:
     name: Pin source tree
-    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -827,7 +827,7 @@ jobs:
           retention-days: 14
 
       - name: Retain checked APK for failed test investigation
-        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next"]'), github.ref_name)
+        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next"]'), github.ref_name)
         uses: actions/upload-artifact@v4
         with:
           name: diagnostic-apk-tests-failed

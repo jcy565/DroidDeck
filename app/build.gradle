@@ -238,7 +238,9 @@ android {
             // Experiment on AI development CI only: isolated reruns pass where the
             // long-lived full-suite worker failed. Recycle workers without filtering tests.
             if (ciBuild && providers.environmentVariable('GITHUB_REF_NAME').getOrNull()?.startsWith('ai-')) {
-                forkEvery = 10L
+                // Integrated candidate: narrower recycling after two suite-only idle failures.
+                // Preserve all tests and keep the original setting on other branches.
+                forkEvery = providers.environmentVariable('GITHUB_REF_NAME').getOrNull() == 'ai-version-integration-next' ? 5L : 10L
             }
             // Use the canonical Maven Central endpoint for Robolectric runtime artifacts.
             systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
