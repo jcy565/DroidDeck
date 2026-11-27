@@ -197,3 +197,6 @@ Commit f9ed647a2d003d74948a9cda2550c2c28ac31fcb adds opt-in per-observation vers
 
 ## Verified exact-source rerun
 Corrected GameHistorySummary declaration line wrapping to match remote blob 97da5022b0f2b6d7f22f3b31de13500cae7244eb, then reran 6/6 standalone Kotlin checks with GameHistoryByVersion blob efe3ea38b100510e8fd043e2cbd93d06fc3058d8. Actual Android/JUnit/Compose not run. Preserve concurrent changes; both active development handovers updated. No write UI enabled.
+
+## Manual observation confirmation dialog
+Reconciled concurrent opt-in attribution changes without force. Existing validVersion, exact-version filtering, current/all labels and post-save unknown visibility retained. Explicit per-observation dialog binds selected result and observed metadata; version unknown remains null, cancel writes nothing, stale identity/invalid outcome rejected. Six additional JUnit methods written, not Android-executed. Actual kotlinc/java standalone 6/6 passed against exact new GameObservationDraft blob e5ffe9b133df33e78afd93a7fe214b45c4a43609 and current GameHistoryQuery blob 164f2fe31b5a8054b89896ea591fdd59276a0aeb using stub observation model. No Compose validation, no game or settings writes beyond existing manually confirmed history operation. Keep active staging CI unchanged and preserve successful baseline. No additional full build triggered.
