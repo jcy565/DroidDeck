@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.droiddeck.launcher.compatibility.GameplayBudget
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +26,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val backups = File(context.filesDir, "game-patch-backups")
     val draftDirectory = File(context.filesDir, "translation-drafts")
+    val modelDirectory = File(context.filesDir, "local-agent-models")
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
     val log = file.extension.equals("log", true)
@@ -42,6 +45,15 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var menuCursor by remember(file) { mutableIntStateOf(0) }
     var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
     var pendingExport by remember(file) { mutableStateOf<ByteArray?>(null) }
+    var agentInstruction by remember(file) { mutableStateOf("") }
+    var modelDigest by remember(file) { mutableStateOf("") }
+    var agentJob by remember(file) { mutableStateOf<Job?>(null) }
+
+    fun allowsAgentWork(): Boolean {
+        val memory = GameplayBudget.memory(context)
+        return GameplayBudget.allowsOptionalAnalysis(context) &&
+            memory != null && memory.availableBytes >= 2L * 1024 * 1024 * 1024
+    }
 
     fun runAction(action: suspend () -> Unit) {
         if (busy || pendingExport != null) return
@@ -115,6 +127,19 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = "일괄 번역 내용을 초안에 반영했습니다. 검토 후 저장하거나 패치를 제작하세요."
         }
     }
+    val modelImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && LocalAgentRuntime.enabled) runAction {
+            require(uri.scheme == "content")
+            val digest = modelDigest
+            withContext(Dispatchers.IO) {
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+                context.contentResolver.openInputStream(uri)?.use {
+                    LocalModelStore.install(modelDirectory, digest, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                } ?: error("모델 파일을 읽을 수 없습니다.")
+            }
+            message = "모델 체크섬 확인 및 가져오기 완료. 실제 모델 호환성은 실행 시 확인합니다."
+        }
+    }
     LaunchedEffect(file) {
         if (!log) {
             val history = withContext(Dispatchers.IO) {
@@ -127,6 +152,72 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = { if (!busy && pendingExport == null) onDismiss() }, title = { Text(file.name) }, text = {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             Text("오프라인 규칙 기반 도우미")
+            if (LocalAgentRuntime.enabled && (config || log || translationTable)) {
+                Text("실험용 온디바이스 AI · 검증되지 않은 모델 실행 기능")
+                Text("신뢰할 수 있는 배포처의 호환 .task 모델과 SHA-256이 필요합니다. SDK 진단 정보 수집 여부는 아직 검증되지 않았습니다.")
+                OutlinedTextField(modelDigest, { if (it.length <= 64) modelDigest = it },
+                    label = { Text("모델 SHA-256") }, enabled = !busy, singleLine = true)
+                TextButton(enabled = !busy && pendingExport == null && LocalModelStore.validDigest(modelDigest),
+                    onClick = { modelImporter.launch(arrayOf("*/*")) }) { Text("로컬 모델 가져오기") }
+                OutlinedTextField(agentInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) agentInstruction = it },
+                    enabled = !busy, label = { Text("AI에게 작업 요청") })
+                TextButton(enabled = !busy && pendingExport == null && agentInstruction.isNotBlank() &&
+                    LocalModelStore.validDigest(modelDigest) && (!translationTable || translationRows.isNotEmpty()),
+                    onClick = {
+                        if (!busy && pendingExport == null) {
+                            busy = true
+                            preview = null
+                            val digest = modelDigest
+                            val instruction = agentInstruction
+                            val edits = if (translationTable) translations.toMap() else emptyMap()
+                            val start = if (translationTable) translationIndex else 0
+                            val expected = translationSource
+                            agentJob = scope.launch {
+                                try {
+                                    val result = withContext(Dispatchers.IO) {
+                                        check(allowsAgentWork())
+                                        val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+                                        if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
+                                        val model = LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
+                                        val request = GameAgent.Request(instruction, file.extension, source, edits, start)
+                                        val result = GameAgent.run(request, ::allowsAgentWork,
+                                            { LocalAgentRuntime.open(context, model, ::allowsAgentWork) }, 120_000)
+                                        check(allowsAgentWork())
+                                        if (!log) require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
+                                        result
+                                    }
+                                    when (result) {
+                                        is GameAgent.Result.Patch -> {
+                                            preview = result.preview
+                                            message = "AI 설정 제안 (검토 필요): " + result.explanation
+                                        }
+                                        is GameAgent.Result.Translation -> {
+                                            translations = result.edits
+                                            translationIndex = result.next.coerceAtMost(translationRows.lastIndex)
+                                            preview = null
+                                            message = "AI 번역 초안 (검토 필요): " + result.explanation
+                                        }
+                                        is GameAgent.Result.Advice -> {
+                                            message = "AI 추정: " + result.explanation + "\n규칙 기반 근거: " + result.evidence
+                                        }
+                                    }
+                                } catch (_: TimeoutCancellationException) {
+                                    message = "AI 응답 시간이 초과됐습니다. 모델 종료를 요청했습니다."
+                                } catch (e: CancellationException) {
+                                    message = "AI 작업을 취소했습니다. 모델 종료를 요청했습니다."
+                                    throw e
+                                } catch (e: Exception) {
+                                    message = e.message ?: "AI 작업 실패"
+                                } finally {
+                                    busy = false
+                                    agentJob = null
+                                }
+                            }
+                        }
+                    }) { Text("AI 실행 · 초안 생성") }
+                TextButton(enabled = agentJob != null, onClick = { agentJob?.cancel() }) { Text("AI 작업 취소") }
+                if (translationTable) Text("번역 대상 추출 후 현재 문장부터 최대 5개를 AI에 요청합니다.")
+            }
             if (config) {
                 OutlinedTextField(section, { section = it; preview = null }, label = { Text("INI 섹션 (선택)") }, enabled = !busy, singleLine = true)
                 OutlinedTextField(key, { key = it; preview = null }, label = { Text("기존 설정 키") }, enabled = !busy, singleLine = true)
