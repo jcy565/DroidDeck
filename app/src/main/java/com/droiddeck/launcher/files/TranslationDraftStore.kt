@@ -90,17 +90,17 @@ internal object TranslationDraftStore {
         require(bytes.size > 32)
         val body = bytes.copyOfRange(32, bytes.size)
         require(MessageDigest.isEqual(bytes.copyOfRange(0, 32), digest(body))) { "번역 초안이 손상되었습니다." }
-        val edits = DataInputStream(ByteArrayInputStream(body)).use {
-            require(it.readUTF() == MAGIC && it.readUTF() == identity(target, source))
-            val count = it.readInt()
+        val edits = DataInputStream(ByteArrayInputStream(body)).use { input ->
+            require(input.readUTF() == MAGIC && input.readUTF() == identity(target, source))
+            val count = input.readInt()
             require(count in 1..100)
             val result = linkedMapOf<String, String>()
             repeat(count) {
-                val id = it.readUTF()
+                val id = input.readUTF()
                 require(id !in result)
-                result[id] = it.readUTF()
+                result[id] = input.readUTF()
             }
-            require(it.read() == -1)
+            require(input.read() == -1)
             result
         }
         validate(source, edits)
