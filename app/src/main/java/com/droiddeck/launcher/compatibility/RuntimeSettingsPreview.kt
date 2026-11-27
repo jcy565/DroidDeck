@@ -53,6 +53,21 @@ internal object RuntimeSettingsPreview {
             .filter { it in supported }.toSet()
     }
 
+    /** Stored preset source only; shared custom environment may alter runtime values. */
+    data class FexSelection(val global: String, val gameOverride: String?,
+        val profileKnown: Boolean, val sharedOverride: Boolean)
+
+    fun fexSelection(global: String, config: com.droiddeck.launcher.core.GameEnvironment.Config,
+        profile: String?): FexSelection {
+        val known = profile != null && profile.isNotEmpty() &&
+            com.droiddeck.launcher.core.GameEnvironment.validScope(profile)
+        val override = if (known)
+            com.droiddeck.launcher.core.GameEnvironment.gameFexPreset(config, requireNotNull(profile))
+        else null
+        return FexSelection(global, override, known,
+            config.shared.keys.any { it in com.droiddeck.launcher.core.FexPreset.environmentKeys })
+    }
+
     fun fexAlternatives(snapshot: Snapshot): List<Change> {
         val candidates = fexCandidates()
         return candidates.map { preview(snapshot, Setting.FEX_PRESET, it, candidates) }

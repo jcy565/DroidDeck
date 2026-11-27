@@ -277,7 +277,7 @@ internal fun GameDetail(
                             GameTab.LAUNCH -> if (game != null) LaunchTab(game, s, a, hopRail)
                             GameTab.SAVES -> if (game != null && prefix != null) SavesTab(game, prefix, a)
                             GameTab.ADDONS -> if (game != null) AddonsTab(game, addonTargets, a)
-                            GameTab.HISTORY -> historyId?.let { com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp)) }
+                            GameTab.HISTORY -> historyId?.let { com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp), profileKey = game?.takeUnless { it.library == Library.XBOX_CLOUD }?.profileKey) }
                             GameTab.INSTALL -> InstallTab(game, installed, item, store)
                         }
                     }

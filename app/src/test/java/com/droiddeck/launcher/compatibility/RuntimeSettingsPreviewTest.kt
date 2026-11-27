@@ -43,6 +43,21 @@ class RuntimeSettingsPreviewTest {
         }
     }
 
+    @Test fun fexSelectionDistinguishesInheritedCustomAndUnknownProfile() {
+        val env = com.droiddeck.launcher.core.GameEnvironment
+        val config = com.droiddeck.launcher.core.GameEnvironment.Config()
+        assertFalse(RuntimeSettingsPreview.fexSelection("STABILITY", config, "steam:123").profileKnown)
+        val inherited = RuntimeSettingsPreview.fexSelection("STABILITY", config, "123")
+        assertTrue(inherited.profileKnown)
+        assertNull(inherited.gameOverride)
+        val explicit = env.withGameFexPreset(config, "123", "COMPATIBILITY")
+        assertEquals("COMPATIBILITY", RuntimeSettingsPreview.fexSelection("STABILITY", explicit, "123").gameOverride)
+        val custom = config.withEntries("123", mapOf("FEX_TSOENABLED" to "1"))
+        assertEquals(env.CUSTOM_FEX_PRESET, RuntimeSettingsPreview.fexSelection("STABILITY", custom, "123").gameOverride)
+        val shared = config.copy(shared = mapOf("FEX_TSOENABLED" to "1"))
+        assertTrue(RuntimeSettingsPreview.fexSelection("STABILITY", shared, "123").sharedOverride)
+    }
+
     @Test fun fexAlternativesUseOrdinaryExistingPresetsOnly() {
         val choices = RuntimeSettingsPreview.fexAlternatives(snapshot)
         val ids = choices.map { it.proposed }.toSet()

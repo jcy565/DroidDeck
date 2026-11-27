@@ -16,8 +16,8 @@ import kotlinx.coroutines.launch
 
 /** Host must supply the selected game's stable, platform-qualified identifier. */
 @Composable
-internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifier: Modifier = Modifier) {
-    key(gameId, gameVersion) {
+internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifier: Modifier = Modifier, profileKey: String? = null) {
+    key(gameId, gameVersion, profileKey) {
         val context = LocalContext.current.applicationContext
         val service = remember(context) { GameCompatibilityService(context) }
         val scope = rememberCoroutineScope()
@@ -52,7 +52,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             error?.let { Text(it) }
             if (busy) Text("처리 중")
             SettingsExperimentPreviewPanel()
-            RuntimeFexPreviewPanel()
+            RuntimeFexPreviewPanel(profileKey)
             SettingsRecoveryReviewPanel()
             Text("직접 확인한 실행 결과를 기록하세요.")
             listOf(
