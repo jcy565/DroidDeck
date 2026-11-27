@@ -4,7 +4,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.CancellationException
 
-/** Session-only, explicit external text exchange. No network calls or asset writes. */
+/** Explicit external text exchange. No network calls or asset writes. */
 internal object ImageBatchExchange {
     private const val TOKEN = "__batch"
     const val MAX_ROWS = 100
@@ -22,10 +22,10 @@ internal object ImageBatchExchange {
     }
     private fun fits(s: String): Boolean = s.length <= MAX_BYTES && s.toByteArray(Charsets.UTF_8).size <= MAX_BYTES
 
-    fun prepare(queue: ImageAssetDiscovery.Queue, directory: File, checkpoint: () -> Unit = {}): Request {
+    fun prepare(queue: ImageAssetDiscovery.Queue, directory: File, token: String = UUID.randomUUID().toString(), checkpoint: () -> Unit = {}): Request {
+        require(UUID.fromString(token).toString() == token)
         val targets = mutableListOf<Target>()
         val rows = mutableListOf<Row>()
-        val token = UUID.randomUUID().toString()
         for (candidate in queue.candidates) {
             checkpoint()
             val target = try {

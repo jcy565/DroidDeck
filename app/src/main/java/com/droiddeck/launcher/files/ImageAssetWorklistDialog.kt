@@ -34,6 +34,34 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     var exchange by remember(queue) { mutableStateOf<ImageBatchExchange.Request?>(null) }
     var payload by remember(queue) { mutableStateOf("") }
     var reviewed by remember(queue) { mutableStateOf<ImageBatchExchange.Review?>(null) }
+    var renderPlan by remember(queue) { mutableStateOf<List<ImageBatchRenderPlan.Entry>>(emptyList()) }
+    val exchangeDirectory = File(context.noBackupFilesDir, "image-exchanges")
+
+    fun restoreExchange() {
+        if (busy) return
+        busy = true
+        message = ""
+        scope.launch {
+            try {
+                val restored = withContext(Dispatchers.IO) {
+                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                    ImageExchangeStore.restore(exchangeDirectory, queue, directory) {
+                        ensureActive()
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                    }
+                }
+                if (restored == null) message = "저장된 번역 요청이 없습니다."
+                else {
+                    exchange = restored
+                    payload = ""
+                    reviewed = null
+                    message = "저장된 번역 요청 복원 완료"
+                }
+            } catch (e: CancellationException) { throw e }
+              catch (e: Exception) { message = e.message ?: "번역 요청 복원 실패" }
+            finally { busy = false }
+        }
+    }
 
     fun prepareExchange() {
         if (busy) return
@@ -185,10 +213,26 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                     }
                 } else Text("현재 빌드에는 실험용 OCR이 포함되지 않았습니다.")
                 TextButton(enabled = !busy, onClick = { prepareExchange() }) { Text("이미지 일괄 번역 요청 준비") }
+                TextButton(enabled = !busy, onClick = { restoreExchange() }) { Text("저장된 일괄 번역 요청 복원") }
                 exchange?.let { request ->
                     Text("${request.targets.size}개 이미지 · ${request.rows.size}개 문장. 다른 이미지 초안은 다음 요청에서 처리하세요.")
                     Text("외부 앱에 전달하는 내용은 OCR 원문과 임시 ID입니다. 민감하거나 공유할 권리가 없는 내용은 보내지 마세요.")
                     Text(request.json)
+                    TextButton(enabled = !busy, onClick = {
+                        busy = true
+                        message = ""
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                    ImageExchangeStore.save(exchangeDirectory, queue, request)
+                                }
+                                message = "번역 요청 저장 완료. 이전 저장 요청을 교체했습니다."
+                            } catch (e: CancellationException) { throw e }
+                            catch (e: Exception) { message = e.message ?: "번역 요청 저장 실패" }
+                            finally { busy = false }
+                        }
+                    }) { Text("현재 번역 요청 저장 (이전 요청 교체)") }
                     TextButton(enabled = !busy, onClick = {
                         try {
                             context.startActivity(Intent.createChooser(
@@ -241,6 +285,36 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                     }
                     TextButton(enabled = !busy, onClick = { exchange = null; reviewed = null; payload = "" }) {
                         Text("일괄 번역 요청 닫기")
+                    }
+                }
+                TextButton(enabled = !busy, onClick = {
+                    busy = true
+                    message = ""
+                    renderPlan = emptyList()
+                    scope.launch {
+                        try {
+                            renderPlan = withContext(Dispatchers.IO) {
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                ImageBatchRenderPlan.inspect(queue, directory) {
+                                    ensureActive()
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                }
+                            }
+                        } catch (e: CancellationException) { throw e }
+                        catch (e: Exception) { message = e.message ?: "이미지 출력 준비 검사 실패" }
+                        finally { busy = false }
+                    }
+                }) { Text("일괄 이미지 출력 준비 검사") }
+                if (renderPlan.isNotEmpty()) {
+                    Text("출력 준비 후보 ${renderPlan.count { it.state == ImageBatchRenderPlan.State.READY }} / ${renderPlan.size}개 · 실제 렌더링 검증 전")
+                    renderPlan.forEach {
+                        val label = when (it.state) {
+                            ImageBatchRenderPlan.State.READY -> "영역 준비"
+                            ImageBatchRenderPlan.State.MISSING -> "초안 없음"
+                            ImageBatchRenderPlan.State.INCOMPLETE -> "번역 또는 인식 미완료"
+                            ImageBatchRenderPlan.State.INVALID -> "원본 변경 또는 영역 검증 실패"
+                        }
+                        Text("${it.candidate.relative} · $label")
                     }
                 }
                 if (busy) Text("파일 확인 중…")
