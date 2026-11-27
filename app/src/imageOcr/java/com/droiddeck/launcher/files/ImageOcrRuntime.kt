@@ -21,7 +21,7 @@ internal object ImageOcrRuntime {
     const val enabled = true
     private val occupied = AtomicBoolean(false)
 
-    suspend fun recognize(file: File, script: ImageTranslationInput.Script, rotation: ImageTranslationInput.Rotation, allowed: () -> Boolean): String {
+    suspend fun recognize(file: File, script: ImageTranslationInput.Script, rotation: ImageTranslationInput.Rotation, allowed: () -> Boolean): ImageTextRegions.Result {
         check(allowed()) { "게임 실행 또는 메모리 상태로 이미지 인식을 보류했습니다." }
         check(occupied.compareAndSet(false, true)) { "이전 이미지 인식 작업이 아직 종료되지 않았습니다." }
         try {
@@ -48,16 +48,25 @@ internal object ImageOcrRuntime {
                 }
                 val recognized = try {
                     // Keep bitmap/client alive until the native task finishes, even if the UI closes.
-                    suspendCoroutine<String> { continuation ->
+                    suspendCoroutine<com.google.mlkit.vision.text.Text> { continuation ->
                         client.process(InputImage.fromBitmap(bitmap, rotation.degrees)).addOnCompleteListener { task ->
-                            if (task.isSuccessful) continuation.resume(task.result.text)
+                            if (task.isSuccessful) continuation.resume(task.result)
                             else continuation.resumeWithException(task.exception ?: IllegalStateException("이미지 인식 실패"))
                         }
                     }
                 } finally { client.close() }
                 currentCoroutineContext().ensureActive()
                 check(allowed()) { "게임 또는 메모리 상태가 바뀌어 결과를 반영하지 않았습니다." }
-                return ImageTranslationInput.validateText(recognized)
+                val text = ImageTranslationInput.validateText(recognized.text)
+                // Avoid assuming how the SDK maps rotated rectangles. Text-only OCR still works.
+                if (rotation != ImageTranslationInput.Rotation.NONE) {
+                    return ImageTextRegions.Result(text, bitmap.width, bitmap.height, emptyList(), true)
+                }
+                val lines = recognized.textBlocks.asSequence().flatMap { it.lines.asSequence() }.map { line ->
+                    val box = line.boundingBox?.let { ImageTextRegions.Box(it.left, it.top, it.right, it.bottom) }
+                    box to line.text
+                }
+                return ImageTextRegions.build(text, bitmap.width, bitmap.height, lines)
             } finally { bitmap.recycle() }
         } finally { occupied.set(false) }
     }
