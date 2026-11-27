@@ -3,9 +3,9 @@ package com.droiddeck.launcher.files
 import java.util.Locale
 
 /** Small original UI glossary, not a neural model. Unknown text is left untouched. */
-internal class MenuTranslationProvider : FileTranslationProvider {
+internal class MenuTranslationProvider(private val updated: Map<String, String> = emptyMap()) : FileTranslationProvider {
     override suspend fun translate(text: String): String =
-        glossary[text.lowercase(Locale.ROOT)] ?: text
+        updated[text.lowercase(Locale.ROOT)] ?: glossary[text.lowercase(Locale.ROOT)] ?: text
 
     override fun close() = Unit
 

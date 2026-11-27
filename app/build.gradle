@@ -122,6 +122,11 @@ def variantSuffixes = rootProject.file('tools/release/variants.txt').readLines()
     .collect { def f = it.trim().split(/\s+/); "${f[1]}=${f[2] == '-' ? '' : f[2]}" }
     .join(';')
 
+// Optional release-pinned X.509 DER public key (base64); never accept keys from update files.
+def aiDataPublicKey = providers.gradleProperty('aiDataPublicKey').getOrElse('')
+if (aiDataPublicKey.length() > 1024 || !(aiDataPublicKey ==~ /[A-Za-z0-9+\/=]*/)) {
+    throw new GradleException('Invalid AI data public key encoding')
+}
 // Experimental local LLM runtime is opt-in until dependency/native/device verification passes.
 def experimentalLocalAi = providers.gradleProperty('experimentalLocalAi').getOrElse('false') == 'true'
 
@@ -136,6 +141,7 @@ android {
         targetSdkVersion 28
         versionCode 19
         versionName "0.7.1"
+        buildConfigField "String", "AI_DATA_PUBLIC_KEY", "\"${aiDataPublicKey}\""
         buildConfigField "String", "BUILD_LABEL", "\"${escapedBuildLabel}\""
         buildConfigField "String", "SOURCE_COMMIT", "\"${sourceCommit}\""
         buildConfigField "int", "PR_NUMBER", "${prNumber}"

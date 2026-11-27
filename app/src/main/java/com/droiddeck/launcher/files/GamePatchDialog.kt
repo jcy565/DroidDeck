@@ -29,6 +29,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val backups = File(context.filesDir, "game-patch-backups")
     val draftDirectory = File(context.filesDir, "translation-drafts")
     val modelDirectory = File(context.filesDir, "local-agent-models")
+    val glossaryDirectory = File(context.filesDir, "ai-data-glossary")
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
     val log = file.extension.equals("log", true)
@@ -144,6 +145,18 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 } ?: error("모델 파일을 읽을 수 없습니다.")
             }
             message = "모델 체크섬 확인 및 가져오기 완료. 실제 모델 호환성은 실행 시 확인합니다."
+        }
+    }
+    val glossaryImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && aiAvailability.enabled && AiGlossaryUpdates.configured) runAction {
+            require(uri.scheme == "content")
+            val bundle = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use {
+                    AiGlossaryUpdates.install(glossaryDirectory, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                } ?: error("AI 데이터 파일을 읽을 수 없습니다.")
+            }
+            menuCursor = 0
+            message = "서명된 메뉴 사전 버전 ${bundle.revision}을 적용했습니다. 게임 파일과 초안은 변경되지 않았습니다."
         }
     }
     LaunchedEffect(file) {
@@ -348,6 +361,19 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             if (translationTable) {
                 Text("파일 기반 한글 패치 제작: id/text TSV·CSV, 문자열 JSON 사전 · 최대 ${TranslationLimits.MAX_ROWS}문장 · 메뉴 사전 번역 지원, 신경망 번역 미지원")
                 Text("화면 실시간 번역은 지원하지 않습니다. 초안을 저장해 나중에 이어서 작업할 수 있습니다.")
+                if (aiAvailability.enabled && AiGlossaryUpdates.configured) {
+                    Text("AI 데이터는 서명된 메뉴 사전만 별도로 업데이트할 수 있습니다.")
+                    TextButton(enabled = !busy && pendingExport == null, onClick = {
+                        glossaryImporter.launch(arrayOf("application/octet-stream", "*/*"))
+                    }) { Text("서명된 AI 메뉴 사전 가져오기") }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        val prior = withContext(Dispatchers.IO) {
+                            AiGlossaryUpdates.rollback(glossaryDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                        }
+                        menuCursor = 0
+                        message = "메뉴 사전 버전 ${prior.revision}으로 복구했습니다. 기존 번역 초안은 유지됩니다."
+                    } }) { Text("이전 AI 메뉴 사전 복구") }
+                }
                 TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
                     translationSource = null
@@ -385,9 +411,12 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             val result = withContext(Dispatchers.IO) {
                                 check(GameplayBudget.allowsOptionalAnalysis(context))
                                 require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                                val updated = if (aiAvailability.enabled) runCatching {
+                                    AiGlossaryUpdates.active(glossaryDirectory)?.entries.orEmpty()
+                                }.getOrDefault(emptyMap()) else emptyMap()
                                 val result = TranslationEngine.run(source, edits, startIndex = start,
                                     allowed = { GameplayBudget.allowsOptionalAnalysis(context) },
-                                    providerFactory = { MenuTranslationProvider() })
+                                    providerFactory = { MenuTranslationProvider(updated) })
                                 check(GameplayBudget.allowsOptionalAnalysis(context)) { "게임 실행 또는 메모리 상태 변경으로 반영을 보류했습니다." }
                                 require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
                                 result
