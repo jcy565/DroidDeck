@@ -22,3 +22,7 @@
 ### 파일 기반 한글 패치 제작 원칙 (사용자 확인)
 
 실시간 화면 번역·OCR·화면 오버레이는 개발 범위에서 제외한다. 게임 실행 전/후 파일의 번역 대상 추출, 배치 자동 번역(추후 오프라인 모델 검토), 직접 편집, 초안 저장·재개, 변수/형식 검증, 패치 파일 생성·백업 후 적용에 집중한다. 초안은 앱 전용 저장소에 사용자가 명시적으로 저장하며 대상 경로와 원본 SHA-256으로 구분한다. 다른 파일이나 업데이트된 원본에 자동 재사용하지 않는다.
+
+## User-confirmed primary direction: integrated local AI agent
+
+Prioritize real on-device language model inference and an integrated natural-language assistant over further isolated rule buttons. The user wants the AI to analyze selected game files, create simple mods and Korean patches directly in DroidDeck, diagnose game problems and propose tested optimization/recovery plans. Existing deterministic components remain tools for validation, preview, approved backup/application and rollback, not a substitute for the language model. No live screen translation. No paid/cloud inference, arbitrary shell execution, security bypass or uncontrolled file writes. Initial milestone: local model + strict structured tool proposals against a user-selected file; later broaden file discovery and bounded multi-step plans. Model/runtime selection and actual hardware evaluation remain mandatory.
