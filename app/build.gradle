@@ -129,6 +129,7 @@ if (aiDataPublicKey.length() > 1024 || !(aiDataPublicKey ==~ /[A-Za-z0-9+\/=]*/)
 }
 // Experimental local LLM runtime is opt-in until dependency/native/device verification passes.
 def experimentalLocalAi = providers.gradleProperty('experimentalLocalAi').getOrElse('false') == 'true'
+def experimentalImageOcr = providers.gradleProperty('experimentalImageOcr').getOrElse('false') == 'true'
 
 android {
     namespace 'com.droiddeck.launcher'
@@ -273,6 +274,7 @@ androidComponents {
 }
 
 android.sourceSets.main.java.srcDir(experimentalLocalAi ? 'src/localAi/java' : 'src/noLocalAi/java')
+android.sourceSets.main.java.srcDir(experimentalImageOcr ? 'src/imageOcr/java' : 'src/noImageOcr/java')
 
 // Vendor binaries remain in the user's SDK directory; never vendor them into Git.
 if (vitureSdkDir) {
@@ -388,6 +390,9 @@ tasks.named('preBuild').configure { dependsOn(buildVkBridgeServer) }
 
 dependencies {
     implementation project(':ai-core')
+    if (experimentalImageOcr) {
+        implementation 'com.google.mlkit:text-recognition:16.0.1'
+    }
     if (experimentalLocalAi) {
         implementation 'com.google.mediapipe:tasks-genai:0.10.35'
     }
