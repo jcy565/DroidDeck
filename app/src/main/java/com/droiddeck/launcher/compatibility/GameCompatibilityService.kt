@@ -1,6 +1,7 @@
 package com.droiddeck.launcher.compatibility
 
 import android.content.Context
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,6 +18,12 @@ internal class GameCompatibilityService(context: Context) {
 
     suspend fun record(observation: GameRunHistory.Observation) = withContext(Dispatchers.IO) {
         GameRunHistory(appContext).use { it.record(observation) }
+    }
+
+    suspend fun recordInstalledOutcome(gameId: String, installFolder: File?, outcome: GameRunHistory.Outcome,
+        recordedAt: Long) = withContext(Dispatchers.IO) {
+        val version = InstalledGameVersion.read(gameId, installFolder)
+        record(GameRunHistory.Observation(gameId, version, outcome, recordedAt))
     }
 
     suspend fun report(gameId: String, limit: Int = 20): Report = withContext(Dispatchers.IO) {

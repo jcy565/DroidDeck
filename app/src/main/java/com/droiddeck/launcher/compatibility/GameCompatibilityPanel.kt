@@ -13,11 +13,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.io.File
 
 /** Host must supply the selected game's stable, platform-qualified identifier. */
 @Composable
-internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifier: Modifier = Modifier) {
-    key(gameId, gameVersion) {
+internal fun GameCompatibilityPanel(gameId: String, installFolder: File?, modifier: Modifier = Modifier) {
+    key(gameId, installFolder) {
         val context = LocalContext.current.applicationContext
         val service = remember(context) { GameCompatibilityService(context) }
         val scope = rememberCoroutineScope()
@@ -66,8 +67,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                         scope.launch {
                             var saved = false
                             try {
-                                service.record(GameRunHistory.Observation(gameId, gameVersion,
-                                    outcome, System.currentTimeMillis()))
+                                service.recordInstalledOutcome(gameId, installFolder, outcome, System.currentTimeMillis())
                                 saved = true
                                 refresh()
                             } catch (e: CancellationException) {

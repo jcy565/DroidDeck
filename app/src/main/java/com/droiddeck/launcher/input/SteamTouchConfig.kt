@@ -593,10 +593,13 @@ class KeyValues private constructor() {
     }
 
     companion object {
-        fun parse(text: String): Node {
+        fun parse(text: String): Node = parse(text, Int.MAX_VALUE)
+
+        internal fun parse(text: String, maxDepth: Int): Node {
             val tokens = tokenize(text)
             var i = 0
-            fun node(): Node {
+            fun node(depth: Int): Node {
+                require(depth <= maxDepth)
                 val n = Node()
                 while (i < tokens.size) {
                     val t = tokens[i++]
@@ -604,11 +607,11 @@ class KeyValues private constructor() {
                     if (t == "{") continue
                     if (i >= tokens.size) break
                     val next = tokens[i]
-                    if (next == "{") { i++; n.entries += t to node() } else { i++; n.entries += t to next }
+                    if (next == "{") { i++; n.entries += t to node(depth + 1) } else { i++; n.entries += t to next }
                 }
                 return n
             }
-            return node()
+            return node(0)
         }
 
         private fun tokenize(text: String): List<String> {
