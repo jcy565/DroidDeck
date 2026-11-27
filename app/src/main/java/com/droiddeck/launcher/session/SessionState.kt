@@ -94,9 +94,13 @@ object SessionState {
         }
     }
 
-    fun takeRelaunch(): android.content.Intent? = synchronized(this) {
+    fun takeRelaunch(): android.content.Intent? = takeRelaunch(sessionId)
+
+    internal fun takeRelaunch(expectedSessionId: String?): android.content.Intent? = synchronized(this) {
+        // An older end callback must not consume or clear a newer session's request.
+        if (expectedSessionId == null || expectedSessionId != sessionId) return@synchronized null
         val next = relaunch
-        val valid = relaunchStopRequested && relaunchSessionId == sessionId
+        val valid = relaunchStopRequested && relaunchSessionId == expectedSessionId
         relaunch = null
         relaunchSessionId = null
         relaunchStopRequested = false

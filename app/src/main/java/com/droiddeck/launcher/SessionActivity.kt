@@ -2479,6 +2479,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     private fun onSessionEnded(status: Int) {
+        val stoppedSessionId = SessionState.sessionId
         ended = true
         ++steamVrRequestGeneration
         if (isInPictureInPictureMode) {
@@ -2492,7 +2493,11 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             val hint = sessionExitHint(status)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                if (status == 0) SessionState.takeRelaunch()?.let { next ->
+                if (stoppedSessionId == null || stoppedSessionId != SessionState.sessionId ||
+                    SessionState.running || SessionState.phase !in setOf(SessionPhase.IDLE, SessionPhase.FAILED))
+                    return@runOnUiThread
+                if (status == 0 && SessionState.phase == SessionPhase.IDLE)
+                    SessionState.takeRelaunch(stoppedSessionId)?.let { next ->
                     next.putExtra(EXTRA_RETURN_HOME, intent.getBooleanExtra(EXTRA_RETURN_HOME, false))
                     next.putExtra(EXTRA_LINK_TASK, intent.getIntExtra(EXTRA_LINK_TASK, -1))
                     setIntent(next)
