@@ -90,6 +90,18 @@ class AndroidTestSummaryTest(unittest.TestCase):
         self.assertFalse(result['clean_observed_reports'])
         self.assertEqual(result['observed_cases'], 0)
 
+    def test_aggregate_status_counts_must_match_cases_across_suites(self):
+        suites = ''.join(
+            f'<testsuite tests="1"><testcase classname="A" name="{tag}"><{tag}/></testcase></testsuite>'
+            for tag in ('failure', 'error', 'skipped'))
+        counts = dict(tests=3, failures=1, errors=1, skipped=1)
+        for wrong in (None, 'failures', 'errors', 'skipped'):
+            with self.subTest(wrong=wrong):
+                attrs = ' '.join(f'{key}="{0 if key == wrong else value}"' for key, value in counts.items())
+                result = self.check_xml(f'<testsuites {attrs}>{suites}</testsuites>')
+                self.assertEqual(result['clean_observed_reports'], wrong is None)
+                self.assertEqual(result['observed_cases'], 3 if wrong is None else 0)
+
     def test_nested_cases_are_not_counted(self):
         result = self.check_xml('<testsuite tests="0"><wrapper><testcase classname="A" name="case"/></wrapper></testsuite>')
         self.assertFalse(result['clean_observed_reports'])
