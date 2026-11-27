@@ -438,13 +438,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
             onDismissRequest = { pendingReplacement = null },
             title = { Text("저장된 초안을 교체할까요?") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(file.name)
-                    Text("기존 원문\n" + review.saved.source)
-                    Text("기존 번역문\n" + review.saved.translated.ifBlank { "(없음)" })
-                    Text("기존 영역 번역 " + review.saved.edits.size + "개")
-                    Text("현재 편집 내용으로 교체합니다.")
-                }
+                SavedImageDraftReview(file.name, review.saved, "현재 편집 내용으로 교체합니다.")
             },
             dismissButton = { TextButton(onClick = { pendingReplacement = null }) { Text("취소") } },
             confirmButton = {
@@ -469,7 +463,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
         AlertDialog(
             onDismissRequest = { pendingDeletion = null },
             title = { Text("저장된 초안을 삭제할까요?") },
-            text = { Text("${file.name}의 현재 버전에 저장된 초안입니다.\n\n${reviewed.source.take(120)}\n\n현재 편집 내용은 계속 사용할 수 있습니다.") },
+            text = { SavedImageDraftReview(file.name, reviewed, "삭제 후에도 현재 편집 내용은 남습니다.") },
             dismissButton = { TextButton(onClick = { pendingDeletion = null }) { Text("취소") } },
             confirmButton = {
                 TextButton(enabled = !busy, onClick = {
@@ -487,5 +481,20 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                 }) { Text("초안 삭제") }
             },
         )
+    }
+}
+
+@Composable
+private fun SavedImageDraftReview(fileName: String, draft: ImageDraftStore.Draft, action: String) {
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        Text(fileName)
+        Text(action)
+        Text("기존 원문\n" + draft.source)
+        Text("기존 번역문\n" + draft.translated.ifBlank { "(없음)" })
+        draft.regions?.regions?.forEach { region ->
+            draft.edits[region.id]?.let { edit ->
+                Text("영역 ${region.id} · ${region.text}\n$edit")
+            }
+        }
     }
 }
