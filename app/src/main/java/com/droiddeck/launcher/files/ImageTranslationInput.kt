@@ -4,6 +4,10 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 internal object ImageTranslationInput {
+    enum class Script(val label: String) {
+        LATIN("영어·라틴 문자"), JAPANESE("일본어"), CHINESE("중국어")
+    }
+
     val extensions = setOf("png", "jpg", "jpeg", "webp")
     const val MAX_BYTES = 8 * 1024 * 1024
     const val MAX_TEXT = 6000
