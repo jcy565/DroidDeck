@@ -72,8 +72,20 @@ internal object SettingsBackup {
     data class PreviewSnapshot(val key: String, val raw: String?, val effective: String, val revision: String?)
 
     @Synchronized
-    fun capturePreview(context: Context, key: String, effective: () -> String): PreviewSnapshot =
-        PreviewSnapshot(key, raw(context, key), effective(), revision(context, key))
+    fun capturePreview(context: Context, key: String, effective: () -> String): PreviewSnapshot {
+        check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+        val p = prefs(context)
+        val snapshot = p.all
+        val beforeRaw = raw(context, key)
+        val beforeRevision = revision(context, key)
+        val beforeEffective = effective()
+        check(p.all == snapshot && raw(context, key) == beforeRaw &&
+            revision(context, key) == beforeRevision &&
+            GameplayBudget.allows(GameplayBudget.Work.ANALYSIS)) {
+            "미리보기 확인 중 설정 또는 실행 상태가 변경되었습니다."
+        }
+        return PreviewSnapshot(key, beforeRaw, beforeEffective, beforeRevision)
+    }
 
     private fun <T> withAdmission(action: () -> T): T {
         val lease = SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.DRIVER_WRITE) {

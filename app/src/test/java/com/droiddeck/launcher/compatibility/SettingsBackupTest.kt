@@ -718,4 +718,50 @@ class SettingsBackupTest {
         assertEquals(preserved, SettingsBackup.review(context, key))
         assertEquals("1280x720", SettingsBackup.raw(context, key))
     }
+
+    @Test fun previewRejectsNormalWriteDuringEffectiveRead() {
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.capturePreview(context, key) {
+                SettingsBackup.writeNormalResolution(context, "steam", "900p")
+                "720p"
+            }
+        }
+        assertEquals("900p", SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+    }
+
+    @Test fun previewRejectsWriteAndResetDuringEffectiveRead() {
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.capturePreview(context, key) {
+                SettingsBackup.writeNormalResolution(context, "steam", "900p")
+                SettingsBackup.resetNormalSessionSettings(context) { it == key }
+                "720p"
+            }
+        }
+        assertNull(SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+        assertNotNull(SettingsBackup.capturePreview(context, key) { "720p" }.revision)
+    }
+
+    @Test fun previewRejectsLegacyDependencyChangeDuringEffectiveRead() {
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.capturePreview(context, key) {
+                prefs.edit().putString("shape", "16:9").commit()
+                "720p"
+            }
+        }
+        assertEquals("16:9", prefs.getString("shape", null))
+        assertNull(SettingsBackup.review(context, key))
+    }
+
+    @Test fun stablePreviewRetainsExactRawEffectiveAndRevisionWithoutWrites() {
+        SettingsBackup.writeNormalResolution(context, "steam", "900p")
+        val before = prefs.all
+        val preview = SettingsBackup.capturePreview(context, key) { "900p" }
+        assertEquals(key, preview.key)
+        assertEquals("900p", preview.raw)
+        assertEquals("900p", preview.effective)
+        assertNotNull(preview.revision)
+        assertEquals(before, prefs.all)
+    }
 }
