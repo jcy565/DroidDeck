@@ -189,6 +189,13 @@ internal fun GameDetail(
         game != null && source == Library.SOURCE_STEAM -> "steam:${game.gameIdString}"
         else -> null
     }
+    // Never substitute a catalog version or another game's metadata.
+    val historyVersion = when {
+        historyId == null -> null
+        game != null && source == Library.SOURCE_STEAM && historyId == "steam:${game.gameIdString}" -> game.installedVersion
+        else -> installed?.sidecar?.takeIf { it.isInstalled && historyId == "${it.store.id}:${it.id}" }
+            ?.installVersion?.let(com.droiddeck.launcher.compatibility.InstalledGameVersion::storeVersion)
+    }
     val tabs = buildList {
         if (description.isNotBlank() || developer.isNotBlank() || publisher.isNotBlank() || releaseDate.isNotBlank() || scored || (!s.shortcutPicker && title.isNotBlank() && title != id)) add(GameTab.ABOUT)
         if (achievementState != null) add(GameTab.ACHIEVEMENTS)
@@ -277,7 +284,7 @@ internal fun GameDetail(
                             GameTab.LAUNCH -> if (game != null) LaunchTab(game, s, a, hopRail)
                             GameTab.SAVES -> if (game != null && prefix != null) SavesTab(game, prefix, a)
                             GameTab.ADDONS -> if (game != null) AddonsTab(game, addonTargets, a)
-                            GameTab.HISTORY -> historyId?.let { com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp), profileKey = game?.takeUnless { it.library == Library.XBOX_CLOUD }?.profileKey) }
+                            GameTab.HISTORY -> historyId?.let { com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, historyVersion, Modifier.heightIn(max = 420.dp), profileKey = game?.takeUnless { it.library == Library.XBOX_CLOUD }?.profileKey) }
                             GameTab.INSTALL -> InstallTab(game, installed, item, store)
                         }
                     }

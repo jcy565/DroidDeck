@@ -48,10 +48,10 @@ internal class GameRunHistory(context: Context) :
         }
     }
 
-    fun recent(gameId: String, limit: Int = 20): List<Observation> {
-        require(gameId.isNotBlank() && gameId.length <= 256)
+    fun recent(gameId: String, limit: Int = 20, gameVersion: String? = null): List<Observation> {
+        val selection = GameHistoryQuery.recent(gameId, limit, gameVersion)
         return readableDatabase.query("runs", arrayOf("game_id", "game_version", "outcome", "recorded_at"),
-            "game_id = ?", arrayOf(gameId), null, null, "id DESC", limit.coerceIn(1, 100).toString()).use { cursor ->
+            selection.where, selection.args.toTypedArray(), null, null, "id DESC", selection.limit.toString()).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(Observation(cursor.getString(0),
                     if (cursor.isNull(1)) null else cursor.getString(1),
