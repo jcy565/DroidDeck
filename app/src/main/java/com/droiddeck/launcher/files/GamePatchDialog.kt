@@ -26,6 +26,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
     val log = file.extension.equals("log", true)
+    val tsv = file.extension.equals("tsv", true)
     var section by remember(file) { mutableStateOf("") }
     var key by remember(file) { mutableStateOf("") }
     var value by remember(file) { mutableStateOf("") }
@@ -34,9 +35,14 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var message by remember(file) { mutableStateOf("") }
     var busy by remember(file) { mutableStateOf(false) }
     var backup by remember(file) { mutableStateOf<File?>(null) }
+    var translationSource by remember(file) { mutableStateOf<String?>(null) }
+    var translationRows by remember(file) { mutableStateOf(emptyList<GamePatchAuthor.Row>()) }
+    var translationIndex by remember(file) { mutableIntStateOf(0) }
+    var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
+    var pendingExport by remember(file) { mutableStateOf<ByteArray?>(null) }
 
     fun runAction(action: suspend () -> Unit) {
-        if (busy) return
+        if (busy || pendingExport != null) return
         busy = true
         scope.launch {
             try { action() }
@@ -63,6 +69,19 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = "선택한 UTF-8 텍스트로 파일 전체를 교체합니다. 내용을 확인하세요."
         }
     }
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        val payload = pendingExport
+        pendingExport = null
+        if (uri != null && payload != null) runAction {
+            require(uri.scheme == "content")
+            withContext(Dispatchers.IO) {
+                val output = context.contentResolver.openOutputStream(uri, "w")
+                    ?: error("저장할 파일을 열 수 없습니다.")
+                output.use { it.write(payload) }
+            }
+            message = "패치 ZIP을 저장했습니다. 게임 파일은 변경하지 않았습니다."
+        }
+    }
     LaunchedEffect(file) {
         if (!log) {
             val history = withContext(Dispatchers.IO) {
@@ -72,7 +91,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = history?.status.orEmpty()
         }
     }
-    AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, title = { Text(file.name) }, text = {
+    AlertDialog(onDismissRequest = { if (!busy && pendingExport == null) onDismiss() }, title = { Text(file.name) }, text = {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             Text("오프라인 규칙 기반 도우미")
             if (config) {
@@ -115,7 +134,80 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     } else message = "이 파일에서 지원하는 명령 예시를 확인하세요."
                 } }) { Text(if (log) "로그 분석" else "최적화 계획") }
             }
+            if (config) {
+                Text("간단한 설정형 모드: 모드: Speed=1.5 (실제 존재하는 키만 지원)")
+                TextButton(enabled = !busy, onClick = { runAction {
+                    preview = null
+                    preview = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        val source = original()
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        GamePatchAuthor.mod(source, section.trim().ifEmpty { null }, command)
+                    }
+                    message = "설정형 모드 초안입니다. 실제 게임 동작은 확인되지 않았습니다."
+                } }) { Text("간단한 모드 제작") }
+            }
+            if (tsv) {
+                Text("한글 패치 제작: id/text TSV · 직접 번역 편집 (자동 번역 미지원)")
+                TextButton(enabled = !busy, onClick = { runAction {
+                    preview = null
+                    translationSource = null
+                    translationRows = emptyList()
+                    translations = emptyMap()
+                    translationIndex = 0
+                    val source = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        original()
+                    }
+                    val rows = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        GamePatchAuthor.extract(source)
+                    }
+                    translationSource = source
+                    translationRows = rows
+                    message = "번역 대상 ${rows.size}개를 읽었습니다."
+                } }) { Text("번역 대상 추출") }
+                translationRows.getOrNull(translationIndex)?.let { row ->
+                    Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
+                    Text(row.text)
+                    OutlinedTextField(translations[row.id].orEmpty(), { value ->
+                        if (value.length <= 1000) {
+                            translations = if (value.isEmpty()) translations - row.id
+                                else translations + (row.id to value)
+                            preview = null
+                        }
+                    }, label = { Text("번역문") }, enabled = !busy)
+                    TextButton(enabled = !busy && translationIndex > 0, onClick = { translationIndex-- }) { Text("이전 문장") }
+                    TextButton(enabled = !busy && translationIndex + 1 < translationRows.size, onClick = { translationIndex++ }) { Text("다음 문장") }
+                    TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
+                        preview = null
+                        val source = requireNotNull(translationSource)
+                        val edits = translations.toMap()
+                        preview = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                            GamePatchAuthor.translation(source, edits)
+                        }
+                        message = "번역 패치 초안입니다. 원본과 교체 내용을 확인하세요."
+                    } }) { Text("한글 패치 미리보기") }
+                }
+            }
             if (!log) TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("모드·한글 패치 선택") }
+            TextButton(enabled = !busy && pendingExport == null && preview?.let { it.original != it.proposed } == true,
+                onClick = { runAction {
+                    val plan = requireNotNull(preview)
+                    pendingExport = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        require(original() == plan.original) { "원본이 변경됐습니다. 다시 미리보기 하세요." }
+                        GamePatchAuthor.zip(file.name, plan)
+                    }
+                    try {
+                        exporter.launch(file.name + ".patch.zip")
+                    } catch (e: Exception) {
+                        pendingExport = null
+                        throw e
+                    }
+                } }) { Text("패치 ZIP 내보내기") }
             preview?.let { plan ->
                 if (plan.changes.isEmpty() && plan.original != plan.proposed) {
                     var page by remember(plan) { mutableIntStateOf(0) }
@@ -143,7 +235,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         }
     }, confirmButton = {
         val plan = preview
-        TextButton(enabled = !busy && plan != null && plan.original != plan.proposed, onClick = {
+        TextButton(enabled = !busy && pendingExport == null && plan != null && plan.original != plan.proposed, onClick = {
             if (plan != null) runAction {
                 backup = withContext(Dispatchers.IO) {
                     check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
@@ -153,5 +245,5 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 message = "백업 후 적용했습니다."
             }
         }) { Text("백업 후 적용") }
-    }, dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } })
+    }, dismissButton = { TextButton(enabled = !busy && pendingExport == null, onClick = onDismiss) { Text("닫기") } })
 }
