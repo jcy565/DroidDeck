@@ -158,3 +158,7 @@ All 34 SettingsBackupTest cases passed locally using Robolectric 4.16.1 on SDK 2
 In the game's compatibility panel, open 설정 복구 기록 and select 복구 기록 확인. A ready backup offers a confirmation showing the current and previous value. Confirming restores the reviewed record. For an identified conflicting backup with an empty archive slot, the user can instead confirm keeping the current setting and retaining the backup as read-only history. Both actions revalidate the exact reviewed record under session admission, run off the UI thread and refresh on success. Canceling dismisses the confirmation. A failed action clears the displayed snapshot and offers a fresh lookup.
 
 Validated in an isolated Android Gradle library with the project Kotlin and Compose versions, local Android resources and Robolectric 4.16.1. All 47 tests passed: 5 SDK 28 panel interactions, 34 SDK 28 storage tests and 8 Compose dispatcher cases across SDKs 28 and 34. The harness included the repository panel, backup, budget, admission gate and Compose rule, with idle session state and a substitute focus-ring reset. A session lease exercised the start-during-confirmation case. The complete launcher APK, original 11 full-suite failures and S23+ installation are still unverified.
+
+## 2026-11-27 설정 적용 작업 시작
+
+015642a에서 복원·충돌 보관 UI가 연결되어 있다. 호출 경로를 다시 확인한 결과 출력 해상도와 Proton DXVK 설정의 미리보기 및 트랜잭션은 테스트에서만 사용하고 있었다. 다음 변경은 백업이 없는 항목에서 값을 선택하고 기존 값과 적용 범위를 확인한 후 백업과 함께 적용하는 화면이다. 검증 기준은 취소, 동일 값, 오래된 미리보기, 세션 시작, 기존 백업 보호 및 적용 후 복원이다.
