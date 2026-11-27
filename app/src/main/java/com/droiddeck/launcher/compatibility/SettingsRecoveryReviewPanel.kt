@@ -3,7 +3,9 @@ package com.droiddeck.launcher.compatibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,6 +22,7 @@ internal fun SettingsRecoveryReviewPanel() {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     var entries by remember(context) { mutableStateOf<List<SettingsBackup.ReviewEntry>?>(null) }
+    var selected by remember(context) { mutableStateOf<SettingsRecoveryApproval.Request?>(null) }
     var busy by remember(context) { mutableStateOf(false) }
     var error by remember(context) { mutableStateOf<String?>(null) }
 
@@ -31,6 +34,7 @@ internal fun SettingsRecoveryReviewPanel() {
                 busy = true
                 error = null
                 entries = null
+                selected = null
                 scope.launch {
                     try {
                         entries = withContext(Dispatchers.IO) {
@@ -70,12 +74,17 @@ internal fun SettingsRecoveryReviewPanel() {
                     Text("이전: ${display(review.before)} / 적용: ${display(review.applied)} / 현재: ${display(review.current)}")
                 }
                 val actions = entry.availableActions
-                if (SettingsBackup.ReviewAction.RESTORE in actions)
-                    Text("복구 후보: 이전 저장값으로 되돌리기")
-                if (SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE in actions)
-                    Text("보관 후보: 현재 설정을 유지하고 기존 백업 보관")
+                actions.forEach { action ->
+                    val actionLabel = when (action) {
+                        SettingsBackup.ReviewAction.RESTORE -> "이전 저장값 복구 검토"
+                        SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE -> "현재 설정 유지 및 백업 보관 검토"
+                    }
+                    Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
+                        selected = SettingsRecoveryApproval.prepare(entry, action)
+                    }) { Text(actionLabel) }
+                }
                 if (actions.isNotEmpty())
-                    Text("검증 완료 전에는 실행할 수 없습니다.")
+                    Text("검증 완료 전에는 실제 복구 및 보관을 실행할 수 없습니다.")
                 if (entry.archiveOccupied) {
                     Text("이전 기록 보관됨: 덮어쓰기 금지")
                     val archived = entry.archived
@@ -84,5 +93,33 @@ internal fun SettingsRecoveryReviewPanel() {
                 }
             }
         }
+    }
+    selected?.let { request ->
+        val review = request.reviewed
+        val label = when (review.key) {
+            "displayResolution.steam" -> "Steam 출력 해상도"
+            "displayResolution.desktop" -> "데스크톱 출력 해상도"
+            else -> "Proton DXVK 브리지 (전체)"
+        }
+        val action = when (request.action) {
+            SettingsBackup.ReviewAction.RESTORE -> "이전 저장값 복구"
+            SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE -> "현재 설정 유지 및 백업 보관"
+        }
+        fun display(value: String?): String = value?.take(100) ?: "저장된 값 없음"
+        AlertDialog(
+            onDismissRequest = { selected = null },
+            title = { Text(action + " 검토") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label)
+                    Text("현재 저장값: " + display(review.current))
+                    Text("작업 후 저장값: " + display(request.targetRaw))
+                    if (request.targetRaw == null)
+                        Text("저장값 없음은 기본값 또는 이전 설정 규칙 사용을 의미합니다.")
+                    Text("조회 시점의 기록이며 실제 적용은 아직 비활성화되어 있습니다.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { selected = null }) { Text("닫기") } }
+        )
     }
 }
