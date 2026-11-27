@@ -109,6 +109,28 @@ class ImageDraftStoreTest {
         assertTrue(runCatching { ImageDraftStore.save(directory, image, id, draft.copy(source = "")) }.isFailure)
     }
 
+    @Test fun reviewedReplacementRequiresTheSameSavedDraftAndImageRevision() {
+        val image = temporary.newFile("replace.png").apply { writeBytes(byteArrayOf(1)) }
+        val directory = temporary.newFolder("replace-drafts")
+        val id = ImageDraftStore.identity(image)
+        val edited = draft.copy(translated = "현재 편집")
+        val newer = draft.copy(translated = "다른 편집")
+        assertTrue(ImageDraftStore.saveIfAbsent(directory, image, id, draft))
+        assertFalse(ImageDraftStore.saveIfAbsent(directory, image, id, edited))
+        assertTrue(ImageDraftStore.replaceIfUnchanged(directory, image, id, draft, newer))
+        assertFalse(ImageDraftStore.replaceIfUnchanged(directory, image, id, draft, edited))
+        assertEquals(newer, ImageDraftStore.load(directory, id))
+        image.writeBytes(byteArrayOf(2))
+        assertTrue(runCatching {
+            ImageDraftStore.replaceIfUnchanged(directory, image, id, newer, edited)
+        }.isFailure)
+        assertEquals(newer, ImageDraftStore.load(directory, id))
+        image.writeBytes(byteArrayOf(1))
+        assertTrue(ImageDraftStore.deleteIfUnchanged(directory, image, id, newer))
+        assertFalse(ImageDraftStore.replaceIfUnchanged(directory, image, id, newer, edited))
+        assertNull(ImageDraftStore.load(directory, id))
+    }
+
     @Test fun deletionPreservesConcurrentEditsOtherRevisionsAndImageBytes() {
         val image = temporary.newFile("delete.png").apply { writeBytes(byteArrayOf(1)) }
         val directory = temporary.newFolder("delete-drafts")
