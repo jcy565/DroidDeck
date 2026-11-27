@@ -432,4 +432,24 @@ class SettingsBackupTest {
         assertTrue(entry.archiveOccupied)
         assertNull(entry.archived)
     }
+
+    @Test fun wrongArchivePresenceMarkerTypeFailsClosed() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().putString("ai.archive.$key.currentPresent", "true").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun archiveCannotClaimAbsenceWhenCurrentValueExists() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().putBoolean("ai.archive.$key.currentPresent", false).commit()
+        val before = prefs.all
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(before, prefs.all)
+    }
 }
