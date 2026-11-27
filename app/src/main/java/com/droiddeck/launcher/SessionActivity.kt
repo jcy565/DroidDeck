@@ -699,21 +699,20 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             }
             lease.use {
                 val mode = intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM
-                SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
                 SessionEvents.begin(this, mode, SessionPaths.label(mode, intent.getStringExtra(SessionService.EXTRA_PROGRAM)))
+                // begin() clears launch metadata and publishes PREPARING. Initialize
+                // the new request after that reset, without testing IDLE a second time.
+                SessionState.program = intent.getStringExtra(SessionService.EXTRA_PROGRAM)
+                SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
+                SessionState.steamUi = intent.getStringExtra(SessionService.EXTRA_STEAM_UI)
+                SessionState.steamUrl = intent.getStringExtra(SessionService.EXTRA_STEAM_URL)
+                SessionState.steamVr = intent.getBooleanExtra(EXTRA_STEAMVR, false)
+                SessionState.secondScreenAutoOpened = false
+                SessionState.secondScreenProvisional = false
+                SessionState.secondScreenAutomatic = false
+                SessionState.gameOnBottom = false
+                gameOnBottom = false
             }
-            SessionState.secondScreenAutoOpened = false
-            SessionState.secondScreenProvisional = false
-            SessionState.secondScreenAutomatic = false
-            SessionState.gameOnBottom = false
-            gameOnBottom = false
-        }
-        if (!SessionState.running && SessionState.phase in setOf(SessionPhase.IDLE, SessionPhase.FAILED)) {
-            SessionState.program = intent.getStringExtra(SessionService.EXTRA_PROGRAM)
-            SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
-            SessionState.steamUi = intent.getStringExtra(SessionService.EXTRA_STEAM_UI)
-            SessionState.steamUrl = intent.getStringExtra(SessionService.EXTRA_STEAM_URL)
-            SessionState.steamVr = intent.getBooleanExtra(EXTRA_STEAMVR, false)
         } else if (intent.getBooleanExtra(EXTRA_STEAMVR, false) && SessionState.mode == SessionService.MODE_STEAM) {
             SessionState.steamVr = true
         }
