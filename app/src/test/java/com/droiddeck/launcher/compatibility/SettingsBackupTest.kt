@@ -377,4 +377,58 @@ class SettingsBackupTest {
         assertFalse(prefs.contains(key))
         assertNull(SettingsBackup.review(context, key))
     }
+
+    @Test fun conflictArchiveRejectsApprovalAfterAnotherOrdinaryAbaChange() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val firstReview = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.writeNormalResolution(context, "steam", "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val fresh = requireNotNull(SettingsBackup.review(context, key))
+        assertEquals(firstReview.current, fresh.current)
+        assertNotEquals(firstReview.revision, fresh.revision)
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, firstReview, true)
+        }
+        assertEquals(before, prefs.all)
+        SettingsBackup.keepCurrentAndArchive(context, fresh, true)
+        assertEquals(fresh, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun conflictArchiveApprovalSurvivesSameValueAndOtherScopeWrites() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val review = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        SettingsBackup.writeNormalResolution(context, "desktop", "1280x720")
+        assertEquals(review, SettingsBackup.review(context, key))
+        SettingsBackup.keepCurrentAndArchive(context, review, true)
+        assertEquals(review, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun malformedReviewRevisionFailsClosedWithoutMutatingSettings() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putInt("ai.revision.$key", 1).commit()
+        val before = prefs.all
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP,
+            SettingsBackup.reviewAll(context).single { it.key == key }.status)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restoreReviewed(context, approved, true)
+        }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun malformedArchivedRevisionDoesNotHideOrOverwriteArchive() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().putString("ai.archive.$key.revision", "invalid").commit()
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertNull(SettingsBackup.archivedReview(context, key))
+    }
 }
