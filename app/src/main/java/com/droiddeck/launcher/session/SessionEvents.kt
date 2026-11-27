@@ -10,7 +10,18 @@ object SessionEvents {
     private const val TAG = "SessionEvents"
     private val lock = Any()
 
-    fun begin(context: Context, mode: String, label: String? = null) {
+    internal data class LaunchMetadata(
+        val program: String? = null,
+        val programArgs: List<String> = emptyList(),
+        val steamUi: String? = null,
+        val steamUrl: String? = null,
+        val steamVr: Boolean = false,
+    )
+
+    fun begin(context: Context, mode: String, label: String? = null) =
+        begin(context, mode, label, LaunchMetadata())
+
+    internal fun begin(context: Context, mode: String, label: String?, launch: LaunchMetadata) {
         SessionPaths.take()
         val dir = SessionPaths.beginOrCurrent(context, label ?: SessionPaths.label(mode, null))
         synchronized(SessionState) {
@@ -28,11 +39,11 @@ object SessionEvents {
             SessionState.guestPid = -1
             SessionState.installing = null
             SessionState.stopRequested = false
-            SessionState.program = null
-            SessionState.programArgs = emptyList()
-            SessionState.steamUi = null
-            SessionState.steamUrl = null
-            SessionState.steamVr = false
+            SessionState.program = launch.program
+            SessionState.programArgs = launch.programArgs.toList()
+            SessionState.steamUi = launch.steamUi
+            SessionState.steamUrl = launch.steamUrl
+            SessionState.steamVr = launch.steamVr
             SessionState.firstFrameSeen = false
             SessionState.suspended = false
         }

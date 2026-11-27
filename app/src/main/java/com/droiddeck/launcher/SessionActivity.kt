@@ -699,14 +699,14 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             }
             lease.use {
                 val mode = intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM
-                SessionEvents.begin(this, mode, SessionPaths.label(mode, intent.getStringExtra(SessionService.EXTRA_PROGRAM)))
-                // begin() clears launch metadata and publishes PREPARING. Initialize
-                // the new request after that reset, without testing IDLE a second time.
-                SessionState.program = intent.getStringExtra(SessionService.EXTRA_PROGRAM)
-                SessionState.programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty()
-                SessionState.steamUi = intent.getStringExtra(SessionService.EXTRA_STEAM_UI)
-                SessionState.steamUrl = intent.getStringExtra(SessionService.EXTRA_STEAM_URL)
-                SessionState.steamVr = intent.getBooleanExtra(EXTRA_STEAMVR, false)
+                val launch = SessionEvents.LaunchMetadata(
+                    program = intent.getStringExtra(SessionService.EXTRA_PROGRAM),
+                    programArgs = intent.getStringArrayExtra(SessionService.EXTRA_PROGRAM_ARGS)?.toList().orEmpty(),
+                    steamUi = intent.getStringExtra(SessionService.EXTRA_STEAM_UI),
+                    steamUrl = intent.getStringExtra(SessionService.EXTRA_STEAM_URL),
+                    steamVr = intent.getBooleanExtra(EXTRA_STEAMVR, false),
+                )
+                SessionEvents.begin(this, mode, SessionPaths.label(mode, launch.program), launch)
                 SessionState.secondScreenAutoOpened = false
                 SessionState.secondScreenProvisional = false
                 SessionState.secondScreenAutomatic = false
