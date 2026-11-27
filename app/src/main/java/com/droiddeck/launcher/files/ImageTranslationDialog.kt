@@ -29,10 +29,35 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     var translated by remember(file) { mutableStateOf("") }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
     var rotation by remember(file) { mutableStateOf(ImageTranslationInput.Rotation.NONE) }
-    var busy by remember(file) { mutableStateOf(false) }
+    var busy by remember(file) { mutableStateOf(true) }
+    var identity by remember(file) { mutableStateOf<ImageDraftStore.Identity?>(null) }
+    val draftDirectory = File(context.noBackupFilesDir, "image-translation-drafts")
     var message by remember(file) { mutableStateOf("") }
 
     fun allowed(): Boolean = GameplayBudget.allowsOptionalAnalysis(context)
+
+    fun draftAction(action: suspend () -> Unit) {
+        if (busy) return
+        busy = true
+        message = ""
+        scope.launch {
+            try { action() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { message = e.message ?: "초안 작업 실패" }
+            finally { busy = false }
+        }
+    }
+
+    LaunchedEffect(file) {
+        try {
+            identity = withContext(Dispatchers.IO) {
+                check(allowed())
+                ImageDraftStore.identity(file)
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { message = e.message ?: "이미지 확인 실패. 다시 열어 주세요." }
+        finally { busy = false }
+    }
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -55,7 +80,8 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                     }) { Text("시계 방향 90° 회전") }
                     Text("다시 인식하면 현재 텍스트와 번역 초안이 교체됩니다. 필요하면 먼저 복사하세요.")
                     Text("Google ML Kit가 기기에서 이미지 문자를 인식합니다. SDK의 사용량·성능 통계가 Google로 전송될 수 있습니다. 이미지나 인식 결과는 ML Kit 서버로 전송되지 않습니다.")
-                    TextButton(enabled = !busy, onClick = {
+                    TextButton(enabled = !busy && identity != null, onClick = {
+                        val expected = requireNotNull(identity)
                         val selectedScript = script
                         val selectedRotation = rotation
                         busy = true
@@ -63,7 +89,10 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         scope.launch {
                             try {
                                 val recognized = withContext(Dispatchers.IO) {
-                                    ImageOcrRuntime.recognize(file, selectedScript, selectedRotation, ::allowed)
+                                    require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+                                    val result = ImageOcrRuntime.recognize(file, selectedScript, selectedRotation, ::allowed)
+                                    require(ImageDraftStore.identity(file) == expected) { "인식 중 원본 이미지가 변경됐습니다." }
+                                    result
                                 }
                                 source = recognized
                                 translated = ""
@@ -105,8 +134,40 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         message = "번역문을 복사했습니다."
                     } catch (e: Exception) { message = e.message ?: "복사 실패" }
                 }) { Text("번역문 복사") }
+                Text("초안을 저장하면 원문과 번역문, 언어·회전 설정이 앱 전용 저장소에 보관됩니다. 자동 전송되지 않습니다. 민감한 텍스트는 저장하지 마세요.")
+                TextButton(enabled = !busy && identity != null && source.isNotBlank(), onClick = {
+                    val expected = requireNotNull(identity)
+                    val draft = ImageDraftStore.Draft(source, translated, script, rotation)
+                    draftAction {
+                        withContext(Dispatchers.IO) {
+                            check(allowed())
+                            ImageDraftStore.save(draftDirectory, file, expected, draft)
+                        }
+                        message = "현재 이미지 초안을 저장했습니다. 이전 저장본은 교체됩니다."
+                    }
+                }) { Text("이미지 번역 초안 저장 (이전 저장본 교체)") }
+                TextButton(enabled = !busy && identity != null, onClick = {
+                    val expected = requireNotNull(identity)
+                    draftAction {
+                        val draft = withContext(Dispatchers.IO) {
+                            check(allowed())
+                            require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+                            ImageDraftStore.load(draftDirectory, expected).also {
+                                require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+                            }
+                        }
+                        if (draft == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
+                        else {
+                            source = draft.source
+                            translated = draft.translated
+                            script = draft.script
+                            rotation = draft.rotation
+                            message = "저장한 초안을 불러왔습니다."
+                        }
+                    }
+                }) { Text("저장 초안 불러오기 (현재 편집 내용 교체)") }
                 if (message.isNotEmpty()) Text(message)
-                Text("이 화면의 번역문은 임시 초안입니다. 닫기 전에 필요한 내용을 복사하세요. 이미지 글자 교체 및 실시간 화면 번역은 아직 지원하지 않습니다.")
+                Text("닫기 전에 초안을 직접 저장하세요. 이미지 글자 교체 및 실시간 화면 번역은 아직 지원하지 않습니다.")
             }
         },
         confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },
