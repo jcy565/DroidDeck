@@ -71,6 +71,25 @@ internal fun FilePropertiesDialog(
     var patchReport by remember(file) { mutableStateOf<ImagePatchImport.Report?>(null) }
     var patchMessage by remember(file) { mutableStateOf("") }
     var importPending by remember(file) { mutableStateOf(false) }
+    val backupStorage = File(context.noBackupFilesDir, "image-patch-backups")
+    var backup by remember(file) { mutableStateOf<ImagePatchBackup.Backup?>(null) }
+
+    fun checkPatchImage(bytes: ByteArray, source: ImagePatchArchive.Source) {
+        val bounds = ImageAssetDecoder.bounds(bytes, File(source.relative).extension.lowercase())
+        require(bounds.width == source.width && bounds.height == source.height)
+    }
+
+    fun backupTask(action: suspend () -> Unit) {
+        if (busy || importPending) return
+        busy = true
+        patchMessage = ""
+        scope.launch {
+            try { action() }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { patchMessage = e.message ?: "원본 백업 작업 실패" }
+            finally { busy = false }
+        }
+    }
     val importPatch = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         importPending = false
         if (uri != null && !busy && patchReport == null) {
@@ -144,6 +163,25 @@ internal fun FilePropertiesDialog(
                             patchMessage = e.message ?: "ZIP 선택 실패"
                         }
                     }) { Text("이미지 ZIP 패치 불러오기 및 검사") }
+                    Text("원본 백업은 게임 폴더당 하나를 별도 앱 내부 저장소에 보관합니다. 기존 백업은 덮어쓰지 않습니다.")
+                    TextButton(enabled = !busy && !importPending, onClick = {
+                        backupTask {
+                            backup = null
+                            backup = withContext(Dispatchers.IO) {
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                ImagePatchBackup.load(backupStorage, file) {
+                                    ensureActive()
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                }
+                            }
+                            patchMessage = if (backup == null) "저장된 원본 백업 없음" else "원본 백업 무결성 검증 완료"
+                        }
+                    }) { Text("저장된 원본 백업 확인") }
+                    backup?.let { saved ->
+                        Text("원본 백업 ${saved.rows.size}개 파일 · 패치 SHA-256 ${saved.patchDigest.take(12)}…")
+                        saved.rows.forEach { Text(it.source.relative) }
+                        Text("백업 파일이 검증됐습니다. 실제 게임 복구 기능은 아직 제공하지 않습니다.")
+                    }
                     if (patchMessage.isNotEmpty()) Text(patchMessage)
                     patchReport?.let { report ->
                         Text("원본 일치 ${report.entries.count { it.state == ImagePatchImport.State.READY }} / ${report.entries.size}개 · 검사 시점 기준")
@@ -159,6 +197,19 @@ internal fun FilePropertiesDialog(
                             }
                             Text("${entry.row.source.relative} · $label")
                         }
+                        TextButton(enabled = !busy && backup == null && report.entries.all { it.state == ImagePatchImport.State.READY }, onClick = {
+                            backupTask {
+                                backup = withContext(Dispatchers.IO) {
+                                    val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                                    ImagePatchBackup.create(backupStorage, file, report, ::checkPatchImage) {
+                                        coroutine.ensureActive()
+                                        if (!GameplayBudget.allowsOptionalAnalysis(context))
+                                            throw kotlinx.coroutines.CancellationException("게임 또는 메모리 상태로 백업 중단")
+                                    }
+                                }
+                                patchMessage = "원본 백업 저장 및 검증 완료. 게임 파일은 변경하지 않았습니다."
+                            }
+                        }) { Text("패치 대상 원본 전체 백업") }
                         TextButton(enabled = !busy, onClick = {
                             busy = true
                             scope.launch {
