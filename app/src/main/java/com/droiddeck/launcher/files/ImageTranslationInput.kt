@@ -12,7 +12,7 @@ internal object ImageTranslationInput {
         NONE(0), CLOCKWISE_90(90), CLOCKWISE_180(180), CLOCKWISE_270(270)
     }
 
-    val extensions = setOf("png", "jpg", "jpeg", "webp", "tga")
+    val extensions = setOf("png", "jpg", "jpeg", "webp", "tga", "dds")
     const val MAX_BYTES = 8 * 1024 * 1024
     const val MAX_TEXT = 6000
     private const val MAX_PIXELS = 4_194_304L

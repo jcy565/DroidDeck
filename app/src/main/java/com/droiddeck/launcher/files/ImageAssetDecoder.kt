@@ -12,6 +12,10 @@ internal object ImageAssetDecoder {
             val info = TgaImage.inspect(bytes)
             return Bounds(info.width, info.height)
         }
+        if (extension == "dds") {
+            val info = DdsImage.inspect(bytes)
+            return Bounds(info.width, info.height)
+        }
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         val expected = when (extension) {
@@ -30,6 +34,18 @@ internal object ImageAssetDecoder {
         checkpoint()
         if (extension == "tga") {
             val image = TgaImage.decode(bytes, sample, checkpoint)
+            val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
+            try {
+                bitmap.setPixels(image.argb, 0, image.width, 0, 0, image.width, image.height)
+                checkpoint()
+                return bitmap
+            } catch (failure: Throwable) {
+                bitmap.recycle()
+                throw failure
+            }
+        }
+        if (extension == "dds") {
+            val image = DdsImage.decode(bytes, sample, checkpoint)
             val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
             try {
                 bitmap.setPixels(image.argb, 0, image.width, 0, 0, image.width, image.height)
