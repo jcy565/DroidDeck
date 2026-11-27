@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import android.content.Intent
+import com.droiddeck.ai.core.ModelRelease
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var modelDigest by remember(file) { mutableStateOf("") }
     var pendingModel by remember(file) { mutableStateOf<AiModelUpdates.Pending?>(null) }
     var managedRevision by remember(file) { mutableStateOf<Int?>(null) }
+    var retirementChoices by remember(file) { mutableStateOf(emptyList<ModelRelease.Retirement>()) }
+    var reviewedRetirement by remember(file) { mutableStateOf<ModelRelease.Retirement?>(null) }
     val managedModels = AiGlossaryUpdates.configured
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
@@ -145,7 +148,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             withContext(Dispatchers.IO) {
                 check(GameplayBudget.allowsOptionalAnalysis(context))
                 context.contentResolver.openInputStream(uri)?.use {
-                    LocalModelStore.install(modelDirectory, digest, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                    LocalAgentRuntime.withIdleModelStore {
+                        LocalModelStore.install(modelDirectory, digest, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                    }
                 } ?: error("모델 파일을 읽을 수 없습니다.")
             }
             message = "모델 체크섬 확인 및 가져오기 완료. 실제 모델 호환성은 실행 시 확인합니다."
@@ -174,6 +179,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             }
             managedRevision = manifest.revision
             pendingModel = null
+            retirementChoices = emptyList()
+            reviewedRetirement = null
             message = "모델 버전 ${manifest.revision}의 서명과 파일 해시를 확인했습니다. 실제 추론 호환성은 아직 검증되지 않았습니다."
         }
     }
@@ -297,8 +304,43 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         }
                         managedRevision = prior.revision
                         pendingModel = null
+                        retirementChoices = emptyList()
+                        reviewedRetirement = null
                         message = "이전 모델 버전 ${prior.revision}으로 복구했습니다."
                     } }) { Text("이전 AI 모델 복구") }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        retirementChoices = emptyList()
+                        reviewedRetirement = null
+                        retirementChoices = withContext(Dispatchers.IO) {
+                            AiModelUpdates.retirementCandidates(managedModelDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                        }
+                        message = if (retirementChoices.isEmpty()) "정리할 비활성 모델이 없습니다." else "정리할 모델을 선택하세요. 현재 활성 모델은 제외됩니다."
+                    } }) { Text("비활성 모델 저장공간 확인") }
+                    retirementChoices.forEach { candidate ->
+                        TextButton(enabled = !busy && pendingExport == null, onClick = { reviewedRetirement = candidate }) {
+                            Text((if (candidate.previousRevision > 0) "복구용 모델 v${candidate.previousRevision}" else "미참조 모델") +
+                                " · ${candidate.bytes}바이트 · ${candidate.sha256.take(12)}")
+                        }
+                    }
+                    reviewedRetirement?.let { candidate ->
+                        Text("삭제 대상 SHA-256: ${candidate.sha256}")
+                        Text(if (candidate.previousRevision > 0)
+                            "이 모델을 정리하면 현재 모델은 유지되지만 이전 버전 복구가 불가능해집니다. 새 모델 설치가 실패해도 삭제된 복구 모델은 돌아오지 않습니다."
+                            else "현재 모델이나 복구용 모델이 참조하지 않는 파일입니다.")
+                        TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                            val result = withContext(Dispatchers.IO) {
+                                AiModelUpdates.retire(managedModelDirectory, candidate) { GameplayBudget.allowsOptionalAnalysis(context) }
+                            }
+                            retirementChoices = emptyList()
+                            reviewedRetirement = null
+                            message = when {
+                                result.fileDeleted -> "선택한 모델 파일을 정리했습니다. 현재 활성 모델은 유지됩니다."
+                                result.rollbackRemoved -> "복구용 참조는 해제됐지만 파일은 남아 있습니다. 다시 정리 대상을 확인하세요."
+                                else -> "파일을 정리하지 못했습니다. 다시 확인하세요."
+                            }
+                        } }) { Text("확인 후 선택한 모델 삭제") }
+                        TextButton(enabled = !busy, onClick = { reviewedRetirement = null }) { Text("삭제 취소") }
+                    }
                 } else {
                     Text("배포용 신뢰 키 미설정: 아래는 실험용 체크섬 가져오기입니다.")
                     OutlinedTextField(modelDigest, { if (it.length <= 64) modelDigest = it },
@@ -326,11 +368,12 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                                         check(allowsAgentWork())
                                         val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                                         if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
-                                        val model = if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
-                                            else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)
                                         val result = GameAgent.run(request, ::allowsAgentWork,
-                                            { LocalAgentRuntime.open(context, model, ::allowsAgentWork) }, 120_000)
+                                            { LocalAgentRuntime.openSelected(context, ::allowsAgentWork) {
+                                                if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
+                                                else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
+                                            } }, 120_000)
                                         check(allowsAgentWork())
                                         if (!log) require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
                                         result

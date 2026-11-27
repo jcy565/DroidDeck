@@ -150,4 +150,72 @@ public final class ModelRelease {
         compatible(state.previous, host, runtime); verified(dir, state.previous, allowed);
         write(dir, new State(state.highest, state.previous, state.active), allowed); return state.previous;
     }
+
+    /** A reviewed, revision-bound candidate. The active model is never a candidate. */
+    public static final class Retirement {
+        public final String sha256;
+        public final long bytes;
+        public final int previousRevision; // 0 for an unreferenced blob
+        private final int highest, activeRevision, rollbackRevision;
+        private Retirement(String sha256, long bytes, int previousRevision, State state) {
+            this.sha256 = sha256; this.bytes = bytes; this.previousRevision = previousRevision;
+            highest = state == null ? 0 : state.highest;
+            activeRevision = state == null ? 0 : state.active.revision;
+            rollbackRevision = state == null || state.previous == null ? 0 : state.previous.revision;
+        }
+        private boolean same(Retirement other) {
+            return sha256.equals(other.sha256) && bytes == other.bytes && previousRevision == other.previousRevision
+                && highest == other.highest && activeRevision == other.activeRevision && rollbackRevision == other.rollbackRevision;
+        }
+    }
+    public static final class RetirementResult {
+        public final boolean rollbackRemoved, fileDeleted;
+        private RetirementResult(boolean rollbackRemoved, boolean fileDeleted) {
+            this.rollbackRemoved = rollbackRemoved; this.fileDeleted = fileDeleted;
+        }
+    }
+    private static java.util.List<Retirement> candidates(Path dir, State state) throws IOException {
+        java.util.List<Retirement> result = new java.util.ArrayList<>();
+        if (Files.notExists(dir, LinkOption.NOFOLLOW_LINKS)) return result;
+        if (!Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Unsafe model directory");
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.task")) {
+            int count = 0;
+            for (Path file : files) {
+                if (++count > 32) throw new IOException("Unexpected model directory contents");
+                String name = file.getFileName().toString();
+                if (!name.matches("[a-f0-9]{64}\\.task") || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) continue;
+                String digest = name.substring(0, 64);
+                if (state != null && state.active.sha256.equals(digest)) continue;
+                int prior = state != null && state.previous != null && state.previous.sha256.equals(digest) ? state.previous.revision : 0;
+                result.add(new Retirement(digest, Files.size(file), prior, state));
+            }
+        }
+        result.sort(java.util.Comparator.comparing(r -> r.sha256));
+        return java.util.Collections.unmodifiableList(result);
+    }
+    public static synchronized java.util.List<Retirement> retirementCandidates(Path dir, PublicKey key, BooleanSupplier allowed)
+            throws IOException, GeneralSecurityException {
+        check(allowed);
+        return candidates(dir, read(dir, key));
+    }
+    public static synchronized RetirementResult retire(Path dir, Retirement reviewed, PublicKey key, BooleanSupplier allowed)
+            throws IOException, GeneralSecurityException {
+        check(allowed);
+        State state = read(dir, key);
+        Retirement current = null;
+        for (Retirement candidate : candidates(dir, state)) if (candidate.same(reviewed)) { current = candidate; break; }
+        if (current == null) throw new IOException("Model selection changed; review again");
+        boolean removeRollback = current.previousRevision != 0;
+        // Remove the rollback reference first. Never leave a signed active state pointing at deleted bytes.
+        // If deletion fails after this commit, the orphan can be reviewed again; highest revision remains intact.
+        if (removeRollback) write(dir, new State(state.highest, state.active, null), allowed);
+        if (!allowed.getAsBoolean()) return new RetirementResult(removeRollback, false);
+        Path file = dir.resolve(current.sha256 + ".task");
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) return new RetirementResult(removeRollback, false);
+        try {
+            return new RetirementResult(removeRollback, Files.deleteIfExists(file));
+        } catch (IOException e) {
+            return new RetirementResult(removeRollback, false);
+        }
+    }
 }

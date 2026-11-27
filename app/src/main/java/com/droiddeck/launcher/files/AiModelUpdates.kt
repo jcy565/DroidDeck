@@ -34,8 +34,10 @@ internal object AiModelUpdates {
 
     fun install(directory: File, pending: Pending, input: InputStream, allowed: () -> Boolean): ModelRelease.Manifest {
         AiHostBridge.requireCompatible()
-        return ModelRelease.install(directory.toPath(), pending.encoded, input, AiGlossaryUpdates.key(),
-            AiHostBridge.HOST_API, RUNTIME_API) { allowed() }
+        return LocalAgentRuntime.withIdleModelStore {
+            ModelRelease.install(directory.toPath(), pending.encoded, input, AiGlossaryUpdates.key(),
+                AiHostBridge.HOST_API, RUNTIME_API) { allowed() }
+        }
     }
 
     fun verifiedActive(directory: File, allowed: () -> Boolean): File {
@@ -46,7 +48,24 @@ internal object AiModelUpdates {
 
     fun rollback(directory: File, allowed: () -> Boolean): ModelRelease.Manifest {
         AiHostBridge.requireCompatible()
-        return ModelRelease.rollback(directory.toPath(), AiGlossaryUpdates.key(),
-            AiHostBridge.HOST_API, RUNTIME_API) { allowed() }
+        return LocalAgentRuntime.withIdleModelStore {
+            ModelRelease.rollback(directory.toPath(), AiGlossaryUpdates.key(),
+                AiHostBridge.HOST_API, RUNTIME_API) { allowed() }
+        }
+    }
+
+    fun retirementCandidates(directory: File, allowed: () -> Boolean): List<ModelRelease.Retirement> {
+        AiHostBridge.requireCompatible()
+        return LocalAgentRuntime.withIdleModelStore {
+            ModelRelease.retirementCandidates(directory.toPath(), AiGlossaryUpdates.key()) { allowed() }
+        }
+    }
+
+    fun retire(directory: File, reviewed: ModelRelease.Retirement,
+        allowed: () -> Boolean): ModelRelease.RetirementResult {
+        AiHostBridge.requireCompatible()
+        return LocalAgentRuntime.withIdleModelStore {
+            ModelRelease.retire(directory.toPath(), reviewed, AiGlossaryUpdates.key()) { allowed() }
+        }
     }
 }

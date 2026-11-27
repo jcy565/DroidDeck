@@ -16,11 +16,21 @@ internal object LocalAgentRuntime {
     private const val OUTPUT_RESERVE = 1024
     private val occupied = AtomicBoolean(false)
 
-    fun open(context: Context, file: File, allowed: () -> Boolean): GameAgentModel {
+    fun <T> withIdleModelStore(work: () -> T): T {
+        check(occupied.compareAndSet(false, true)) { "AI 모델 사용 중에는 모델 저장소를 변경할 수 없습니다." }
+        return try { work() } finally { occupied.set(false) }
+    }
+
+    fun open(context: Context, file: File, allowed: () -> Boolean): GameAgentModel =
+        openSelected(context, allowed) { file }
+
+    fun openSelected(context: Context, allowed: () -> Boolean, select: () -> File): GameAgentModel {
         check(allowed()) { "AI 작업을 시작하기 위한 메모리가 부족하거나 게임이 실행 중입니다." }
         check(occupied.compareAndSet(false, true)) { "이전 AI 모델이 아직 종료되지 않았습니다." }
         var engine: LlmInference? = null
         try {
+            val file = select()
+            check(allowed())
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(file.absolutePath)
                 .setMaxTokens(CONTEXT_TOKENS)

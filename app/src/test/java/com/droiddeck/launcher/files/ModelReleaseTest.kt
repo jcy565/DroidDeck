@@ -59,4 +59,43 @@ class ModelReleaseTest {
         ModelRelease.install(dir, m2, second.inputStream(), key.public, 1, 1) { true }
         assertTrue(runCatching { ModelRelease.install(dir, manifest(3, byteArrayOf(8)), byteArrayOf(8).inputStream(), key.public, 1, 1) { true } }.isFailure)
     }
+
+    @Test fun retirementProtectsActiveModelAndAllowsNextRevision() {
+        val dir = folder.newFolder().toPath()
+        val m1 = manifest(1, first)
+        val m2 = manifest(2, second)
+        val third = byteArrayOf(8, 9)
+        ModelRelease.install(dir, m1, first.inputStream(), key.public, 1, 1) { true }
+        assertTrue(ModelRelease.retirementCandidates(dir, key.public) { true }.isEmpty())
+        ModelRelease.install(dir, m2, second.inputStream(), key.public, 1, 1) { true }
+        val reviewed = ModelRelease.retirementCandidates(dir, key.public) { true }.single()
+        assertEquals(1, reviewed.previousRevision)
+        ModelRelease.rollback(dir, key.public, 1, 1) { true }
+        assertTrue(runCatching { ModelRelease.retire(dir, reviewed, key.public) { true } }.isFailure)
+        ModelRelease.rollback(dir, key.public, 1, 1) { true }
+        val fresh = ModelRelease.retirementCandidates(dir, key.public) { true }.single()
+        val result = ModelRelease.retire(dir, fresh, key.public) { true }
+        assertTrue(result.rollbackRemoved)
+        assertTrue(result.fileDeleted)
+        assertEquals(2, ModelRelease.active(dir, key.public, 1, 1)!!.revision)
+        assertTrue(runCatching { ModelRelease.rollback(dir, key.public, 1, 1) { true } }.isFailure)
+        ModelRelease.install(dir, manifest(3, third), third.inputStream(), key.public, 1, 1) { true }
+        assertEquals(3, ModelRelease.active(dir, key.public, 1, 1)!!.revision)
+        assertEquals(2, ModelRelease.retirementCandidates(dir, key.public) { true }.single().previousRevision)
+    }
+
+    @Test fun interruptedRetirementLeavesReviewableOrphan() {
+        val dir = folder.newFolder().toPath()
+        ModelRelease.install(dir, manifest(1, first), first.inputStream(), key.public, 1, 1) { true }
+        ModelRelease.install(dir, manifest(2, second), second.inputStream(), key.public, 1, 1) { true }
+        val reviewed = ModelRelease.retirementCandidates(dir, key.public) { true }.single()
+        var calls = 0
+        val result = ModelRelease.retire(dir, reviewed, key.public) { ++calls < 4 }
+        assertTrue(result.rollbackRemoved)
+        assertFalse(result.fileDeleted)
+        val orphan = ModelRelease.retirementCandidates(dir, key.public) { true }.single()
+        assertEquals(0, orphan.previousRevision)
+        assertTrue(ModelRelease.retire(dir, orphan, key.public) { true }.fileDeleted)
+        assertEquals(2, ModelRelease.active(dir, key.public, 1, 1)!!.revision)
+    }
 }
