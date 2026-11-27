@@ -5,7 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class InstalledGameVersionTest {
-    private fun manifest(fields: String) = "\"AppState\"\n{\n$fields\n}"
+    private fun manifest(fields: String, state: String? = "4") =
+        "\"AppState\"\n{\n$fields\n" + (state?.let { "\"StateFlags\" \"$it\"\n" } ?: "") + "}"
 
     @Test fun readsInstalledBuildForMatchingApp() {
         assertEquals("12345", InstalledGameVersion.steamBuildId(
@@ -32,6 +33,19 @@ class InstalledGameVersionTest {
         for (bad in listOf("0", "", "-1", "abc", "9".repeat(21))) {
             assertNull(InstalledGameVersion.steamBuildId(manifest("\"appid\" \"620\"\n\"buildid\" \"$bad\""), 620))
         }
+    }
+
+    @Test fun onlyUnambiguousFullyInstalledStateHasVersion() {
+        val fields = "\"appid\" \"620\"\n\"buildid\" \"12345\""
+        for (state in listOf(null, "0", "2", "6", "1028", "4.0", "04", "")) {
+            assertNull(InstalledGameVersion.steamBuildId(manifest(fields, state), 620))
+        }
+        assertNull(InstalledGameVersion.steamBuildId(manifest("$fields\n\"stateflags\" \"4\""), 620))
+        assertNull(InstalledGameVersion.steamBuildId(manifest("$fields\n\"BUILDID\" \"999\""), 620))
+        assertNull(InstalledGameVersion.steamBuildId(
+            manifest("$fields\n\"InstalledDepots\"\n{\n\"StateFlags\" \"4\"\n}", null), 620))
+        assertEquals("12345", InstalledGameVersion.steamBuildId(
+            manifest("$fields\n\"InstalledDepots\"\n{\n\"StateFlags\" \"6\"\n}"), 620))
     }
 
     @Test fun normalizesOnlyBoundedStoreVersions() {
