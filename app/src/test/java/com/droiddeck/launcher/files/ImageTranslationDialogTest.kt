@@ -45,6 +45,18 @@ class ImageTranslationDialogTest {
         compose.runOnIdle { assertEquals(1, closes) }
     }
 
+    @Test fun editingTheSourceInvalidatesTranslationOnlyWhenTheTextChanges() {
+        openEditor()
+        val source = compose.onNode(hasSetTextAction() and hasText("추출한 글자 · 수정 가능"))
+        val translation = compose.onNode(hasSetTextAction() and hasText("한국어 번역문 붙여넣기 · 수정 가능"))
+        source.performScrollTo().performTextReplacement("Start")
+        translation.performScrollTo().performTextReplacement("시작")
+        source.performScrollTo().performTextReplacement("Start")
+        compose.onNode(hasSetTextAction() and hasText("시작")).assertExists()
+        source.performTextReplacement("Continue")
+        compose.onNode(hasSetTextAction() and hasText("시작")).assertDoesNotExist()
+    }
+
     @Test fun undoingAnEditAllowsClosingWithoutDiscardConfirmation() {
         openEditor()
         val translation = compose.onNode(hasSetTextAction() and hasText("한국어 번역문 붙여넣기 · 수정 가능"))
