@@ -24,3 +24,7 @@ References:
 Next: select a license-compatible local model/adapter, confirm real inference, connect an explicit
 UI operation with cancellation and stale-source checks, test on actual hardware, and measure
 memory/storage/translation quality. A fake provider is only a test fixture, never a user-facing engine.
+
+## Implemented local glossary provider
+
+MenuTranslationProvider uses an original fixed glossary for exact common English UI phrases (case-insensitive). No model, SDK, network, or automatic game-file writes. Unknown phrases stay unchanged. The dialog explicitly offers up to 25 rows per click, preserves existing edits, and rechecks the source revision and session/memory budget before committing a draft. Resetting the cursor does not clear the draft. User review remains necessary because exact phrases can be context-dependent. This is not neural translation. A further candidate is Helsinki-NLP/opus-mt-tc-big-en-ko (Marian English→Korean, also listed in Qualcomm AI Hub); actual model license, tokenizer, runtime, resource requirements and inference must still be verified before shipping. Reference: https://aihub.qualcomm.com/mobile/models/opus_mt_en_ko

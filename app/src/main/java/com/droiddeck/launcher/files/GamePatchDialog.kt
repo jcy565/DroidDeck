@@ -39,6 +39,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var translationSource by remember(file) { mutableStateOf<String?>(null) }
     var translationRows by remember(file) { mutableStateOf(emptyList<GamePatchAuthor.Row>()) }
     var translationIndex by remember(file) { mutableIntStateOf(0) }
+    var menuCursor by remember(file) { mutableIntStateOf(0) }
     var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
     var pendingExport by remember(file) { mutableStateOf<ByteArray?>(null) }
 
@@ -180,7 +181,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 } }) { Text("간단한 모드 제작") }
             }
             if (translationTable) {
-                Text("파일 기반 한글 패치 제작: id/text TSV·CSV, 문자열 JSON 사전 · 최대 ${TranslationLimits.MAX_ROWS}문장 · 자동 파일 번역 미지원")
+                Text("파일 기반 한글 패치 제작: id/text TSV·CSV, 문자열 JSON 사전 · 최대 ${TranslationLimits.MAX_ROWS}문장 · 메뉴 사전 번역 지원, 신경망 번역 미지원")
                 Text("화면 실시간 번역은 지원하지 않습니다. 초안을 저장해 나중에 이어서 작업할 수 있습니다.")
                 TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
@@ -188,6 +189,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     translationRows = emptyList()
                     translations = emptyMap()
                     translationIndex = 0
+                    menuCursor = 0
                     val source = withContext(Dispatchers.IO) {
                         check(GameplayBudget.allowsOptionalAnalysis(context))
                         original()
@@ -208,6 +210,30 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
                     Text(row.text)
                     Text("입력한 번역: ${translations.size} / ${translationRows.size} (최종 검증 전)")
+                    Text("오프라인 메뉴 사전: 알려진 영어 메뉴 문구만 번역합니다. 일반 대사 및 신경망 번역은 지원하지 않습니다.")
+                    Text("메뉴 사전 처리 위치: ${menuCursor} / ${translationRows.size}")
+                    TextButton(enabled = !busy && pendingExport == null && menuCursor < translationRows.size,
+                        onClick = { runAction {
+                            val source = requireNotNull(translationSource)
+                            val edits = translations.toMap()
+                            val start = menuCursor
+                            val result = withContext(Dispatchers.IO) {
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                require(original() == source) { "원본이 변경됐습니다. 다시 추출하세요." }
+                                val result = TranslationEngine.run(source, edits, startIndex = start,
+                                    allowed = { GameplayBudget.allowsOptionalAnalysis(context) },
+                                    providerFactory = { MenuTranslationProvider() })
+                                check(GameplayBudget.allowsOptionalAnalysis(context)) { "게임 실행 또는 메모리 상태 변경으로 반영을 보류했습니다." }
+                                require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
+                                result
+                            }
+                            translations = result.edits
+                            menuCursor = result.nextIndex
+                            preview = null
+                            message = "메뉴 사전 번역 ${result.added}개, 미지원·검증 실패 ${result.rejected}개, 기존 번역 ${result.skipped}개. 문맥을 검토하고 초안을 저장하세요."
+                        } }) { Text("다음 최대 25문장 메뉴 번역") }
+                    TextButton(enabled = !busy && pendingExport == null && menuCursor > 0,
+                        onClick = { menuCursor = 0 }) { Text("메뉴 사전 처리 위치 초기화") }
                     TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
                         val source = requireNotNull(translationSource)
                         val edits = translations.toMap()
