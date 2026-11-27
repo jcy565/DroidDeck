@@ -466,4 +466,78 @@ class SettingsBackupTest {
         assertFalse(prefs.contains(key))
         assertNull(SettingsBackup.review(context, key))
     }
+    @Test fun archiveDistinguishesMissingCurrentValueFromRealAbsence() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        assertTrue(prefs.getBoolean("ai.archive.$key.currentPresent", false))
+        prefs.edit().remove("ai.archive.$key.current").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun archivePreservesGenuinelyAbsentCurrentValue() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().remove(key).commit()
+        val conflict = requireNotNull(SettingsBackup.review(context, key))
+        assertNull(conflict.current)
+        SettingsBackup.keepCurrentAndArchive(context, conflict, true)
+        assertTrue(prefs.contains("ai.archive.$key.currentPresent"))
+        assertFalse(prefs.getBoolean("ai.archive.$key.currentPresent", true))
+        assertFalse(prefs.contains("ai.archive.$key.current"))
+        assertEquals(conflict, SettingsBackup.archivedReview(context, key))
+        assertFalse(prefs.contains(key))
+    }
+
+    @Test fun olderArchiveWithoutCurrentPresenceMarkerIsPreservedButUnverified() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().remove("ai.archive.$key.currentPresent").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertEquals(before, prefs.all)
+        val next = SettingsBackup.apply(context, key, "1280x720", "1600x900")
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, next, true)
+        }
+        assertEquals(next, SettingsBackup.review(context, key))
+    }
+
+    @Test fun orphanedArchivePresenceMarkerBlocksOverwrite() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putBoolean("ai.archive.$key.currentPresent", false).commit()
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        }
+        assertEquals(before, prefs.all)
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+    }
+
+    @Test fun wrongArchivePresenceMarkerTypeFailsClosed() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().putString("ai.archive.$key.currentPresent", "true").commit()
+        val before = prefs.all
+        val entry = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry.archiveOccupied)
+        assertNull(entry.archived)
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun archiveCannotClaimAbsenceWhenCurrentValueExists() {
+        val approved = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, approved, true)
+        prefs.edit().putBoolean("ai.archive.$key.currentPresent", false).commit()
+        val before = prefs.all
+        assertNull(SettingsBackup.archivedReview(context, key))
+        assertEquals(before, prefs.all)
+    }
 }

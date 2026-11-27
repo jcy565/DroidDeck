@@ -72,7 +72,7 @@ internal fun SettingsRecoveryReviewPanel() {
                 if (entry.archiveOccupied) {
                     Text("이전 기록 보관됨: 덮어쓰기 금지")
                     val archived = entry.archived
-                    if (archived == null) Text("보관 기록의 형식이 올바르지 않습니다. 원본은 유지합니다.")
+                    if (archived == null) Text("보관 기록이 이전 형식이거나 불완전하여 정확한 값을 확인할 수 없습니다. 원본은 유지합니다.")
                     else Text("보관 당시 이전: ${display(archived.before)} / 적용: ${display(archived.applied)} / 현재: ${display(archived.current)}")
                 }
             }

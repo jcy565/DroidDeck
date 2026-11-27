@@ -23,7 +23,7 @@ internal object SettingsBackup {
     )
 
     private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
-    private val archiveFields = recordFields + listOf("current", "revision")
+    private val archiveFields = recordFields + listOf("current", "currentPresent", "revision")
     private val supportedKeys = listOf("displayResolution.steam", "displayResolution.desktop", "bridgeProtonDxvk")
 
     private fun prefs(context: Context) = context.getSharedPreferences("session", Context.MODE_PRIVATE)
@@ -162,8 +162,7 @@ internal object SettingsBackup {
             }
             val archive = archivePrefix(key)
             val archiveOccupied = archiveFields.any { all.containsKey(archive + it) }
-            val archived = if (archiveOccupied) readReview(key, all, archive, archive + "current", archive + "revision")
-                ?.takeIf { it.recordId != null } else null
+            val archived = if (archiveOccupied) readArchived(key, all) else null
             ReviewEntry(key, status, review, archiveOccupied, archived)
         }
     }
@@ -227,6 +226,8 @@ internal object SettingsBackup {
                 }
                 e.remove(b + field)
             }
+            // Distinguish intentionally absent values from missing/corrupt archive fields.
+            e.putBoolean(archive + "currentPresent", all.containsKey(key))
             when (val value = all[key]) {
                 null -> check(!all.containsKey(key))
                 is String -> e.putString(archive + "current", value)
@@ -241,8 +242,15 @@ internal object SettingsBackup {
     /** Historical snapshot only, not eligible for automatic restoration. */
     @Synchronized
     fun archivedReview(context: Context, key: String): RecoveryReview? {
+        return readArchived(key, prefs(context).all)
+    }
+
+    private fun readArchived(key: String, all: Map<String, *>): RecoveryReview? {
         val archive = archivePrefix(key)
-        return readReview(key, prefs(context).all, archive, archive + "current", archive + "revision")
+        // Preserve legacy archives without guessing whether a missing value was absent.
+        val present = all[archive + "currentPresent"] as? Boolean ?: return null
+        if (present != all.containsKey(archive + "current")) return null
+        return readReview(key, all, archive, archive + "current", archive + "revision")
             ?.takeIf { it.recordId != null }
     }
 
