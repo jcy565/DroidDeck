@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
@@ -14,12 +16,12 @@ import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-/** Optional bundled Latin-script OCR. Call from an IO dispatcher. */
+/** Optional bundled multilingual OCR. Call from an IO dispatcher. */
 internal object ImageOcrRuntime {
     const val enabled = true
     private val occupied = AtomicBoolean(false)
 
-    suspend fun recognize(file: File, allowed: () -> Boolean): String {
+    suspend fun recognize(file: File, script: ImageTranslationInput.Script, allowed: () -> Boolean): String {
         check(allowed()) { "게임 실행 또는 메모리 상태로 이미지 인식을 보류했습니다." }
         check(occupied.compareAndSet(false, true)) { "이전 이미지 인식 작업이 아직 종료되지 않았습니다." }
         try {
@@ -39,7 +41,11 @@ internal object ImageOcrRuntime {
             try {
                 require(bitmap.width.toLong() * bitmap.height <= 4_194_304L)
                 check(allowed())
-                val client = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                val client = when (script) {
+                    ImageTranslationInput.Script.LATIN -> TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                    ImageTranslationInput.Script.JAPANESE -> TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+                    ImageTranslationInput.Script.CHINESE -> TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+                }
                 val recognized = try {
                     // Keep bitmap/client alive until the native task finishes, even if the UI closes.
                     suspendCoroutine<String> { continuation ->
