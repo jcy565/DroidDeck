@@ -8,6 +8,10 @@ internal object ImageTranslationInput {
         LATIN("영어·라틴 문자"), JAPANESE("일본어"), CHINESE("중국어")
     }
 
+    enum class Rotation(val degrees: Int) {
+        NONE(0), CLOCKWISE_90(90), CLOCKWISE_180(180), CLOCKWISE_270(270)
+    }
+
     val extensions = setOf("png", "jpg", "jpeg", "webp")
     const val MAX_BYTES = 8 * 1024 * 1024
     const val MAX_TEXT = 6000
