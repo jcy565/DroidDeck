@@ -32,7 +32,7 @@ class PackDownloadsTest(unittest.TestCase):
         tool.write_text('#!/usr/bin/env python3\nimport json,os,shutil,sys\n'
                         'args=sys.argv[1:]\n'
                         'with open(os.environ["CURL_LOG"],"a") as f: f.write(json.dumps(args)+"\\n")\n'
-                        'if args[-1] == os.environ.get("FAIL_URL"): sys.exit(22)\n'
+                        'if args[-1] in os.environ.get("FAIL_URL", "").split("|"): sys.exit(22)\n'
                         'shutil.copyfile(os.environ["REMOTE"],args[args.index("-o")+1])\n')
         tool.chmod(0o755)
         self.env = dict(os.environ, DROIDDECK_PACK_CACHE=str(self.cache), CURL_LOG=str(self.log),
@@ -106,6 +106,36 @@ class PackDownloadsTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.destination.exists())
         self.assertEqual(list(self.cache.iterdir()), [])
+
+    def test_both_maven_endpoints_failed_uses_pinned_mirror(self):
+        primary = 'https://repo1.maven.org/maven2/example/input.aar'
+        alternate = 'https://repo.maven.apache.org/maven2/example/input.aar'
+        mirror = 'https://maven-central.storage-download.googleapis.com/maven2/example/input.aar'
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL=primary + '|' + alternate))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([json.loads(line)[-1] for line in self.log.read_text().splitlines()],
+                         [primary, alternate, mirror])
+        self.assertEqual(self.destination.read_bytes(), b'verified input')
+
+    def test_mirror_checksum_mismatch_never_published(self):
+        primary = 'https://repo.maven.apache.org/maven2/example/input.aar'
+        alternate = 'https://repo1.maven.org/maven2/example/input.aar'
+        self.remote.write_bytes(b'tampered mirror content')
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL=primary + '|' + alternate))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(list(self.cache.iterdir()), [])
+        self.assertEqual(len(self.log.read_text().splitlines()), 3)
+
+    def test_all_maven_endpoints_failed_never_published(self):
+        primary = 'https://repo1.maven.org/maven2/example/input.aar'
+        alternate = 'https://repo.maven.apache.org/maven2/example/input.aar'
+        mirror = 'https://maven-central.storage-download.googleapis.com/maven2/example/input.aar'
+        result = self.fetch(url=primary, env=dict(self.env, FAIL_URL='|'.join([primary, alternate, mirror])))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(list(self.cache.iterdir()), [])
+        self.assertEqual(len(self.log.read_text().splitlines()), 3)
 
     def test_unrelated_endpoint_failure_does_not_fallback(self):
         primary = 'https://example.test/pinned'

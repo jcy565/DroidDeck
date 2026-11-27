@@ -560,8 +560,9 @@ jobs:
           name: xbox-arm64
           path: app/src/main/assets/linuxfs/usr/local/lib/droiddeck-xbox
 
-      - name: Cache checksum-pinned pack inputs
-        uses: actions/cache@v4
+      - name: Restore checksum-pinned pack inputs
+        id: pack-inputs
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/droiddeck-pack-inputs
@@ -572,6 +573,14 @@ jobs:
         run: |
           python3 tools/powervr/fetch.py
           bash tools/packs/build.sh app/build/packs
+      - name: Save verified pack inputs before Android tests
+        if: steps.pack-inputs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/droiddeck-pack-inputs
+            ~/.cache/droiddeck-build
+          key: ${{ steps.pack-inputs.outputs.cache-primary-key }}
 
       - name: Pin the Syncthing source
         id: syncthing-src

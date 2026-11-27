@@ -23,8 +23,9 @@ else
         curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 --retry-max-time 240 \
             -o "$part" "$1"
     }
-    # Maven Central has two official endpoints for the same immutable artifacts.
+    # Maven Central has two endpoints plus a Google Cloud hosted mirror.
     # Fall back only on transport failure; the pinned digest is still mandatory.
+    mirror=""
     case "$url" in
         https://repo1.maven.org/maven2/*)
             alternate="https://repo.maven.apache.org/maven2/${url#https://repo1.maven.org/maven2/}" ;;
@@ -32,11 +33,18 @@ else
             alternate="https://repo1.maven.org/maven2/${url#https://repo.maven.apache.org/maven2/}" ;;
         *) alternate="" ;;
     esac
+    if [ -n "$alternate" ]; then
+        mirror="https://maven-central.storage-download.googleapis.com/maven2/${url#*/maven2/}"
+    fi
     if ! download "$url"; then
         [ -n "$alternate" ] || { echo "Pack input download failed: $url" >&2; exit 1; }
         echo "Maven Central transport failed; trying alternate endpoint: $alternate" >&2
         : > "$part"
-        download "$alternate" || { echo "Pack input download failed at both Maven endpoints" >&2; exit 1; }
+        if ! download "$alternate"; then
+            echo "Both Maven Central endpoints failed; trying Google Cloud mirror: $mirror" >&2
+            : > "$part"
+            download "$mirror" || { echo "Pack input download failed at all Maven endpoints" >&2; exit 1; }
+        fi
     fi
     verify "$part" || { echo "Checksum mismatch for $url" >&2; exit 1; }
     if [ -d "$kept" ]; then
