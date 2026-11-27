@@ -658,34 +658,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/robolectric
-          key: robolectric-prefetch-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/build.gradle') }}
+          key: robolectric-prefetch-v3-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/ci/prepare-robolectric.sh') }}
+          restore-keys: |
+            robolectric-prefetch-v3-${{ runner.os }}-${{ runner.arch }}-
+            robolectric-prefetch-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Prepare Robolectric runtime dependencies
-        run: |
-          set -euo pipefail
-          for version in 9-robolectric-4913185-2-i7 13-robolectric-9030017-i7 14-robolectric-10818077-i7; do
-            artifact=android-all-instrumented
-            dir="$HOME/.m2/repository/org/robolectric/$artifact/$version"
-            mkdir -p "$dir"
-            base="https://repo.maven.apache.org/maven2/org/robolectric/$artifact/$version/$artifact-$version"
-            for ext in pom jar; do
-              file="$dir/$artifact-$version.$ext"
-              if [ -s "$file" ] && [ -s "$file.sha512" ] && (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512")" "$(basename "$file")" | sha512sum -c --status); then
-                continue
-              fi
-              echo "Preparing $artifact:$version ($ext)"
-              download() {
-                local url="$1" dest="$2"
-                curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --retry-max-time 600 --connect-timeout 30 --max-time 300 "$url" -o "$dest" ||
-                  curl --fail --silent --show-error --location --retry 3 --retry-all-errors --retry-delay 15 --retry-max-time 300 --connect-timeout 30 --max-time 300 "${url/https:\/\/repo.maven.apache.org\/maven2/https:\/\/repo1.maven.org\/maven2}" -o "$dest"
-              }
-              download "$base.$ext.sha512" "$file.sha512.tmp"
-              download "$base.$ext" "$file.tmp"
-              (cd "$dir" && printf '%s  %s\n' "$(cat "$file.sha512.tmp")" "$(basename "$file.tmp")" | sha512sum -c -)
-              mv "$file.tmp" "$file"
-              mv "$file.sha512.tmp" "$file.sha512"
-            done
-          done
+        run: bash tools/ci/prepare-robolectric.sh
 
       - name: Save prepared Robolectric dependencies
         if: steps.robolectric-cache.outputs.cache-hit != 'true'
