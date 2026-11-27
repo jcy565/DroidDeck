@@ -31,7 +31,9 @@ internal object ImagePatchTransaction {
     }
     private fun readJournal(b: ImagePatchBackup.Backup): Journal {
         val file = journalFile(b)
-        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return Journal(Phase.PREPARED, 0)
+        // An inaccessible journal is not equivalent to a missing journal. Fail closed.
+        if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return Journal(Phase.PREPARED, 0)
+        require(Files.exists(file.toPath(), NOFOLLOW_LINKS)) { "작업 기록의 존재 여부를 확인할 수 없습니다." }
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS) && file.length() in 1L..512L)
         val text = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { input ->
             val bytes = ByteArray(513)
