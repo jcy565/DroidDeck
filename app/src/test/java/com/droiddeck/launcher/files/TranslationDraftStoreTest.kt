@@ -28,6 +28,27 @@ class TranslationDraftStoreTest {
         assertNull(TranslationDraftStore.load(dir, "/game/strings.tsv", source + "!"))
     }
 
+    @Test fun refusesNonregularDraftWithoutReplacingIt() {
+        val dir = temporary.newFolder()
+        val target = "/game/strings.tsv"
+        val edits = mapOf("bye" to "안녕")
+        TranslationDraftStore.save(dir, target, source, edits)
+        val file = dir.listFiles()!!.single()
+        assertTrue(file.delete())
+        assertTrue(file.mkdir())
+        assertTrue(runCatching { TranslationDraftStore.load(dir, target, source) }.isFailure)
+        assertTrue(runCatching { TranslationDraftStore.save(dir, target, source, edits) }.isFailure)
+        assertTrue(file.isDirectory)
+        assertTrue(file.delete())
+        val missing = java.io.File(dir, "missing")
+        java.nio.file.Files.createSymbolicLink(file.toPath(), missing.toPath())
+        assertTrue(runCatching { TranslationDraftStore.load(dir, target, source) }.isFailure)
+        assertTrue(runCatching { TranslationDraftStore.save(dir, target, source, edits) }.isFailure)
+        assertTrue(java.nio.file.Files.isSymbolicLink(file.toPath()))
+        assertFalse(missing.exists())
+        assertEquals(1, dir.listFiles()!!.size)
+    }
+
     @Test fun invalidIdsAndCorruptedDraftsFailClosed() {
         val dir = temporary.newFolder()
         assertTrue(runCatching {
