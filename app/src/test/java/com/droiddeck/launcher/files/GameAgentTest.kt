@@ -46,13 +46,34 @@ class GameAgentTest {
         val model = Model { output }
         val result = GameAgent.run(request, { true }, { model }) as GameAgent.Result.Translation
         assertEquals(mapOf("id1" to "기존 {name}", "id2" to "안녕 {name}"), result.edits)
-        assertEquals(5, result.next)
+        assertEquals(2, result.next)
         assertFalse(model.prompt.contains("row.id1"))
         assertFalse(model.prompt.contains("row.id6"))
         for (invalid in listOf(output.replace("row.id2", "row.id6"),
             output.replace("row.id2", "row.id1"), output.replace("안녕 {name}", "안녕"))) {
             assertTrue(runCatching { GameAgent.run(request, { true }, { Model { invalid } }) }.isFailure)
         }
+    }
+
+    @Test fun translationWrapsPastEditedRowsAndRetriesPartialReplies() = runBlocking {
+        val source = (1..8).joinToString("\n", "id\ttext\n") { "id$it\tHello {name}" }
+        val existing = (3..7).associate { "id$it" to "기존 {name}" }
+        val request = GameAgent.Request("한글화", "tsv", source, existing, start = 2)
+        val model = Model { """{"action":"translate","explanation":"번역","row.id8":"안녕 {name}","row.id1":"Hello {name}"}""" }
+        val result = GameAgent.run(request, { true }, { model }) as GameAgent.Result.Translation
+        assertEquals(existing + ("id8" to "안녕 {name}"), result.edits)
+        assertEquals(0, result.next)
+        assertTrue(model.prompt.contains("row.id8"))
+        assertTrue(model.prompt.contains("row.id1"))
+        assertTrue(model.prompt.contains("row.id2"))
+        assertFalse(model.prompt.contains("row.id3"))
+        val resumed = request.copy(existing = result.edits, start = result.next)
+        val last = GameAgent.run(resumed, { true }, { Model {
+            """{"action":"translate","explanation":"번역","row.id1":"안녕 {name}","row.id2":"안녕 {name}"}"""
+        } }) as GameAgent.Result.Translation
+        assertEquals(8, last.next)
+        assertEquals(8, last.edits.size)
+        assertTrue(runCatching { GameAgent.externalPrompt(resumed.copy(existing = last.edits), java.util.UUID.randomUUID().toString()) }.isFailure)
     }
 
     @Test fun logAdviceCannotProducePatch() = runBlocking {
