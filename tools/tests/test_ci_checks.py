@@ -186,7 +186,15 @@ esac
 
     def test_ai_ci_worker_recycling_keeps_unfiltered_test_gate(self):
         gradle = (ROOT / 'app/build.gradle').read_text()
-        self.assertIn("if (ciBuild && providers.environmentVariable('GITHUB_REF_NAME').getOrNull()?.startsWith('ai-')) {\n                forkEvery = 10L", gradle)
+        self.assertRegex(
+            gradle,
+            r"if \(ciBuild && providers\.environmentVariable\('GITHUB_REF_NAME'\)"
+            r"\.getOrNull\(\)\?\.startsWith\('ai-'\)\) \{\s*"
+            r"(?://[^\n]*\n\s*)*forkEvery = providers\.environmentVariable"
+            r"\('GITHUB_REF_NAME'\)\.getOrNull\(\) == 'ai-version-integration-next'"
+            r" \? 5L : 10L\s*\}",
+        )
+        self.assertEqual(1, gradle.count("forkEvery ="))
         jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
         step = next(s for s in jobs['build']['steps'] if s.get('id') == 'unit-tests')
         self.assertIn('testReleaseUnitTest', step['run'])
