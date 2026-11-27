@@ -140,6 +140,10 @@ set -eu
 [[ "$2" == --tests ]]
 mkdir -p app/build/test-results/testReleaseUnitTest
 printf '%s\\n' "$3" > app/build/test-results/testReleaseUnitTest/test.xml
+if [[ "$3" == *.BottomScreenBarTest ]]; then
+    printf '%s\\n' "$@" > group-arguments
+    exit 7
+fi
 case "$3" in
     *HeadingLocaleTest*) exit 1 ;;
     *ModeHeaderFocusTest*) exit 0 ;;
@@ -151,6 +155,14 @@ esac
             subprocess.run(['bash', str(script)], cwd=root,
                            env=dict(os.environ, NDK_VERSION='test'), check=True)
             output = root / 'app/build/compose-idle-diagnostics'
+            self.assertEqual((output / 'group-summary.tsv').read_text().splitlines(),
+                             ['test\texit_code', 'component-navigation\t7'])
+            arguments = (root / 'group-arguments').read_text().splitlines()
+            grouped = [arguments[i + 1] for i, arg in enumerate(arguments) if arg == '--tests']
+            self.assertEqual(grouped, ['com.droiddeck.launcher.ui.' + name for name in (
+                'BottomScreenBarTest', 'BottomScreenTypingTest', 'CloudMessageTest',
+                'ComponentDownloadsDrawerTest', 'ComponentsPageProfileTest')])
+            self.assertTrue((output / 'component-navigation/results/test.xml').is_file())
             rows = (output / 'summary.tsv').read_text().splitlines()
             self.assertEqual(rows[0], 'test\\texit_code'.replace('\\t', '\t'))
             expected = [

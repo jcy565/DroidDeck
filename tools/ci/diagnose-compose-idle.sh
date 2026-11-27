@@ -19,13 +19,18 @@ tests=(
 )
 run_case() {
     local test="$1" dest="$2" summary="$3" code=0
+    shift 3
+    local filters=()
+    for selector in "$@"; do
+        filters+=(--tests "$selector")
+    done
     mkdir -p "$dest"
     # A previous diagnostic invocation must not supply this case's XML.
     rm -rf "$dest/results"
     # Full suite artifacts have already been uploaded. Do not mistake an old
     # XML report for the result of this isolated invocation.
     rm -rf app/build/test-results/testReleaseUnitTest app/build/reports/tests/testReleaseUnitTest
-    ./gradlew testReleaseUnitTest --tests "$test" --console=plain --info --stacktrace \
+    ./gradlew testReleaseUnitTest "${filters[@]}" --console=plain --info --stacktrace \
         -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee "$dest/run.log" || code=$?
     printf '%s\t%s\n' "$test" "$code" >> "$summary"
     if [ -d app/build/test-results/testReleaseUnitTest ]; then
@@ -33,9 +38,18 @@ run_case() {
     fi
 }
 
+# Run the five classes observed before and through the second timeout in
+# build 67's worker 52 together. Gradle controls their execution order.
+prefix=com.droiddeck.launcher.ui
+printf 'test\texit_code\n' > "$out/group-summary.tsv"
+run_case component-navigation "$out/component-navigation" "$out/group-summary.tsv" \
+    "$prefix.BottomScreenBarTest" "$prefix.BottomScreenTypingTest" "$prefix.CloudMessageTest" \
+    "$prefix.ComponentDownloadsDrawerTest" "$prefix.ComponentsPageProfileTest"
+cat "$out/group-summary.tsv"
+
 printf 'test\texit_code\n' > "$out/summary.tsv"
 for test in "${tests[@]}"; do
-    run_case "$test" "$out/${test##*.}" "$out/summary.tsv"
+    run_case "$test" "$out/${test##*.}" "$out/summary.tsv" "$test"
 done
 cat "$out/summary.tsv"
 
@@ -48,6 +62,6 @@ classes=(
 )
 printf 'test\texit_code\n' > "$out/class-summary.tsv"
 for test in "${classes[@]}"; do
-    run_case "$test" "$out/class-${test##*.}" "$out/class-summary.tsv"
+    run_case "$test" "$out/class-${test##*.}" "$out/class-summary.tsv" "$test"
 done
 cat "$out/class-summary.tsv"
