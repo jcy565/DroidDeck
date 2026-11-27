@@ -20,9 +20,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.Closeable
 import java.util.Locale
 
-private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 2) {
+internal class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 2), Closeable {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE trial (id INTEGER PRIMARY KEY, game TEXT NOT NULL,
             model TEXT NOT NULL, scene TEXT, gpu TEXT, driver TEXT, proton TEXT, width INTEGER, height INTEGER,

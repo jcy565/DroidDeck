@@ -129,7 +129,7 @@ class StoreGameSidecar(
             o.optJSONObject("extra")?.let { e -> e.keys().forEach { k -> extra[k] = e.optString(k) } }
             return StoreGameSidecar(
                 store, id, title, exe, launcher, workdir = workdir, args = args, env = env,
-                installVersion = o.optString("installVersion", ""),
+                installVersion = if (o.isNull("installVersion")) "" else o.optString("installVersion"),
                 installedAt = o.optLong("installedAt", 0L),
                 cover = o.optString("cover", "").ifEmpty { null },
                 hero = o.optString("hero", "").ifEmpty { null },

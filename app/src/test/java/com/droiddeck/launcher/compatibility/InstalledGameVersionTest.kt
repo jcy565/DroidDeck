@@ -54,6 +54,17 @@ class InstalledGameVersionTest {
         }
     }
 
+    @Test fun oversizedOrDeeplyNestedMetadataLeavesTheVersionUnknown() {
+        val game = temp.newFolder("steamapps", "common", "Example")
+        val manifest = File(temp.root, "steamapps/appmanifest_42.acf")
+        val fields = """"appid" "42" "installdir" "Example" "StateFlags" "4" "buildid" "88""""
+        val nested = "nested { ".repeat(40) + "}".repeat(40)
+        manifest.writeText(""" "AppState" { $fields $nested } """)
+        assertNull(InstalledGameVersion.read("steam:42", game))
+        manifest.writeText(""" "AppState" { $fields } """ + " ".repeat(1_048_576))
+        assertNull(InstalledGameVersion.read("steam:42", game))
+    }
+
     @Test fun storeVersionBelongsToTheInstalledRecordAndSelectedStore() {
         val game = temp.newFolder("store-game")
         val record = StoreGameSidecar(Store.GOG, "123", "Example", "game.exe", installVersion = "1.2")
@@ -62,6 +73,8 @@ class InstalledGameVersionTest {
         assertNull(InstalledGameVersion.read("epic:123", game))
         assertNull(InstalledGameVersion.read("gog:124", game))
         record.copy(state = StoreGameSidecar.STATE_UPDATING).write(game)
+        assertNull(InstalledGameVersion.read("gog:123", game))
+        StoreGameSidecar.file(game).writeText(record.toJson().put("installVersion", org.json.JSONObject.NULL).toString())
         assertNull(InstalledGameVersion.read("gog:123", game))
         for (invalid in listOf("", " ", "v1\nv2", "a".repeat(129))) {
             record.copy(installVersion = invalid).write(game)

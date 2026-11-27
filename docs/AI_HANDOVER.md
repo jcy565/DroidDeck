@@ -180,3 +180,7 @@ Validated in an isolated Android Gradle library with the project Kotlin and Comp
 ### SDK 28 초기 검증 결과
 
 설치 레코드와 Steam 매니페스트 검사를 추가하고, 실제 화면과 SQLite를 함께 실행했다. 첫 실행에서 기존 GameRunHistory.use 호출이 SDK 28에서 ClassCastException을 일으키는 것을 두 경로에서 재현했다. 기록 저장과 화면 조회도 영향을 받는다. GameRunHistory가 Closeable을 명시하도록 수정하고 같은 테스트를 재실행한다.
+
+### 성능 측정 저장 경로와 메타데이터 경계
+
+SDK 28의 동일한 close 문제를 성능 측정 TrialDatabase에서도 수정했다. 첫 측정 저장 후 데이터베이스를 닫고 다시 열어 다음 측정과 비교하는 회귀 테스트가 통과했다. 설치 메타데이터의 JSON null, 과도한 파일 크기와 중첩 깊이도 버전 미확인으로 처리한다. 수정 후 79개 테스트 중 버전 기록 관련 검사는 통과했고, 기존 설정 적용 화면 검사 한 건이 복원 버튼을 기다리다 5초 시간 초과했다. 같은 소스로 전체 검사를 다시 실행 중이다.
