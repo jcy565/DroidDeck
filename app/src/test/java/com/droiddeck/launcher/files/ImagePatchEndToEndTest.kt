@@ -95,4 +95,53 @@ class ImagePatchEndToEndTest {
         record.writeBytes(originalRecord)
         assertEquals(backup, ImagePatchBackup.load(store, game))
     }
+
+    @Test fun realPngRecoveryPreservesUnattemptedAndConflictingRevisions() {
+        val root = temp.newFolder().canonicalFile
+        val output = temp.newFolder()
+        val store = temp.newFolder()
+        val original = png(byteArrayOf(0,0,0,0,-1))
+        val translated = png(byteArrayOf(0,12,34,56,-1))
+        val unknown = png(byteArrayOf(0,99,88,77,-1))
+        val a = File(root, "a.png").apply { writeBytes(original) }
+        val b = File(root, "nested/b.png").apply { parentFile!!.mkdirs(); writeBytes(original) }
+        val sources = listOf("a.png", "nested/b.png").map {
+            ImagePatchArchive.Source(it, hash(original), original.size.toLong(), 1, 1)
+        }
+        val verify: (ByteArray, ImagePatchArchive.Source) -> Unit = { bytes, source ->
+            ImagePatchPngCheck.validate(bytes, source.width, source.height)
+        }
+        val patch = ImagePatchArchive.create(root, output, sources, { translated })
+        ImagePatchBackup.create(store, root, ImagePatchImport.inspect(root, patch.file, verify), verify)
+        assertEquals(ImagePatchReview.Assessment.ORIGINAL_MATCH, ImagePatchTransaction.diagnose(store, root).assessment)
+        assertEquals(ImagePatchTransaction.Phase.APPLIED, ImagePatchTransaction.apply(store, root, patch.file, verify).phase)
+        assertEquals(ImagePatchReview.Assessment.APPLIED_MATCH, ImagePatchTransaction.diagnose(store, root).assessment)
+        b.writeBytes(unknown)
+        assertEquals(listOf("nested/b.png"), ImagePatchTransaction.recover(store, root).conflicts)
+        assertArrayEquals(original, a.readBytes())
+        assertArrayEquals(unknown, b.readBytes())
+        b.writeBytes(original)
+        assertTrue(ImagePatchTransaction.recover(store, root).conflicts.isEmpty())
+
+        var cancelled = false
+        val failure = runCatching {
+            ImagePatchTransaction.apply(store, root, patch.file, verify) {
+                if (cancelled || a.readBytes().contentEquals(translated)) {
+                    cancelled = true
+                    throw CancellationException()
+                }
+            }
+        }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
+        assertEquals(1, ImagePatchTransaction.status(store, root).attempted)
+        b.writeBytes(translated)
+        assertEquals(ImagePatchReview.Assessment.OUTSIDE_JOURNAL, ImagePatchTransaction.diagnose(store, root).assessment)
+        assertEquals(listOf("nested/b.png"), ImagePatchTransaction.recover(store, root).conflicts)
+        assertArrayEquals(original, a.readBytes())
+        assertArrayEquals(translated, b.readBytes())
+        b.writeBytes(original)
+        assertTrue(ImagePatchTransaction.recover(store, root).conflicts.isEmpty())
+        assertEquals(ImagePatchTransaction.Phase.RESTORED, ImagePatchTransaction.status(store, root).phase)
+        assertTrue(root.walk().none { it.name.startsWith(".dd-image-") })
+    }
 }
