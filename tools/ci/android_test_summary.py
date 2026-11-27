@@ -17,6 +17,7 @@ def validated_cases(root):
     else:
         raise ValueError('unexpected XML root')
     cases = []
+    aggregate = dict(failures=0, errors=0, skipped=0)
     for suite in suites:
         rows = suite.findall('testcase')
         if len(list(suite.iter('testcase'))) != len(rows) or suite.findall('testsuite'):
@@ -34,10 +35,14 @@ def validated_cases(root):
                 totals[{'failure': 'failures', 'error': 'errors', 'skipped': 'skipped'}[markers[0]]] += 1
             cases.append(case)
         for key, actual in totals.items():
+            aggregate[key] += actual
             if key in suite.attrib and int(suite.attrib[key]) != actual:
                 raise ValueError(f'inconsistent declared {key} count')
-    if root.tag == 'testsuites' and 'tests' in root.attrib and int(root.attrib['tests']) != len(cases):
-        raise ValueError('inconsistent aggregate testcase count')
+    if root.tag == 'testsuites':
+        aggregate['tests'] = len(cases)
+        for key, actual in aggregate.items():
+            if key in root.attrib and int(root.attrib[key]) != actual:
+                raise ValueError(f'inconsistent aggregate {key} count')
     return cases
 
 
