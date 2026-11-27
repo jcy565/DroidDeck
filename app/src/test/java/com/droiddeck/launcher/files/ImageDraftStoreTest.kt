@@ -79,6 +79,27 @@ class ImageDraftStoreTest {
         assertTrue(runCatching { ImageDraftStore.save(directory, image, id, draft.copy(source = "")) }.isFailure)
     }
 
+    @Test fun deletionPreservesConcurrentEditsOtherRevisionsAndImageBytes() {
+        val image = temporary.newFile("delete.png").apply { writeBytes(byteArrayOf(1)) }
+        val directory = temporary.newFolder("delete-drafts")
+        val first = ImageDraftStore.identity(image)
+        ImageDraftStore.save(directory, image, first, draft)
+        val edited = draft.copy(translated = "수정본")
+        ImageDraftStore.save(directory, image, first, edited)
+        assertFalse(ImageDraftStore.deleteIfUnchanged(directory, image, first, draft))
+        assertEquals(edited, ImageDraftStore.load(directory, first))
+
+        image.writeBytes(byteArrayOf(2))
+        val second = ImageDraftStore.identity(image)
+        ImageDraftStore.save(directory, image, second, draft)
+        assertTrue(runCatching { ImageDraftStore.deleteIfUnchanged(directory, image, first, edited) }.isFailure)
+        assertTrue(ImageDraftStore.deleteIfUnchanged(directory, image, second, draft))
+        assertNull(ImageDraftStore.load(directory, second))
+        assertFalse(ImageDraftStore.deleteIfUnchanged(directory, image, second, draft))
+        assertEquals(edited, ImageDraftStore.load(directory, first))
+        assertArrayEquals(byteArrayOf(2), image.readBytes())
+    }
+
     @Test fun rejectsSymbolicLinkRecordsAndPreservesTheirTargets() {
         val image = temporary.newFile("menu.png").apply { writeBytes(byteArrayOf(1)) }
         val directory = temporary.newFolder("drafts")
@@ -90,6 +111,8 @@ class ImageDraftStoreTest {
         Files.createSymbolicLink(record.toPath(), target.toPath())
         assertTrue(runCatching { ImageDraftStore.load(directory, id) }.isFailure)
         assertTrue(runCatching { ImageDraftStore.save(directory, image, id, draft) }.isFailure)
+        assertTrue(runCatching { ImageDraftStore.deleteIfUnchanged(directory, image, id, draft) }.isFailure)
+        assertTrue(Files.isSymbolicLink(record.toPath()))
         assertEquals("original", target.readText())
     }
 }

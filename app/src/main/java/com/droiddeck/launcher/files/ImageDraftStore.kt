@@ -118,6 +118,13 @@ internal object ImageDraftStore {
     }
 
     @Synchronized
+    fun deleteIfUnchanged(directory: File, image: File, expected: Identity, reviewed: Draft): Boolean {
+        if (load(directory, expected) != reviewed) return false
+        require(identity(image) == expected) { "원본 이미지가 변경됐습니다. 삭제를 중단했습니다." }
+        return Files.deleteIfExists(location(directory, expected).toPath())
+    }
+
+    @Synchronized
     fun load(directory: File, expected: Identity): Draft? {
         val file = location(directory, expected)
         if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null

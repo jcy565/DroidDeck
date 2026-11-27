@@ -30,6 +30,11 @@ import java.io.File
 
 @Composable
 internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStore.Identity? = null, onDismiss: () -> Unit) {
+    key(file, expectedIdentity) { ImageTranslationEditor(file, expectedIdentity, onDismiss) }
+}
+
+@Composable
+private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore.Identity?, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var source by remember(file) { mutableStateOf("") }
@@ -49,11 +54,18 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
     var identity by remember(file) { mutableStateOf<ImageDraftStore.Identity?>(null) }
     val draftDirectory = File(context.noBackupFilesDir, "image-translation-drafts")
     var message by remember(file) { mutableStateOf("") }
+    var pendingDeletion by remember { mutableStateOf<ImageDraftStore.Draft?>(null) }
 
     fun allowed(): Boolean = GameplayBudget.allowsOptionalAnalysis(context)
 
-    fun clearRegions() {
+    fun clearPreview() {
         imagePreview = null
+        originalPreview = null
+        showOriginal = false
+    }
+
+    fun clearRegions() {
+        clearPreview()
         regions = null
         regionEdits = emptyMap()
         regionIndex = 0
@@ -122,7 +134,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                                 }
                                 source = recognized.text
                                 translated = ""
-                                imagePreview = null
+                                clearPreview()
                                 regions = recognized
                                 regionIndex = 0
                                 regionEdits = emptyMap()
@@ -138,10 +150,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                 OutlinedTextField(source, { value ->
                     if (value.length <= ImageTranslationInput.MAX_TEXT) {
                         if (source != value) {
-                            imagePreview = null
-                            regions = null
-                            regionEdits = emptyMap()
-                            regionIndex = 0
+                            clearRegions()
                         }
                         source = value
                         translated = ""
@@ -155,7 +164,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                         Text(region.text)
                         OutlinedTextField(regionEdits[region.id].orEmpty(), { value ->
                             if (value.length <= 1000 && value.none(Char::isISOControl)) {
-                                imagePreview = null
+                                clearPreview()
                                 regionEdits = if (value.isEmpty()) regionEdits - region.id
                                     else regionEdits + (region.id to value)
                             }
@@ -182,18 +191,18 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                         Text("최대 8Mi 픽셀의 원본 해상도 미리보기를 생성합니다. TGA 디코딩 및 출력에는 별도 크기 제한이 있습니다. 단색 또는 가로·세로 그라데이션을 추정하거나 검은 배경으로 덮습니다. 복잡한 무늬 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
                         Text("배경 방식: " + backgroundStyle.label)
                         TextButton(enabled = !busy, onClick = {
-                            imagePreview = null
+                            clearPreview()
                             val choices = ImageOverlayPlan.Background.values()
                             backgroundStyle = choices[(backgroundStyle.ordinal + 1) % choices.size]
                         }) { Text("배경 방식 변경") }
                         Text("글자 색: " + foregroundStyle.label + " · 굵기: " + fontWeight.label)
                         TextButton(enabled = !busy, onClick = {
-                            imagePreview = null
+                            clearPreview()
                             val choices = ImageOverlayPlan.Foreground.values()
                             foregroundStyle = choices[(foregroundStyle.ordinal + 1) % choices.size]
                         }) { Text("글자 색 변경") }
                         TextButton(enabled = !busy, onClick = {
-                            imagePreview = null
+                            clearPreview()
                             fontWeight = if (fontWeight == ImageOverlayPlan.Weight.NORMAL)
                                 ImageOverlayPlan.Weight.BOLD else ImageOverlayPlan.Weight.NORMAL
                         }) { Text("글자 굵기 변경") }
@@ -201,9 +210,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                             val expected = requireNotNull(identity)
                             val edits = regionEdits.toMap()
                             val style = ImageOverlayPlan.Appearance(backgroundStyle, foregroundStyle, fontWeight)
-                            imagePreview = null
-                            originalPreview = null
-                            showOriginal = false
+                            clearPreview()
                             draftAction {
                                 imagePreview = withContext(Dispatchers.IO) {
                                     ImageOverlayRenderer.render(file, expected, result, edits, style) {
@@ -306,7 +313,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                                     TextButton(enabled = !busy, onClick = { review = null }) { Text("DDS 검토본 닫기") }
                                 }
                             }
-                            TextButton(enabled = !busy, onClick = { imagePreview = null; originalPreview = null; showOriginal = false }) { Text("미리보기 닫기") }
+                            TextButton(enabled = !busy, onClick = { clearPreview() }) { Text("미리보기 닫기") }
                         }
                     }
                 }
@@ -359,7 +366,7 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                         }
                         if (draft == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
                         else {
-                            imagePreview = null
+                            clearPreview()
                             regions = draft.regions
                             regionEdits = draft.edits
                             regionIndex = 0
@@ -371,10 +378,43 @@ internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStor
                         }
                     }
                 }) { Text("저장 초안 불러오기 (현재 편집 내용 교체)") }
+                TextButton(enabled = !busy && identity != null, onClick = {
+                    val expected = requireNotNull(identity)
+                    draftAction {
+                        pendingDeletion = withContext(Dispatchers.IO) {
+                            check(allowed())
+                            require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+                            ImageDraftStore.load(draftDirectory, expected)
+                        }
+                        if (pendingDeletion == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
+                    }
+                }) { Text("저장된 초안 삭제…") }
                 if (message.isNotEmpty()) Text(message)
                 Text("닫기 전에 초안을 직접 저장하세요. 영역별 위치도 초안에 저장됩니다. 미리보기는 다시 생성하세요. 실시간 화면 번역은 지원하지 않습니다.")
             }
         },
         confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },
     )
+    pendingDeletion?.let { reviewed ->
+        AlertDialog(
+            onDismissRequest = { pendingDeletion = null },
+            title = { Text("저장된 초안을 삭제할까요?") },
+            text = { Text("${file.name}의 현재 버전에 저장된 초안입니다.\n\n${reviewed.source.take(120)}\n\n현재 편집 내용은 계속 사용할 수 있습니다.") },
+            dismissButton = { TextButton(onClick = { pendingDeletion = null }) { Text("취소") } },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    val expected = requireNotNull(identity)
+                    pendingDeletion = null
+                    draftAction {
+                        val deleted = withContext(Dispatchers.IO) {
+                            check(allowed())
+                            ImageDraftStore.deleteIfUnchanged(draftDirectory, file, expected, reviewed)
+                        }
+                        message = if (deleted) "저장된 초안을 삭제했습니다."
+                            else "저장된 초안이 바뀌었거나 이미 삭제됐습니다. 다시 확인하세요."
+                    }
+                }) { Text("초안 삭제") }
+            },
+        )
+    }
 }
