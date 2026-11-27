@@ -46,6 +46,21 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     var stagedPreview by remember(queue) { mutableStateOf<Pair<String, Bitmap>?>(null) }
     var renderJob by remember(queue) { mutableStateOf<Job?>(null) }
     var batchStyle by remember(queue) { mutableStateOf(ImageOverlayPlan.Background.MATCH_FLAT) }
+    val approvals = File(context.noBackupFilesDir, "image-approvals")
+    var approvedStates by remember(queue) { mutableStateOf<Map<String, ImageApprovalStore.State>>(emptyMap()) }
+    var approvedPreview by remember(queue) { mutableStateOf<Pair<String, Bitmap>?>(null) }
+
+    fun approvalTask(action: suspend () -> Unit) {
+        if (busy) return
+        busy = true
+        message = ""
+        scope.launch {
+            try { action() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { message = e.message ?: "이미지 승인 작업 실패" }
+            finally { busy = false }
+        }
+    }
 
     fun stageImages() {
         if (busy || staged != null) return
@@ -408,6 +423,22 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                                     finally { busy = false }
                                 }
                             }) { Text("실제 출력 미리보기 (${artifact.file.extension.uppercase()})") }
+                            val sameFormat = File(artifact.candidate.relative).extension.lowercase() == artifact.file.extension
+                            if (sameFormat) TextButton(enabled = !busy && stagedPreview?.first == entry.relative, onClick = {
+                                approvalTask {
+                                    withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        ImageApprovalStore.approve(approvals, queue, directory, artifact,
+                                            ImageBatchRenderRuntime::verify) {
+                                            ensureActive()
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        }
+                                    }
+                                    approvedStates = approvedStates + (entry.relative to ImageApprovalStore.State.VALID)
+                                    message = "검토한 이미지 승인 및 저장 완료. 게임에는 적용하지 않았습니다."
+                                }
+                            }) { Text("미리본 이미지 승인 (기존 승인 교체)") }
+                            else Text("원본과 출력 형식이 달라 패치 후보로 승인할 수 없습니다.")
                         }
                     }
                     stagedPreview?.let { (name, image) ->
@@ -417,6 +448,67 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                     }
                     TextButton(enabled = !busy, onClick = { discardStaged() }) { Text("임시 검토본 삭제") }
                     Text("작업 목록을 닫으면 검토 목록은 사라집니다. 캐시는 기기에서 제거될 수 있습니다.")
+                }
+                Text("승인본은 원본·초안·출력 데이터가 일치할 때만 유효합니다. 승인 자체는 게임 적용이 아닙니다.")
+                TextButton(enabled = !busy, onClick = {
+                    approvalTask {
+                        approvedPreview = null
+                        approvedStates = withContext(Dispatchers.IO) {
+                            queue.candidates.associate { c ->
+                                ensureActive()
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                val state = try {
+                                    if (ImageApprovalStore.read(approvals, queue, directory, c,
+                                        ImageBatchRenderRuntime::verify) == null) ImageApprovalStore.State.MISSING
+                                    else ImageApprovalStore.State.VALID
+                                } catch (e: CancellationException) { throw e }
+                                  catch (_: Exception) { ImageApprovalStore.State.INVALID }
+                                c.relative to state
+                            }
+                        }
+                    }
+                }) { Text("저장된 이미지 승인 목록 확인") }
+                queue.candidates.forEach { c ->
+                    approvedStates[c.relative]?.let { state ->
+                        val label = when (state) {
+                            ImageApprovalStore.State.MISSING -> "승인 없음"
+                            ImageApprovalStore.State.VALID -> "승인 유효"
+                            ImageApprovalStore.State.INVALID -> "승인 무효 또는 읽기 실패"
+                        }
+                        Text("${c.relative} · $label")
+                        if (state == ImageApprovalStore.State.VALID) {
+                            TextButton(enabled = !busy, onClick = {
+                                approvalTask {
+                                    approvedPreview = null
+                                    val image = withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        val saved = requireNotNull(ImageApprovalStore.read(approvals, queue, directory, c,
+                                            ImageBatchRenderRuntime::verify))
+                                        ImageBatchRenderRuntime.previewBytes(saved.bytes, File(c.relative).extension.lowercase(), c) {
+                                            ensureActive()
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        }
+                                    }
+                                    approvedPreview = c.relative to image
+                                }
+                            }) { Text("저장 승인본 미리보기") }
+                        }
+                        if (state != ImageApprovalStore.State.MISSING) {
+                            TextButton(enabled = !busy, onClick = {
+                                approvalTask {
+                                    withContext(Dispatchers.IO) { ImageApprovalStore.revoke(approvals, queue, c) }
+                                    approvedStates = approvedStates + (c.relative to ImageApprovalStore.State.MISSING)
+                                    approvedPreview = null
+                                    message = "승인본 삭제 완료"
+                                }
+                            }) { Text("승인 취소 및 승인본 삭제") }
+                        }
+                    }
+                }
+                approvedPreview?.let { (name, image) ->
+                    Text("$name · 저장 승인본 축소 보기")
+                    Image(bitmap = remember(image) { image.asImageBitmap() }, contentDescription = name,
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
                 }
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)

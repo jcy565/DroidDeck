@@ -52,11 +52,15 @@ internal object ImageBatchRenderRuntime {
 
     fun preview(artifact: ImageBatchRender.Artifact, checkpoint: () -> Unit): Bitmap {
         checkpoint()
-        val bytes = ImageBatchRender.readVerified(artifact)
-        val ext = artifact.file.extension
-        verify(bytes, ext, artifact.candidate)
+        return previewBytes(ImageBatchRender.readVerified(artifact), artifact.file.extension, artifact.candidate, checkpoint)
+    }
+
+    fun previewBytes(bytes: ByteArray, ext: String, candidate: ImageAssetDiscovery.Candidate,
+        checkpoint: () -> Unit): Bitmap {
+        checkpoint()
+        verify(bytes, ext, candidate)
         val bitmap = ImageAssetDecoder.decode(bytes, ext,
-            ImageOverlayPlan.comparisonSample(artifact.candidate.width, artifact.candidate.height), false, checkpoint)
+            ImageOverlayPlan.comparisonSample(candidate.width, candidate.height), false, checkpoint)
         try {
             require(bitmap.width.toLong() * bitmap.height <= 1_048_576L)
             checkpoint()
