@@ -87,7 +87,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
         title = { Text("이미지 번역 · ${file.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("PNG·JPEG·WebP 정지 이미지의 문자 추출과 번역문 검토를 지원합니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
+                Text("PNG·JPEG·WebP 및 일부 비압축 TGA 이미지의 문자 추출과 번역문 검토를 지원합니다. TGA는 PNG 복사본으로만 출력되며 원래 파일 형식으로 적용되지 않습니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
                 Text("이미지 인식은 영어·일본어·중국어용 실험 기능입니다. EXIF 회전은 자동 보정하지 않으며, 잘못 인식된 문장은 직접 수정하세요.")
                 if (ImageOcrRuntime.enabled) {
                     Text("인식할 문자 선택: ${script.label}")

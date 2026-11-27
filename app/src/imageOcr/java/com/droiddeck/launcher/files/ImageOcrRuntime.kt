@@ -1,6 +1,5 @@
 package com.droiddeck.launcher.files
 
-import android.graphics.BitmapFactory
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -30,14 +29,16 @@ internal object ImageOcrRuntime {
             require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
             require(file.length() in 1L..ImageTranslationInput.MAX_BYTES.toLong())
             val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            require(bounds.outMimeType in setOf("image/png", "image/jpeg", "image/webp"))
-            val sample = ImageTranslationInput.sampleSize(bounds.outWidth, bounds.outHeight)
+            val extension = file.extension.lowercase()
+            val bounds = ImageAssetDecoder.bounds(bytes, extension)
+            val sample = ImageTranslationInput.sampleSize(bounds.width, bounds.height)
             currentCoroutineContext().ensureActive()
             check(allowed())
-            val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
-                BitmapFactory.Options().apply { inSampleSize = sample })) { "이미지를 읽을 수 없습니다." }
+            val coroutine = currentCoroutineContext()
+            val bitmap = ImageAssetDecoder.decode(bytes, extension, sample, false) {
+                coroutine.ensureActive()
+                check(allowed())
+            }
             try {
                 require(bitmap.width.toLong() * bitmap.height <= 4_194_304L)
                 check(allowed())

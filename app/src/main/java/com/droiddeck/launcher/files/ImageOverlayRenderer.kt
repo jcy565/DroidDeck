@@ -1,7 +1,6 @@
 package com.droiddeck.launcher.files
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -26,12 +25,11 @@ internal object ImageOverlayRenderer {
         val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
             .joinToString("") { "%02x".format(it.toInt() and 255) }
         require(hash == expected.digest) { "원본 이미지가 변경됐습니다." }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        require(bounds.outMimeType in setOf("image/png", "image/jpeg", "image/webp"))
-        val sample = ImageTranslationInput.sampleSize(bounds.outWidth, bounds.outHeight)
-        val width = bounds.outWidth
-        val height = bounds.outHeight
+        val extension = file.extension.lowercase()
+        val bounds = ImageAssetDecoder.bounds(bytes, extension)
+        val sample = ImageTranslationInput.sampleSize(bounds.width, bounds.height)
+        val width = bounds.width
+        val height = bounds.height
         require(width.toLong() * height <= ImageOverlayPlan.MAX_EXPORT_PIXELS) {
             "원본 해상도는 최대 8Mi 픽셀까지 출력할 수 있습니다."
         }
@@ -47,12 +45,7 @@ internal object ImageOverlayRenderer {
             "이미지를 출력할 메모리가 부족합니다."
         }
         checkpoint()
-        val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
-            BitmapFactory.Options().apply {
-                inSampleSize = 1
-                inMutable = true
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-            }))
+        val bitmap = ImageAssetDecoder.decode(bytes, extension, 1, true, checkpoint)
         try {
             require(bitmap.width == width && bitmap.height == height) { "원본 이미지 크기가 달라졌습니다." }
             val canvas = Canvas(bitmap)
@@ -147,16 +140,11 @@ internal object ImageOverlayRenderer {
         val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
             .joinToString("") { "%02x".format(it.toInt() and 255) }
         require(hash == expected.digest) { "원본 이미지가 변경됐습니다." }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        require(bounds.outMimeType in setOf("image/png", "image/jpeg", "image/webp"))
-        val sample = ImageOverlayPlan.comparisonSample(bounds.outWidth, bounds.outHeight)
+        val extension = file.extension.lowercase()
+        val bounds = ImageAssetDecoder.bounds(bytes, extension)
+        val sample = ImageOverlayPlan.comparisonSample(bounds.width, bounds.height)
         checkpoint()
-        val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
-            BitmapFactory.Options().apply {
-                inSampleSize = sample
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-            }))
+        val bitmap = ImageAssetDecoder.decode(bytes, extension, sample, false, checkpoint)
         try {
             require(bitmap.width.toLong() * bitmap.height <= 1_048_576L)
             checkpoint()
