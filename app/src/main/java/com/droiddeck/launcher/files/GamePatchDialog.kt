@@ -23,6 +23,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val backups = File(context.filesDir, "game-patch-backups")
+    val draftDirectory = File(context.filesDir, "translation-drafts")
     val root = file.parentFile!!
     val config = file.extension.lowercase() in setOf("ini", "cfg")
     val log = file.extension.equals("log", true)
@@ -148,8 +149,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 } }) { Text("간단한 모드 제작") }
             }
             if (tsv) {
-                Text("한글 패치 제작: id/text TSV · 직접 번역 편집 (자동 번역 미지원)")
-                TextButton(enabled = !busy, onClick = { runAction {
+                Text("파일 기반 한글 패치 제작: id/text TSV · 자동 파일 번역 미지원")
+                Text("화면 실시간 번역은 지원하지 않습니다. 초안을 저장해 나중에 이어서 작업할 수 있습니다.")
+                TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
                     translationSource = null
                     translationRows = emptyList()
@@ -159,17 +161,21 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         check(GameplayBudget.allowsOptionalAnalysis(context))
                         original()
                     }
-                    val rows = withContext(Dispatchers.IO) {
+                    val (rows, saved) = withContext(Dispatchers.IO) {
                         check(GameplayBudget.allowsOptionalAnalysis(context))
-                        GamePatchAuthor.extract(source)
+                        val rows = GamePatchAuthor.extract(source)
+                        rows to TranslationDraftStore.load(draftDirectory, file.canonicalPath, source)
                     }
                     translationSource = source
                     translationRows = rows
-                    message = "번역 대상 ${rows.size}개를 읽었습니다."
+                    translations = saved.orEmpty()
+                    message = if (saved == null) "번역 대상 ${rows.size}개를 읽었습니다."
+                        else "저장한 번역 초안 ${saved.size}개를 불러왔습니다."
                 } }) { Text("번역 대상 추출") }
                 translationRows.getOrNull(translationIndex)?.let { row ->
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
                     Text(row.text)
+                    Text("입력한 번역: ${translations.size} / ${translationRows.size} (최종 검증 전)")
                     OutlinedTextField(translations[row.id].orEmpty(), { value ->
                         if (value.length <= 1000) {
                             translations = if (value.isEmpty()) translations - row.id
@@ -179,6 +185,16 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }, label = { Text("번역문") }, enabled = !busy)
                     TextButton(enabled = !busy && translationIndex > 0, onClick = { translationIndex-- }) { Text("이전 문장") }
                     TextButton(enabled = !busy && translationIndex + 1 < translationRows.size, onClick = { translationIndex++ }) { Text("다음 문장") }
+                    TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
+                        val source = requireNotNull(translationSource)
+                        val edits = translations.toMap()
+                        withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            require(original() == source) { "원본이 변경되어 초안 저장을 중단했습니다." }
+                            TranslationDraftStore.save(draftDirectory, file.canonicalPath, source, edits)
+                        }
+                        message = "번역 초안을 저장했습니다. 게임 파일은 변경되지 않았습니다."
+                    } }) { Text("번역 초안 저장") }
                     TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
                         preview = null
                         val source = requireNotNull(translationSource)

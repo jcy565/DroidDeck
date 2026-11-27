@@ -1,0 +1,109 @@
+package com.droiddeck.launcher.files
+
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.security.MessageDigest
+
+/** Explicitly saved drafts are private to the app and bound to an exact source revision. */
+internal object TranslationDraftStore {
+    private const val LIMIT = 400 * 1024
+    private const val MAGIC = "DDTRANSLATION1"
+
+    private fun digest(bytes: ByteArray): ByteArray =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+
+    private fun hash(text: String): String = digest(text.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 255) }
+
+    private fun identity(target: String, source: String): String {
+        require(target.isNotBlank())
+        return hash(target) + "-" + hash(source)
+    }
+
+    private fun validate(source: String, edits: Map<String, String>) {
+        val ids = GamePatchAuthor.extract(source).map { it.id }.toSet()
+        require(edits.isNotEmpty() && edits.size <= 100 && edits.keys.all { it in ids })
+        // Incomplete translations may be saved; final authoring still validates placeholders.
+        require(edits.values.all { it.isNotEmpty() && it.length <= 1000 })
+    }
+
+    private fun location(directory: File, target: String, source: String): File {
+        require(!Files.isSymbolicLink(directory.toPath()))
+        return File(directory, identity(target, source) + ".draft")
+    }
+
+    @Synchronized
+    fun save(directory: File, target: String, source: String, edits: Map<String, String>) {
+        validate(source, edits)
+        val file = location(directory, target, source)
+        val buffer = ByteArrayOutputStream()
+        DataOutputStream(buffer).use {
+            it.writeUTF(MAGIC)
+            it.writeUTF(identity(target, source))
+            it.writeInt(edits.size)
+            for ((id, value) in edits.toSortedMap()) {
+                it.writeUTF(id)
+                it.writeUTF(value)
+            }
+        }
+        val body = buffer.toByteArray()
+        require(body.size + 32 <= LIMIT)
+        require(directory.isDirectory || directory.mkdirs())
+        require(!Files.isSymbolicLink(directory.toPath()))
+        val temporary = Files.createTempFile(directory.toPath(), ".draft-", ".tmp")
+        try {
+            temporary.toFile().outputStream().use {
+                it.write(digest(body))
+                it.write(body)
+                it.fd.sync()
+            }
+            Files.move(temporary, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(temporary)
+        }
+    }
+
+    @Synchronized
+    fun load(directory: File, target: String, source: String): Map<String, String>? {
+        val file = location(directory, target, source)
+        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null
+        require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        require(file.length() in 33L..LIMIT.toLong())
+        val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { input ->
+            val output = ByteArrayOutputStream()
+            val block = ByteArray(4096)
+            while (true) {
+                val count = input.read(block)
+                if (count < 0) break
+                require(output.size() + count <= LIMIT)
+                output.write(block, 0, count)
+            }
+            output.toByteArray()
+        }
+        require(bytes.size > 32)
+        val body = bytes.copyOfRange(32, bytes.size)
+        require(MessageDigest.isEqual(bytes.copyOfRange(0, 32), digest(body))) { "번역 초안이 손상되었습니다." }
+        val edits = DataInputStream(ByteArrayInputStream(body)).use {
+            require(it.readUTF() == MAGIC && it.readUTF() == identity(target, source))
+            val count = it.readInt()
+            require(count in 1..100)
+            val result = linkedMapOf<String, String>()
+            repeat(count) {
+                val id = it.readUTF()
+                require(id !in result)
+                result[id] = it.readUTF()
+            }
+            require(it.read() == -1)
+            result
+        }
+        validate(source, edits)
+        return edits
+    }
+}
