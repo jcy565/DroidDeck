@@ -28,6 +28,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     var source by remember(file) { mutableStateOf("") }
     var translated by remember(file) { mutableStateOf("") }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
+    var rotation by remember(file) { mutableStateOf(ImageTranslationInput.Rotation.NONE) }
     var busy by remember(file) { mutableStateOf(false) }
     var message by remember(file) { mutableStateOf("") }
 
@@ -47,16 +48,22 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                             Text(option.label)
                         }
                     }
-                    Text("언어를 바꾼 뒤 다시 인식하면 현재 텍스트와 번역 초안이 교체됩니다.")
+                    Text("인식 회전 각도: ${rotation.degrees}°")
+                    TextButton(enabled = !busy, onClick = {
+                        val options = ImageTranslationInput.Rotation.values()
+                        rotation = options[(rotation.ordinal + 1) % options.size]
+                    }) { Text("시계 방향 90° 회전") }
+                    Text("다시 인식하면 현재 텍스트와 번역 초안이 교체됩니다. 필요하면 먼저 복사하세요.")
                     Text("Google ML Kit가 기기에서 이미지 문자를 인식합니다. SDK의 사용량·성능 통계가 Google로 전송될 수 있습니다. 이미지나 인식 결과는 ML Kit 서버로 전송되지 않습니다.")
                     TextButton(enabled = !busy, onClick = {
                         val selectedScript = script
+                        val selectedRotation = rotation
                         busy = true
                         message = ""
                         scope.launch {
                             try {
                                 val recognized = withContext(Dispatchers.IO) {
-                                    ImageOcrRuntime.recognize(file, selectedScript, ::allowed)
+                                    ImageOcrRuntime.recognize(file, selectedScript, selectedRotation, ::allowed)
                                 }
                                 source = recognized
                                 translated = ""
@@ -65,7 +72,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                             catch (e: Exception) { message = e.message ?: "이미지 인식 실패" }
                             finally { busy = false }
                         }
-                    }) { Text(if (busy) "이미지 인식 중…" else "이미지에서 글자 추출") }
+                    }) { Text(if (busy) "이미지 인식 중…" else if (source.isNotBlank() || translated.isNotBlank()) "다시 인식 (현재 초안 교체)" else "이미지에서 글자 추출") }
                 } else {
                     Text("현재 빌드에는 실험용 OCR이 포함되지 않았습니다. 추출한 글자를 직접 붙여넣어 번역할 수 있습니다.")
                 }
