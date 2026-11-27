@@ -28,6 +28,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private data class DraftReplacement(val saved: ImageDraftStore.Draft, val edited: ImageDraftStore.Draft)
+
 @Composable
 internal fun ImageTranslationDialog(file: File, expectedIdentity: ImageDraftStore.Identity? = null, onDismiss: () -> Unit) {
     key(file, expectedIdentity) { ImageTranslationEditor(file, expectedIdentity, onDismiss) }
@@ -54,6 +56,7 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
     var identity by remember(file) { mutableStateOf<ImageDraftStore.Identity?>(null) }
     val draftDirectory = File(context.noBackupFilesDir, "image-translation-drafts")
     var message by remember(file) { mutableStateOf("") }
+    var pendingReplacement by remember { mutableStateOf<DraftReplacement?>(null) }
     var pendingDeletion by remember { mutableStateOf<ImageDraftStore.Draft?>(null) }
 
     fun allowed(): Boolean = GameplayBudget.allowsOptionalAnalysis(context)
@@ -347,13 +350,23 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
                     val draft = ImageDraftStore.Draft(source, translated, script, rotation,
                         savedRegions, if (savedRegions == null) emptyMap() else regionEdits.toMap())
                     draftAction {
-                        withContext(Dispatchers.IO) {
+                        val saved = withContext(Dispatchers.IO) {
                             check(allowed())
-                            ImageDraftStore.save(draftDirectory, file, expected, draft)
+                            if (ImageDraftStore.saveIfAbsent(draftDirectory, file, expected, draft)) null
+                            else {
+                                require(ImageDraftStore.identity(file) == expected) { "원본 이미지가 변경됐습니다." }
+                                checkNotNull(ImageDraftStore.load(draftDirectory, expected)) {
+                                    "저장된 초안이 변경됐습니다. 다시 저장하세요."
+                                }
+                            }
                         }
-                        message = "현재 이미지 초안을 저장했습니다. 이전 저장본은 교체됩니다."
+                        when (saved) {
+                            null -> message = "이미지 번역 초안을 저장했습니다."
+                            draft -> message = "같은 내용의 초안이 이미 저장되어 있습니다."
+                            else -> pendingReplacement = DraftReplacement(saved, draft)
+                        }
                     }
-                }) { Text("이미지 번역 초안 저장 (이전 저장본 교체)") }
+                }) { Text("이미지 번역 초안 저장") }
                 TextButton(enabled = !busy && identity != null, onClick = {
                     val expected = requireNotNull(identity)
                     draftAction {
@@ -395,6 +408,37 @@ private fun ImageTranslationEditor(file: File, expectedIdentity: ImageDraftStore
         },
         confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },
     )
+    pendingReplacement?.let { review ->
+        AlertDialog(
+            onDismissRequest = { pendingReplacement = null },
+            title = { Text("저장된 초안을 교체할까요?") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(file.name)
+                    Text("기존 원문\n" + review.saved.source)
+                    Text("기존 번역문\n" + review.saved.translated.ifBlank { "(없음)" })
+                    Text("기존 영역 번역 " + review.saved.edits.size + "개")
+                    Text("현재 편집 내용으로 교체합니다.")
+                }
+            },
+            dismissButton = { TextButton(onClick = { pendingReplacement = null }) { Text("취소") } },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    val expected = requireNotNull(identity)
+                    pendingReplacement = null
+                    draftAction {
+                        val replaced = withContext(Dispatchers.IO) {
+                            check(allowed())
+                            ImageDraftStore.replaceIfUnchanged(draftDirectory, file, expected,
+                                review.saved, review.edited)
+                        }
+                        message = if (replaced) "이미지 번역 초안을 교체했습니다."
+                            else "확인하는 동안 저장본이 바뀌었습니다. 다시 저장해 최신 내용을 확인하세요."
+                    }
+                }) { Text("초안 교체") }
+            },
+        )
+    }
     pendingDeletion?.let { reviewed ->
         AlertDialog(
             onDismissRequest = { pendingDeletion = null },
