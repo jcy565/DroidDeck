@@ -40,7 +40,7 @@ class GameAgentTest {
     }
 
     @Test fun translationIsLimitedToUneditedWindowAndPreservesTokens() = runBlocking {
-        val source = (1..6).joinToString("\n", "id\ttext\n") { "id$it\tHello {name}" }
+        val source = (1..7).joinToString("\n", "id\ttext\n") { "id$it\tHello {name}" }
         val request = GameAgent.Request("한글화", "tsv", source, mapOf("id1" to "기존 {name}"))
         val output = """{"action":"translate","explanation":"번역","row.id2":"안녕 {name}"}"""
         val model = Model { output }
@@ -48,8 +48,9 @@ class GameAgentTest {
         assertEquals(mapOf("id1" to "기존 {name}", "id2" to "안녕 {name}"), result.edits)
         assertEquals(2, result.next)
         assertFalse(model.prompt.contains("row.id1"))
-        assertFalse(model.prompt.contains("row.id6"))
-        for (invalid in listOf(output.replace("row.id2", "row.id6"),
+        assertTrue(model.prompt.contains("row.id6"))
+        assertFalse(model.prompt.contains("row.id7"))
+        for (invalid in listOf(output.replace("row.id2", "row.id7"),
             output.replace("row.id2", "row.id1"), output.replace("안녕 {name}", "안녕"))) {
             assertTrue(runCatching { GameAgent.run(request, { true }, { Model { invalid } }) }.isFailure)
         }
