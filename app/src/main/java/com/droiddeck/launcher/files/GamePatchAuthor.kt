@@ -40,8 +40,19 @@ internal object GamePatchAuthor {
         return parts
     }
 
+    fun matchesTranslationExtension(source: String, extension: String): Boolean =
+        if (TranslationJson.isCandidate(source)) extension.equals("json", ignoreCase = true)
+        else TranslationTable.matchesExtension(source, extension)
+
     fun extract(source: String): List<Row> {
         require(source.length <= 262144)
+        if (TranslationJson.isCandidate(source)) {
+            return TranslationJson.entries(source).map { entry ->
+                require(keyPattern.matches(entry.id)) { "지원하지 않는 JSON 키입니다." }
+                tokens(entry.text)
+                Row(entry.id, entry.text)
+            }
+        }
         val format = TranslationTable.format(source)
         val lines = source.lineSequence().filter { it.isNotEmpty() }.iterator()
         lines.next()
@@ -67,6 +78,11 @@ internal object GamePatchAuthor {
             require(tokens(rows.getValue(id).text) == tokens(translated)) {
                 "변수와 이스케이프의 종류·개수·순서를 유지하세요: $id"
             }
+        }
+        if (TranslationJson.isCandidate(source)) {
+            val proposed = TranslationJson.rewrite(source, edits)
+            require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
+            return GameConfigPreview.Preview(source, proposed, emptyList())
         }
         val format = TranslationTable.format(source)
         var header = true
