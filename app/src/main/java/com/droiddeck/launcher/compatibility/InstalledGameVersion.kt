@@ -8,8 +8,9 @@ import java.io.IOException
 
 internal object InstalledGameVersion {
     fun read(gameId: String, folder: File?): String? {
-        if (folder == null || !folder.isDirectory) return null
+        if (folder == null) return null
         return try {
+            if (!folder.isDirectory) return null
             if (gameId.startsWith("steam:")) {
                 val id = gameId.removePrefix("steam:").toIntOrNull() ?: return null
                 val common = folder.parentFile ?: return null
@@ -19,7 +20,8 @@ internal object InstalledGameVersion {
                 if (state.string("appid") != id.toString() || state.string("installdir") != folder.name) return null
                 val flags = state.string("StateFlags")?.toIntOrNull() ?: return null
                 if (flags and 4 == 0) return null
-                state.string("buildid")?.takeIf { it.toULongOrNull() != null && it.all { c -> c in '0'..'9' } && it.any { c -> c != '0' } && it.length <= 20 }
+                val build = state.string("buildid") ?: return null
+                build.takeIf { it.length in 1..20 && it.first() in '1'..'9' && it.all { digit -> digit in '0'..'9' } }
             } else {
                 val text = metadata(StoreGameSidecar.file(folder)) ?: return null
                 val record = StoreGameSidecar.parse(text) ?: return null

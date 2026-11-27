@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.DateFormat
+import java.util.Date
 
 /** Host must supply the selected game's stable, platform-qualified identifier. */
 @Composable
@@ -22,6 +24,7 @@ internal fun GameCompatibilityPanel(gameId: String, installFolder: File?, modifi
         val context = LocalContext.current.applicationContext
         val service = remember(context) { GameCompatibilityService(context) }
         val scope = rememberCoroutineScope()
+        var showHistory by remember { mutableStateOf(false) }
         var report by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
         var busy by remember { mutableStateOf(true) }
         var error by remember { mutableStateOf<String?>(null) }
@@ -49,17 +52,25 @@ internal fun GameCompatibilityPanel(gameId: String, installFolder: File?, modifi
             report?.let { current ->
                 Text(current.description)
                 current.advice.forEach { Text("• " + it) }
+                if (current.observations.isNotEmpty()) {
+                    Button(onClick = { showHistory = !showHistory }) {
+                        Text(if (showHistory) "기록 접기" else "버전별 실행 기록 보기")
+                    }
+                    if (showHistory) {
+                        val dates = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                        current.observations.forEach { observation ->
+                            val version = observation.gameVersion?.let { "설치 버전 $it" } ?: "버전 미확인"
+                            Text("${dates.format(Date(observation.recordedAt))} · ${observation.outcome.label()} · $version")
+                        }
+                    }
+                }
             }
             error?.let { Text(it) }
             if (busy) Text("처리 중")
             SettingsRecoveryReviewPanel()
             Text("직접 확인한 실행 결과를 기록하세요.")
-            listOf(
-                GameRunHistory.Outcome.PLAYABLE to "플레이 가능",
-                GameRunHistory.Outcome.BLACK_SCREEN to "검은 화면",
-                GameRunHistory.Outcome.CRASH to "게임 충돌",
-                GameRunHistory.Outcome.UNKNOWN to "판정 보류"
-            ).forEach { (outcome, label) ->
+            listOf(GameRunHistory.Outcome.PLAYABLE, GameRunHistory.Outcome.BLACK_SCREEN,
+                GameRunHistory.Outcome.CRASH, GameRunHistory.Outcome.UNKNOWN).forEach { outcome ->
                 Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
                     if (!busy) {
                         busy = true
@@ -80,8 +91,17 @@ internal fun GameCompatibilityPanel(gameId: String, installFolder: File?, modifi
                             }
                         }
                     }
-                }) { Text(label) }
+                }) { Text(outcome.label()) }
             }
         }
     }
+}
+
+
+private fun GameRunHistory.Outcome.label() = when (this) {
+    GameRunHistory.Outcome.STARTED -> "실행 시작"
+    GameRunHistory.Outcome.PLAYABLE -> "플레이 가능"
+    GameRunHistory.Outcome.BLACK_SCREEN -> "검은 화면"
+    GameRunHistory.Outcome.CRASH -> "게임 충돌"
+    GameRunHistory.Outcome.UNKNOWN -> "판정 보류"
 }

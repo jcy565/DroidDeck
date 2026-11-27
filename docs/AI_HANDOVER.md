@@ -176,3 +176,7 @@ Validated in an isolated Android Gradle library with the project Kotlin and Comp
 ### 설치 버전 기록 구현 체크포인트
 
 게임 상세의 수동 결과 기록 시점에 IO 스레드에서 설치 폴더 메타데이터를 조회하도록 연결했다. Steam은 AppState의 앱 ID·설치 폴더·설치 플래그를, 다른 스토어는 설치 레코드의 스토어·게임 ID·설치 완료 상태를 대조한다. 조회할 수 없으면 버전을 비워 기존처럼 결과를 저장한다. 다음 검증은 매니페스트 변경 전후의 두 기록, 다른 게임의 메타데이터, 구버전·누락 메타데이터다.
+
+### SDK 28 초기 검증 결과
+
+설치 레코드와 Steam 매니페스트 검사를 추가하고, 실제 화면과 SQLite를 함께 실행했다. 첫 실행에서 기존 GameRunHistory.use 호출이 SDK 28에서 ClassCastException을 일으키는 것을 두 경로에서 재현했다. 기록 저장과 화면 조회도 영향을 받는다. GameRunHistory가 Closeable을 명시하도록 수정하고 같은 테스트를 재실행한다.

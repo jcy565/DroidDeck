@@ -4,10 +4,11 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.content.ContentValues
+import java.io.Closeable
 
 /** Local observations only; no network, game file changes or inferred compatibility verdicts. */
 internal class GameRunHistory(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "ai_game_run_history.db", null, 1) {
+    SQLiteOpenHelper(context.applicationContext, "ai_game_run_history.db", null, 1), Closeable {
 
     enum class Outcome { STARTED, PLAYABLE, BLACK_SCREEN, CRASH, UNKNOWN }
 
