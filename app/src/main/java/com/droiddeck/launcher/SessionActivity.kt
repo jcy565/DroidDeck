@@ -325,6 +325,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     private var desktopMousePlaced = false
     private val pointerLockListener = WaylandCompositor.PointerLockListener { locked, _, _ ->
         uiHandler.post {
+            if (!acceptsActiveCallback()) return@post
             if (pointerLocked == locked) return@post
             gesturePointerReady = false
             pointerLocked = locked
@@ -669,6 +670,14 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     private var runtimeRemovalBlocked = false
+    @Volatile private var callbackSessionId: String? = null
+
+    private fun ownsCallbackSession(): Boolean =
+        com.droiddeck.launcher.session.SessionCallbackOwnership.owns(callbackSessionId, SessionState.sessionId)
+
+    private fun acceptsActiveCallback(): Boolean =
+        com.droiddeck.launcher.session.SessionCallbackOwnership.acceptsActive(
+            callbackSessionId, SessionState.sessionId, SessionState.phase)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -721,6 +730,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         } else if (intent.getBooleanExtra(EXTRA_STEAMVR, false) && SessionState.mode == SessionService.MODE_STEAM) {
             SessionState.steamVr = true
         }
+        callbackSessionId = SessionState.sessionId
         AgentGuest.readyListener = agentReadyListener
         if (SessionState.steamVr) Glasses.prepareSteamVrStart()
         if (intent.action == SessionService.ACTION_AGENT_START) {
@@ -2166,7 +2176,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        if (holder !== outputHolder()) return
+        if (!acceptsActiveCallback() || holder !== outputHolder()) return
         if (installingRuntime || SessionState.stopRequested || ended) return
         if (!SessionState.running) {
             SessionEvents.transition(SessionPhase.STARTING_COMPOSITOR, "compositor.starting")
@@ -2266,7 +2276,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     private var surfaceH = 0
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        if (holder !== outputHolder()) return
+        if (!acceptsActiveCallback() || holder !== outputHolder()) return
         val resized = surfaceW != 0 && (width != surfaceW || height != surfaceH)
         surfaceW = width
         surfaceH = height
@@ -2332,7 +2342,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        if (holder !== outputHolder()) return
+        if (!ownsCallbackSession() || holder !== outputHolder()) return
         cancelOutputTouches()
         surfaceW = 0
         surfaceH = 0
@@ -2458,7 +2468,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         val loadingStartedAt = SystemClock.elapsedRealtime()
         val poll = object : Runnable {
             override fun run() {
-                if (!watching) return
+                if (!watching || !ownsCallbackSession()) return
                 if (::pip.isInitialized) pip.refresh()
                 if (SessionState.stopRequested && !SessionState.running && !installingRuntime &&
                     SessionState.phase != SessionPhase.STOPPING) {
@@ -2485,7 +2495,8 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     private fun onSessionEnded(status: Int) {
-        val stoppedSessionId = SessionState.sessionId
+        if (!ownsCallbackSession()) return
+        val stoppedSessionId = callbackSessionId
         ended = true
         ++steamVrRequestGeneration
         if (isInPictureInPictureMode) {
@@ -5376,10 +5387,11 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
 
     private val endListener: (Int) -> Unit = { status -> onSessionEnded(status) }
     private val firstFrameListener = Runnable {
+        if (!acceptsActiveCallback()) return@Runnable
         SessionEvents.firstFrame()
         if (SessionState.mode == SessionService.MODE_STEAM) SteamRepair.clientShown(this)
         runOnUiThread {
-            if (isFinishing || isDestroyed) return@runOnUiThread
+            if (isFinishing || isDestroyed || !acceptsActiveCallback()) return@runOnUiThread
             loading.visible = false
             hud.start()
             memoryHud.start()
