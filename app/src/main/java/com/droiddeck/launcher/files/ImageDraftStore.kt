@@ -108,6 +108,15 @@ internal object ImageDraftStore {
         return true
     }
 
+    /** Reject changed drafts rather than overwriting manual work during an external exchange. */
+    @Synchronized
+    fun replaceIfUnchanged(directory: File, image: File, expected: Identity,
+        previous: Draft, replacement: Draft): Boolean {
+        if (load(directory, expected) != previous) return false
+        save(directory, image, expected, replacement)
+        return true
+    }
+
     @Synchronized
     fun load(directory: File, expected: Identity): Draft? {
         val file = location(directory, expected)

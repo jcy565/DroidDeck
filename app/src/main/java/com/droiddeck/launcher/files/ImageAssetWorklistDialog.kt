@@ -3,6 +3,8 @@ package com.droiddeck.launcher.files
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +31,32 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     var batchJob by remember(queue) { mutableStateOf<Job?>(null) }
     var script by remember(queue) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
     var batchReport by remember(queue) { mutableStateOf<ImageBatchOcr.Report?>(null) }
+    var exchange by remember(queue) { mutableStateOf<ImageBatchExchange.Request?>(null) }
+    var payload by remember(queue) { mutableStateOf("") }
+    var reviewed by remember(queue) { mutableStateOf<ImageBatchExchange.Review?>(null) }
+
+    fun prepareExchange() {
+        if (busy) return
+        busy = true
+        message = ""
+        exchange = null
+        payload = ""
+        reviewed = null
+        scope.launch {
+            try {
+                exchange = withContext(Dispatchers.IO) {
+                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                    ImageBatchExchange.prepare(queue, directory) {
+                        ensureActive()
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                    }
+                }
+            } catch (e: CancellationException) { throw e }
+              catch (e: Exception) { message = e.message ?: "번역 요청 준비 실패" }
+            finally { busy = false }
+        }
+    }
+
     fun runBatch() {
         if (busy || !ImageOcrRuntime.enabled) return
         busy = true
@@ -156,6 +184,65 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                         }
                     }
                 } else Text("현재 빌드에는 실험용 OCR이 포함되지 않았습니다.")
+                TextButton(enabled = !busy, onClick = { prepareExchange() }) { Text("이미지 일괄 번역 요청 준비") }
+                exchange?.let { request ->
+                    Text("${request.targets.size}개 이미지 · ${request.rows.size}개 문장. 다른 이미지 초안은 다음 요청에서 처리하세요.")
+                    Text("외부 앱에 전달하는 내용은 OCR 원문과 임시 ID입니다. 민감하거나 공유할 권리가 없는 내용은 보내지 마세요.")
+                    Text(request.json)
+                    TextButton(enabled = !busy, onClick = {
+                        try {
+                            context.startActivity(Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).setType("text/plain")
+                                    .putExtra(Intent.EXTRA_TEXT, ImageBatchExchange.prompt(request)), "ChatGPT 일괄 번역 요청"))
+                        } catch (e: Exception) { message = e.message ?: "공유 실패" }
+                    }) { Text("검토한 원문을 외부 앱에 공유") }
+                    OutlinedTextField(value = payload, onValueChange = {
+                        if (it.length <= ImageBatchExchange.MAX_BYTES) {
+                            payload = it
+                            reviewed = null
+                        }
+                    }, enabled = !busy, label = { Text("ChatGPT의 JSON 번역 결과 붙여넣기") }, maxLines = 6)
+                    TextButton(enabled = !busy && payload.isNotBlank(), onClick = {
+                        reviewed = null
+                        message = ""
+                        try { reviewed = ImageBatchExchange.review(request, payload) }
+                        catch (e: Exception) { message = e.message ?: "번역 결과 검증 실패" }
+                    }) { Text("번역 결과 검증 및 미리보기") }
+                    reviewed?.let { review ->
+                        Text("번역 ${review.translatedRows}개 문장 · ${review.changes.size}개 이미지")
+                        review.changes.forEach { change ->
+                            Text(change.target.candidate.relative)
+                            change.replacement.edits.filterKeys { it !in change.target.draft.edits }.forEach { (id, value) ->
+                                val original = change.target.draft.regions?.regions?.firstOrNull { it.id == id }?.text.orEmpty()
+                                Text("$original → $value")
+                            }
+                        }
+                        TextButton(enabled = !busy, onClick = {
+                            busy = true
+                            message = ""
+                            scope.launch {
+                                try {
+                                    val applied = withContext(Dispatchers.IO) {
+                                        ImageBatchExchange.apply(queue, directory, review) {
+                                            ensureActive()
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        }
+                                    }
+                                    message = "초안 저장 ${applied.saved}개 · 실패/변경 ${applied.failed}개"
+                                    exchange = null
+                                    reviewed = null
+                                    payload = ""
+                                    statuses = emptyMap()
+                                } catch (e: CancellationException) { throw e }
+                                catch (e: Exception) { message = e.message ?: "번역 초안 저장 중단. 이미 저장된 초안은 유지됩니다." }
+                                finally { busy = false }
+                            }
+                        }) { Text("검토한 번역을 이미지 초안에 저장") }
+                    }
+                    TextButton(enabled = !busy, onClick = { exchange = null; reviewed = null; payload = "" }) {
+                        Text("일괄 번역 요청 닫기")
+                    }
+                }
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)
                 TextButton(enabled = !busy, onClick = { refresh() }) { Text("진행 상태 새로고침") }
