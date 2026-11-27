@@ -76,9 +76,13 @@ internal fun FilePropertiesDialog(
     var transactionDiagnostic by remember(file) { mutableStateOf<ImagePatchTransaction.Diagnostic?>(null) }
     var probeResult by remember(file) { mutableStateOf("") }
 
-    fun checkPatchImage(bytes: ByteArray, source: ImagePatchArchive.Source) {
-        val bounds = ImageAssetDecoder.bounds(bytes, File(source.relative).extension.lowercase())
+    fun checkPatchImage(bytes: ByteArray, source: ImagePatchArchive.Source, checkpoint: () -> Unit = {}) {
+        checkpoint()
+        val extension = File(source.relative).extension.lowercase(Locale.ROOT)
+        if (extension == "png") ImagePatchPngCheck.validate(bytes, source.width, source.height, checkpoint)
+        val bounds = ImageAssetDecoder.bounds(bytes, extension)
         require(bounds.width == source.width && bounds.height == source.height)
+        checkpoint()
     }
 
     fun backupTask(action: suspend () -> Unit) {
@@ -108,10 +112,8 @@ internal fun FilePropertiesDialog(
                         }
                         requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
                             ImagePatchImport.copyAndInspect(file, File(context.cacheDir, "image-patch-imports"), input,
-                                verify = { bytes, source ->
-                                    val bounds = ImageAssetDecoder.bounds(bytes, File(source.relative).extension.lowercase())
-                                    require(bounds.width == source.width && bounds.height == source.height)
-                                }, checkpoint = ::checkpoint)
+                                verify = { bytes, source -> checkPatchImage(bytes, source, ::checkpoint) },
+                                checkpoint = ::checkpoint)
                         }
                     }
                     patchMessage = "읽기 전용 검사 완료. 게임 파일은 변경하지 않았습니다."
@@ -280,11 +282,14 @@ internal fun FilePropertiesDialog(
                             backupTask {
                                 backup = withContext(Dispatchers.IO) {
                                     val coroutine = kotlinx.coroutines.currentCoroutineContext()
-                                    ImagePatchBackup.create(backupStorage, file, report, ::checkPatchImage) {
+                                    fun checkpoint() {
                                         coroutine.ensureActive()
                                         if (!GameplayBudget.allowsOptionalAnalysis(context))
                                             throw kotlinx.coroutines.CancellationException("게임 또는 메모리 상태로 백업 중단")
                                     }
+                                    ImagePatchBackup.create(backupStorage, file, report,
+                                        verify = { bytes, source -> checkPatchImage(bytes, source, ::checkpoint) },
+                                        checkpoint = ::checkpoint)
                                 }
                                 patchMessage = "원본 백업 저장 및 검증 완료. 게임 파일은 변경하지 않았습니다."
                             }
