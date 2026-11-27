@@ -80,7 +80,9 @@ internal object TranslationDiscovery {
         return file
     }
 
-    private fun validate(root: File, relative: String): Candidate {
+    data class Snapshot(val file: File, val source: String, val candidate: Candidate)
+
+    private fun read(root: File, relative: String): Snapshot {
         val file = resolve(root, relative)
         val bytes = GamePatchStore.readTarget(file)
         val source = LocalGameAdvisor.decode(bytes)
@@ -88,12 +90,17 @@ internal object TranslationDiscovery {
         val rows = GamePatchAuthor.extract(source).size
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
             .joinToString("") { "%02x".format(it.toInt() and 255) }
-        return Candidate(relative, rows, digest)
+        return Snapshot(file, source, Candidate(relative, rows, digest))
+    }
+
+    private fun validate(root: File, relative: String): Candidate = read(root, relative).candidate
+
+    fun snapshot(root: File, candidate: Candidate): Snapshot {
+        val current = read(root, candidate.relative)
+        require(current.candidate == candidate) { "파일이 변경되었습니다. 다시 탐색하세요." }
+        return current
     }
 
     /** Recheck current path and format before navigating to the existing editor. */
-    fun open(root: File, candidate: Candidate): File {
-        require(validate(root, candidate.relative) == candidate) { "파일이 변경되었습니다. 다시 탐색하세요." }
-        return resolve(root, candidate.relative)
-    }
+    fun open(root: File, candidate: Candidate): File = snapshot(root, candidate).file
 }
