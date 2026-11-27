@@ -801,6 +801,17 @@ jobs:
           mkdir -p app/build
           ./gradlew testReleaseUnitTest --console=plain --info --stacktrace -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee app/build/unit-tests.log
 
+      - name: Summarize Android test XML
+        if: always() && steps.unit-tests.outcome != 'skipped' && startsWith(github.ref_name, 'ai-')
+        continue-on-error: true
+        env:
+          UNIT_TEST_OUTCOME: ${{ steps.unit-tests.outcome }}
+        run: |
+          mkdir -p app/build
+          python3 tools/ci/android_test_summary.py app/build/test-results/testReleaseUnitTest \
+            tools/ci/compose-idle-baseline.txt "$UNIT_TEST_OUTCOME" > app/build/android-test-summary.json
+          cat app/build/android-test-summary.json
+
       - name: Upload unit test diagnostics
         id: unit-test-diagnostics
         if: always() && steps.unit-tests.outcome != 'skipped'
@@ -809,6 +820,7 @@ jobs:
           name: unit-test-results
           path: |
             app/build/unit-tests.log
+            app/build/android-test-summary.json
             app/build/test-results/testReleaseUnitTest/
             app/build/reports/tests/testReleaseUnitTest/
           if-no-files-found: ignore
