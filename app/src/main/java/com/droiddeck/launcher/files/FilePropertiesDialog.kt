@@ -50,6 +50,7 @@ internal fun FilePropertiesDialog(
     onDismiss: () -> Unit,
     onChanged: () -> Unit,
     onTranslationFile: ((File) -> Unit)? = null,
+    onTranslationQueue: ((TranslationWorklist.Queue) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -59,6 +60,7 @@ internal fun FilePropertiesDialog(
     var usage by remember(file) { mutableStateOf("") }
     var discovery by remember(file) { mutableStateOf<TranslationDiscovery.Report?>(null) }
     var discoveryMessage by remember(file) { mutableStateOf("") }
+    var selectedTranslations by remember(file) { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(file.absolutePath) {
         attrs = withContext(Dispatchers.IO) { readFileAttrs(file) }
     }
@@ -118,6 +120,7 @@ internal fun FilePropertiesDialog(
                         TextButton(enabled = !busy, onClick = {
                             busy = true
                             discovery = null
+                            selectedTranslations = emptySet()
                             discoveryMessage = ""
                             scope.launch {
                                 try {
@@ -138,7 +141,29 @@ internal fun FilePropertiesDialog(
                             Text("지원 형식 후보 ${report.candidates.size}개 · 검사 ${report.examined}개 · 제외 ${report.rejected}개" +
                                 if (report.partial) " (부분 탐색)" else "")
                             Text("CSV·TSV·JSON의 지원 구조만 확인했습니다. 실제 게임 번역 파일인지는 직접 확인하세요.")
+                            if (onTranslationQueue != null && report.candidates.isNotEmpty()) {
+                                TextButton(enabled = !busy, onClick = {
+                                    selectedTranslations = if (selectedTranslations.size == report.candidates.size) emptySet()
+                                        else report.candidates.map { it.relative }.toSet()
+                                }) { Text("전체 선택 / 해제") }
+                                TextButton(enabled = !busy && selectedTranslations.isNotEmpty(), onClick = {
+                                    onTranslationQueue(TranslationWorklist.Queue(file,
+                                        report.candidates.filter { it.relative in selectedTranslations }))
+                                }) { Text("선택한 ${selectedTranslations.size}개 파일 작업 목록 열기") }
+                            }
                             report.candidates.forEach { candidate ->
+                                if (onTranslationQueue != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        androidx.compose.material3.Checkbox(
+                                            checked = candidate.relative in selectedTranslations,
+                                            enabled = !busy,
+                                            onCheckedChange = { checked ->
+                                                selectedTranslations = if (checked) selectedTranslations + candidate.relative
+                                                    else selectedTranslations - candidate.relative
+                                            })
+                                        Text(candidate.relative)
+                                    }
+                                }
                                 TextButton(enabled = !busy, onClick = {
                                     busy = true
                                     scope.launch {
