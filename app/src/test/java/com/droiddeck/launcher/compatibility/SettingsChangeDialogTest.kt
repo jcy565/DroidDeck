@@ -80,7 +80,7 @@ class SettingsChangeDialogTest {
         choose("Steam 출력 해상도", "1280x720")
         SettingsBackup.writeNormalResolution(context, "steam", "900p")
         compose.onNodeWithText("백업 후 적용").performClick()
-        awaitText("적용 결과를 확인하려면 현재 설정과 백업을 다시 조회해 주세요.")
+        awaitText("미리보기 이후 설정이 바뀌었습니다. 현재 값으로 다시 미리보기를 열어 주세요.")
         assertEquals("900p", SettingsBackup.raw(context, key))
         assertNull(SettingsBackup.review(context, key))
     }
@@ -90,6 +90,7 @@ class SettingsChangeDialogTest {
         val desktop = "displayResolution.desktop"
         val prior = SettingsBackup.apply(context, desktop, null, "1280x720")
         compose.onNodeWithText("백업 후 적용").performClick()
+        awaitText("이 설정에 기존 백업이 있습니다. 백업 상태를 확인해 주세요.")
         awaitText("데스크톱 출력 해상도 복원 검토")
         assertEquals(prior, SettingsBackup.review(context, desktop))
         assertEquals("1280x720", SettingsBackup.raw(context, desktop))
@@ -99,7 +100,7 @@ class SettingsChangeDialogTest {
         choose("Steam 출력 해상도", "1280x720")
         requireNotNull(SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.SESSION)).use {
             compose.onNodeWithText("백업 후 적용").performClick()
-            awaitText("적용 결과를 확인하려면 현재 설정과 백업을 다시 조회해 주세요.")
+            awaitText("게임 실행 또는 다른 설정 변경이 끝난 뒤 다시 시도해 주세요.")
         }
         assertNull(SettingsBackup.raw(context, key))
         assertNull(SettingsBackup.review(context, key))

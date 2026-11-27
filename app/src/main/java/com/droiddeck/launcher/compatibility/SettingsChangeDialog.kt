@@ -61,6 +61,8 @@ internal fun SettingsChangeDialog(key: String, label: String, onDismiss: () -> U
                 onResult("$label 설정을 백업하고 변경했습니다.")
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: SettingsBackup.ChangeBlocked) {
+                onResult(e.reason)
             } catch (_: Exception) {
                 onResult("적용 결과를 확인하려면 현재 설정과 백업을 다시 조회해 주세요.")
             } finally {

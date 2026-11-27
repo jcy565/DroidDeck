@@ -52,10 +52,12 @@ internal object SettingsBackup {
     fun capturePreview(context: Context, key: String, effective: () -> String): PreviewSnapshot =
         PreviewSnapshot(raw(context, key), effective(), revision(context, key))
 
+    class ChangeBlocked(val reason: String) : IllegalStateException(reason)
+
     private fun <T> withAdmission(action: () -> T): T {
         val lease = SessionDriverGate.shared.tryAcquire(SessionDriverGate.Kind.DRIVER_WRITE) {
             GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)
-        } ?: error("설정 변경 또는 게임 실행이 진행 중입니다.")
+        } ?: throw ChangeBlocked("게임 실행 또는 다른 설정 변경이 끝난 뒤 다시 시도해 주세요.")
         return lease.use { action() }
     }
 
@@ -75,11 +77,17 @@ internal object SettingsBackup {
         val b = prefix(key)
         require(validProposed(key, proposed))
         require(expectedRaw != proposed)
-        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
-        check(recordFields.none { p.contains(b + it) }) { "기존 백업을 먼저 복구하세요." }
-        check(expectedPreview == null || (expectedPreview.raw == expectedRaw &&
-            expectedPreview.revision == revision(context, key))) { "미리보기 이후 설정이 변경되었습니다." }
-        check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
+        if (!GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE)) {
+            throw ChangeBlocked("게임을 종료한 뒤 다시 시도해 주세요.")
+        }
+        if (recordFields.any { p.contains(b + it) }) {
+            throw ChangeBlocked("이 설정에 기존 백업이 있습니다. 백업 상태를 확인해 주세요.")
+        }
+        val previewChanged = expectedPreview != null && (expectedPreview.raw != expectedRaw ||
+            expectedPreview.revision != revision(context, key))
+        if (previewChanged || raw(context, key) != expectedRaw || !verifyBefore()) {
+            throw ChangeBlocked("미리보기 이후 설정이 바뀌었습니다. 현재 값으로 다시 미리보기를 열어 주세요.")
+        }
         val recordId = UUID.randomUUID().toString()
         val newRevision = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
