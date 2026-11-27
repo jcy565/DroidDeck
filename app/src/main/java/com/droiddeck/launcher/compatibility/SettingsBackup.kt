@@ -16,11 +16,25 @@ internal object SettingsBackup {
 
     enum class ReviewStatus { NO_BACKUP, INVALID_BACKUP, CONFLICT, LEGACY_BACKUP, READY }
 
+    enum class ReviewAction { RESTORE, KEEP_CURRENT_AND_ARCHIVE }
+
     data class ReviewEntry(
         val key: String, val status: ReviewStatus, val review: RecoveryReview?,
         val archiveOccupied: Boolean,
         val archived: RecoveryReview?,
-    )
+    ) {
+        /** Eligibility at inspection time only. The write backend rechecks the exact review. */
+        val availableActions: Set<ReviewAction>
+            get() {
+                val record = review ?: return emptySet()
+                if (record.recordId == null) return emptySet()
+                return buildSet {
+                    if (status == ReviewStatus.READY && record.matchesApplied) add(ReviewAction.RESTORE)
+                    if ((status == ReviewStatus.READY || status == ReviewStatus.CONFLICT) &&
+                        !archiveOccupied) add(ReviewAction.KEEP_CURRENT_AND_ARCHIVE)
+                }
+            }
+    }
 
     private val recordFields = listOf("applied", "present", "before", "id", "invalidated")
     private val archiveFields = recordFields + listOf("current", "currentPresent", "revision")

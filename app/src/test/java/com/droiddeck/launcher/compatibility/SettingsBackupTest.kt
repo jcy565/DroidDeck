@@ -466,6 +466,43 @@ class SettingsBackupTest {
         assertFalse(prefs.contains(key))
         assertNull(SettingsBackup.review(context, key))
     }
+    @Test fun readyReviewOffersRestoreAndArchiveButConflictOffersOnlyArchive() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        fun entry() = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(setOf(SettingsBackup.ReviewAction.RESTORE, SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE),
+            entry().availableActions)
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val before = prefs.all
+        assertEquals(setOf(SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE), entry().availableActions)
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun occupiedArchiveBlocksArchiveOptionButNotValidRestore() {
+        val first = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, first, true)
+        SettingsBackup.apply(context, key, "1280x720", "1600x900")
+        fun entry() = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertEquals(setOf(SettingsBackup.ReviewAction.RESTORE), entry().availableActions)
+        SettingsBackup.writeNormalResolution(context, "steam", "900p")
+        assertTrue(entry().availableActions.isEmpty())
+    }
+
+    @Test fun invalidOrLegacyReviewNeverOffersActions() {
+        fun entry() = SettingsBackup.reviewAll(context).single { it.key == key }
+        assertTrue(entry().availableActions.isEmpty())
+        prefs.edit().putString(key, "1280x720")
+            .putString("ai.backup.$key.applied", "1280x720")
+            .putBoolean("ai.backup.$key.present", false).commit()
+        assertEquals(SettingsBackup.ReviewStatus.LEGACY_BACKUP, entry().status)
+        assertTrue(entry().availableActions.isEmpty())
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        assertEquals(SettingsBackup.ReviewStatus.CONFLICT, entry().status)
+        assertTrue(entry().availableActions.isEmpty())
+        prefs.edit().putString("ai.backup.$key.id", "bad").commit()
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP, entry().status)
+        assertTrue(entry().availableActions.isEmpty())
+    }
+
     @Test fun archiveDistinguishesMissingCurrentValueFromRealAbsence() {
         val approved = SettingsBackup.apply(context, key, null, "1280x720")
         SettingsBackup.keepCurrentAndArchive(context, approved, true)

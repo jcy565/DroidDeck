@@ -69,6 +69,13 @@ internal fun SettingsRecoveryReviewPanel() {
                 entry.review?.let { review ->
                     Text("이전: ${display(review.before)} / 적용: ${display(review.applied)} / 현재: ${display(review.current)}")
                 }
+                val actions = entry.availableActions
+                if (SettingsBackup.ReviewAction.RESTORE in actions)
+                    Text("복구 후보: 이전 저장값으로 되돌리기")
+                if (SettingsBackup.ReviewAction.KEEP_CURRENT_AND_ARCHIVE in actions)
+                    Text("보관 후보: 현재 설정을 유지하고 기존 백업 보관")
+                if (actions.isNotEmpty())
+                    Text("검증 완료 전에는 실행할 수 없습니다.")
                 if (entry.archiveOccupied) {
                     Text("이전 기록 보관됨: 덮어쓰기 금지")
                     val archived = entry.archived
