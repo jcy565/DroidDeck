@@ -5,8 +5,17 @@ set -euo pipefail
 out=app/build/compose-idle-diagnostics
 mkdir -p "$out"
 tests=(
+    'com.droiddeck.launcher.ui.ComponentDownloadsDrawerTest.controllerPicksNightlyOnItsTabThenDownloadsItFromTheRow'
+    'com.droiddeck.launcher.ui.ComponentsPageProfileTest.aNewNavigationTargetReplacesThePreviousProfile'
+    'com.droiddeck.launcher.ui.FlathubFocusTest.openingAnAppReleasesTheCoveredNativeSearchField'
+    'com.droiddeck.launcher.ui.FocusGlideWindowsTest.dropdownItemsShareTheirOwnWindowGlide'
+    'com.droiddeck.launcher.ui.GameEnvironmentEditorTest.backgroundSelectionCannotRetargetAnOpenVariableEdit'
+    'com.droiddeck.launcher.ui.GlassesCalibrationControlsTest.startRequiresInstructionsAndDoneRecentersAfterSuccessfulCapture'
+    'com.droiddeck.launcher.ui.GlassesPanelTest.ultraControlsDisappearOnDisconnectAndForOtherGlassesWithSavedPreferences'
+    'com.droiddeck.launcher.ui.GlassesPanelTest.spatialSteamVrIncludesHeadTrackingAndRestoresTheSavedVirtualScreenSwitch'
     'com.droiddeck.launcher.ui.HeadingLocaleTest.headingsFollowTheAppLanguageAndRecomposeWhenItChanges'
     'com.droiddeck.launcher.ui.ModeHeaderFocusTest.clickingSearchIconFocusesField'
+    'com.droiddeck.launcher.ui.ModeHeaderFocusTest.reenteringCompositionWithNonEmptyQueryDoesNotStealFocus'
 )
 printf 'test\texit_code\n' > "$out/summary.tsv"
 for test in "${tests[@]}"; do

@@ -133,6 +133,7 @@ printf '%s\\n' "$3" > app/build/test-results/testReleaseUnitTest/test.xml
 case "$3" in
     *HeadingLocaleTest*) exit 1 ;;
     *ModeHeaderFocusTest*) exit 0 ;;
+    com.droiddeck.launcher.ui.*) exit 0 ;;
     *) exit 99 ;;
 esac
 """)
@@ -142,10 +143,33 @@ esac
             output = root / 'app/build/compose-idle-diagnostics'
             rows = (output / 'summary.tsv').read_text().splitlines()
             self.assertEqual(rows[0], 'test\\texit_code'.replace('\\t', '\t'))
-            self.assertEqual(len(rows), 3)
-            self.assertEqual([line.rsplit('\t', 1)[1] for line in rows[1:]], ['1', '0'])
+            expected = [
+                'com.droiddeck.launcher.ui.ComponentDownloadsDrawerTest.controllerPicksNightlyOnItsTabThenDownloadsItFromTheRow',
+                'com.droiddeck.launcher.ui.ComponentsPageProfileTest.aNewNavigationTargetReplacesThePreviousProfile',
+                'com.droiddeck.launcher.ui.FlathubFocusTest.openingAnAppReleasesTheCoveredNativeSearchField',
+                'com.droiddeck.launcher.ui.FocusGlideWindowsTest.dropdownItemsShareTheirOwnWindowGlide',
+                'com.droiddeck.launcher.ui.GameEnvironmentEditorTest.backgroundSelectionCannotRetargetAnOpenVariableEdit',
+                'com.droiddeck.launcher.ui.GlassesCalibrationControlsTest.startRequiresInstructionsAndDoneRecentersAfterSuccessfulCapture',
+                'com.droiddeck.launcher.ui.GlassesPanelTest.ultraControlsDisappearOnDisconnectAndForOtherGlassesWithSavedPreferences',
+                'com.droiddeck.launcher.ui.GlassesPanelTest.spatialSteamVrIncludesHeadTrackingAndRestoresTheSavedVirtualScreenSwitch',
+                'com.droiddeck.launcher.ui.HeadingLocaleTest.headingsFollowTheAppLanguageAndRecomposeWhenItChanges',
+                'com.droiddeck.launcher.ui.ModeHeaderFocusTest.clickingSearchIconFocusesField',
+                'com.droiddeck.launcher.ui.ModeHeaderFocusTest.reenteringCompositionWithNonEmptyQueryDoesNotStealFocus',
+            ]
+            self.assertEqual([line.split('\t')[0] for line in rows[1:]], expected)
+            self.assertEqual([line.rsplit('\t', 1)[1] for line in rows[1:]],
+                             ['1' if 'HeadingLocaleTest' in name else '0' for name in expected])
             for row in rows[1:]:
                 method = row.split('\t')[0]
                 dest = output / method.rsplit('.', 1)[1]
                 self.assertTrue((dest / 'run.log').is_file())
                 self.assertEqual((dest / 'results/test.xml').read_text().strip(), method)
+
+    def test_ai_ci_worker_recycling_keeps_unfiltered_test_gate(self):
+        gradle = (ROOT / 'app/build.gradle').read_text()
+        self.assertIn("if (ciBuild && providers.environmentVariable('GITHUB_REF_NAME').getOrNull()?.startsWith('ai-')) {\n                forkEvery = 10L", gradle)
+        jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
+        step = next(s for s in jobs['build']['steps'] if s.get('id') == 'unit-tests')
+        self.assertIn('testReleaseUnitTest', step['run'])
+        self.assertNotIn('--tests', step['run'])
+        self.assertNotIn('continue-on-error', step)

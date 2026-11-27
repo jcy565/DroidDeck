@@ -235,6 +235,11 @@ android {
             }
             maxHeapSize = '2g'
             maxParallelForks = ciBuild ? 1 : 2
+            // Experiment on AI development CI only: isolated reruns pass where the
+            // long-lived full-suite worker failed. Recycle workers without filtering tests.
+            if (ciBuild && providers.environmentVariable('GITHUB_REF_NAME').getOrNull()?.startsWith('ai-')) {
+                forkEvery = 10L
+            }
             // Use the canonical Maven Central endpoint for Robolectric runtime artifacts.
             systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
             def logTarget = providers.systemProperty('robolectric.logging').orNull
