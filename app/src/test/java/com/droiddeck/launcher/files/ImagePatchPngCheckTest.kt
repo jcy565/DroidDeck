@@ -47,6 +47,20 @@ class ImagePatchPngCheckTest {
             chunk("IDAT", data) + end)
     }
 
+    @Test fun verifiesCompressedScanlinesEvenWithValidChunkCrc() {
+        fun compress(raw: ByteArray) = ByteArrayOutputStream().also { buffer ->
+            DeflaterOutputStream(buffer).use { it.write(raw) }
+        }.toByteArray()
+        fun withData(encoded: ByteArray) = signature + header + chunk("IDAT", encoded) + end
+        for (i in data.indices) rejects(withData(data.copyOf(i)))
+        rejects(withData(data + byteArrayOf(0)))
+        rejects(withData(compress(ByteArray(4))))
+        rejects(withData(compress(ByteArray(6))))
+        rejects(withData(compress(byteArrayOf(5,0,0,0,0))))
+        ImagePatchPngCheck.validate(signature + header + chunk("IDAT", data.copyOfRange(0, 1)) +
+            chunk("IDAT", data.copyOfRange(1, data.size)) + end, 1, 1)
+    }
+
     @Test fun cancellationIsNotSwallowed() {
         assertTrue(runCatching { ImagePatchPngCheck.validate(valid(), 1, 1) {
             throw CancellationException()
