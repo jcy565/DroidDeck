@@ -61,6 +61,15 @@ class ImagePatchPngCheckTest {
             chunk("IDAT", data.copyOfRange(1, data.size)) + end, 1, 1)
     }
 
+    @Test fun validatesRealOneBitAdam7Png() {
+        // Generated with Pillow and ImageMagick; no game or personal data.
+        val bytes = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAcAAAAJAQAAAAGhJDuYAAAAI0lEQVQI12NgYGiAwgMMEHYAwwMg6wDDAoYEBgMGGQYpBjYAlWYHHeTdubwAAAAASUVORK5CYII=")
+        assertEquals(1, bytes[28].toInt())
+        ImagePatchPngCheck.validate(bytes, 7, 9)
+        assertTrue(runCatching { ImagePatchPngCheck.validate(bytes, 7, 8) }.isFailure)
+    }
+
     @Test fun cancellationIsNotSwallowed() {
         assertTrue(runCatching { ImagePatchPngCheck.validate(valid(), 1, 1) {
             throw CancellationException()
