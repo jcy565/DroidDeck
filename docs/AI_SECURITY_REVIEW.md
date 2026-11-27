@@ -23,7 +23,7 @@ CI APK는 공개 테스트 키로 서명한 시험용이다. 소유자 전용 �
 ```bash
 umask 077
 keytool -genkeypair -storetype PKCS12 -keystore ~/droiddeck-ai.p12 -alias droiddeck-ai -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=DroidDeck AI"
-bash tools/release/sign-ai-apk.sh app-release.apk DroidDeck-AI.apk ~/droiddeck-ai.p12 droiddeck-ai
+# Historical command superseded by the six-argument release guard below.
 ```
 
 업데이트는 동일한 개인 키로 서명한다. 테스트 APK와 개인 서명 APK의 인증서는 다르므로 장기 사용할 기기에서는 처음부터 개인 서명 APK로 설치한다. Android가 차단하면 경고 문구를 확인하고 중단한다.
@@ -33,3 +33,7 @@ bash tools/release/sign-ai-apk.sh app-release.apk DroidDeck-AI.apk ~/droiddeck-a
 ## Hybrid AI branch security follow-up
 
 Current applicationId is com.droiddeck.launcher.ai, independent from the official app; Gradle still signs CI artifacts with public testkey. OfficialUpdatePolicy isolates the AI package and dot-suffixed variants; AppUpdates blocks upstream APK offers and SelfInstaller refuses official download and install before disk/network/session work. Reading upstream release metadata remains possible. This is collision protection, not a bypass of Android security or proof of safe APK contents. Separate signing key, verified release provenance, clean install/update tests, and review of shared storage and native libraries remain mandatory. Android installation warning text has not been confirmed. Do not delete official app or disable Play Protect. Previous APK test-key detection is evidence, not proof of the cause.
+
+## Independent APK signing guard
+
+The release helper now requires an independently reviewed input APK SHA-256 and the expected independent release certificate SHA-256, in addition to the existing owner-managed key and alias. The older four-argument invocation is no longer supported. It snapshots the input, checks the package identity and exactly one expected test certificate, refuses the official or public test certificate as the release identity, verifies the output package and exact expected release certificate, compares all non-signature ZIP file contents, and publishes atomically without overwriting. No secret or password argument. Requires Bash, GNU coreutils (including hard-link support), Python and real Android build-tools. The approved hash must come from a reviewed, trusted build, not just an arbitrary downloaded APK. This is a release integrity guard, not malware detection or a way to bypass Android/Play Protect. Real key, real APK signing and device installation remain unverified. Host tests use simulated Android tools and synthetic ZIPs; four unittest methods passed (including 5 invalid digest/certificate cases, 9 tool/payload failure cases, existing and dangling-symlink output checks). CI still uses a public test key; do not distribute it as production.
