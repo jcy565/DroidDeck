@@ -4,7 +4,7 @@ package com.droiddeck.launcher.files
 internal object ImageOverlayPlan {
     data class Item(val box: ImageTextRegions.Box, val text: String)
     const val MAX_EXPORT_PIXELS = 8_388_608L
-    enum class Background { MATCH_FLAT, BLACK }
+    enum class Background(val label: String) { MATCH_FLAT("단색 추정"), MATCH_GRADIENT("그라데이션 추정"), BLACK("검은 배경") }
     data class Palette(val background: Int, val foreground: Int)
     enum class Foreground(val label: String) { AUTO("자동"), BLACK("검정"), WHITE("흰색") }
     enum class Weight(val label: String) { NORMAL("보통"), BOLD("굵게") }

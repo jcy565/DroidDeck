@@ -177,12 +177,12 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 초안 저장 버튼으로 별도 보관할 수 있습니다."
                             } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
                         }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
-                        Text("최대 8Mi 픽셀의 원본 해상도 PNG 복사본을 생성합니다. 단색 배경을 추정하거나 검은 배경으로 덮습니다. 복잡한 배경 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
-                        Text("배경 방식: " + if (backgroundStyle == ImageOverlayPlan.Background.MATCH_FLAT) "단색 추정" else "검은 배경")
+                        Text("최대 8Mi 픽셀의 원본 해상도 PNG 복사본을 생성합니다. 단색 또는 가로·세로 그라데이션을 추정하거나 검은 배경으로 덮습니다. 복잡한 무늬 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
+                        Text("배경 방식: " + backgroundStyle.label)
                         TextButton(enabled = !busy, onClick = {
                             imagePreview = null
-                            backgroundStyle = if (backgroundStyle == ImageOverlayPlan.Background.MATCH_FLAT)
-                                ImageOverlayPlan.Background.BLACK else ImageOverlayPlan.Background.MATCH_FLAT
+                            val choices = ImageOverlayPlan.Background.values()
+                            backgroundStyle = choices[(backgroundStyle.ordinal + 1) % choices.size]
                         }) { Text("배경 방식 변경") }
                         Text("글자 색: " + foregroundStyle.label + " · 굵기: " + fontWeight.label)
                         TextButton(enabled = !busy, onClick = {

@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Typeface
 import java.io.File
 import java.io.FileOutputStream
@@ -63,8 +65,28 @@ internal object ImageOverlayRenderer {
             for (item in mapped) {
                 checkpoint()
                 val b = item.box
+                var gradient: ImageGradientBackground.Gradient? = null
                 val palette = when (style.background) {
                     ImageOverlayPlan.Background.BLACK -> ImageOverlayPlan.Palette(Color.BLACK, Color.WHITE)
+                    ImageOverlayPlan.Background.MATCH_GRADIENT -> {
+                        val top = mutableListOf<Int>()
+                        val bottom = mutableListOf<Int>()
+                        val left = mutableListOf<Int>()
+                        val right = mutableListOf<Int>()
+                        for (i in 0..4) {
+                            val x = b.left + (b.right - b.left - 1) * i / 4
+                            val y = b.top + (b.bottom - b.top - 1) * i / 4
+                            top.add(bitmap.getPixel(x, b.top))
+                            bottom.add(bitmap.getPixel(x, b.bottom - 1))
+                            left.add(bitmap.getPixel(b.left, y))
+                            right.add(bitmap.getPixel(b.right - 1, y))
+                        }
+                        val estimated = ImageGradientBackground.estimate(top, bottom, left, right)
+                            ?: error("배경의 색상 변화가 불규칙합니다. 다른 배경 방식으로 다시 검토하세요.")
+                        gradient = estimated
+                        val midpoint = ImageGradientBackground.mix(estimated.start, estimated.end, 2)
+                        requireNotNull(ImageOverlayPlan.flatPalette(List(8) { midpoint }))
+                    }
                     ImageOverlayPlan.Background.MATCH_FLAT -> {
                         val samples = mutableListOf<Int>()
                         for (i in 0..4) {
@@ -80,6 +102,13 @@ internal object ImageOverlayRenderer {
                     }
                 }
                 background.color = palette.background
+                background.shader = gradient?.let { g ->
+                    val x = b.left + 0.5f
+                    val y = b.top + 0.5f
+                    val endX = if (g.axis == ImageGradientBackground.Axis.HORIZONTAL) b.right - 0.5f else x
+                    val endY = if (g.axis == ImageGradientBackground.Axis.VERTICAL) b.bottom - 0.5f else y
+                    LinearGradient(x, y, endX, endY, g.start, g.end, Shader.TileMode.CLAMP)
+                }
                 ink.color = ImageOverlayPlan.foreground(palette, style.foreground)
                 val w = (b.right - b.left - 4).toFloat()
                 val h = (b.bottom - b.top - 4).toFloat()
