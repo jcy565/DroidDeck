@@ -20,7 +20,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+// UI behavior only: avoid starting process-wide services from the production App.
+@Config(sdk = [28], application = android.app.Application::class)
 class GameEnvironmentEditorTest {
     @get:Rule val compose = createRobolectricComposeRule()
 

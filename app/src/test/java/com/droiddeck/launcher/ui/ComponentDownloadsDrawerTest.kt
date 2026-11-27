@@ -30,7 +30,8 @@ import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalTestApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+// UI behavior only: avoid starting process-wide services from the production App.
+@Config(sdk = [28], application = android.app.Application::class)
 class ComponentDownloadsDrawerTest {
     @get:Rule val compose = createRobolectricComposeRule()
     private lateinit var inputMode: InputModeManager

@@ -29,7 +29,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28], qualifiers = "w960dp-h540dp-land")
+// UI behavior only: avoid starting process-wide services from the production App.
+@Config(sdk = [28], qualifiers = "w960dp-h540dp-land", application = android.app.Application::class)
 class FocusGlideWindowsTest {
     @get:Rule val compose = createRobolectricComposeRule()
 
