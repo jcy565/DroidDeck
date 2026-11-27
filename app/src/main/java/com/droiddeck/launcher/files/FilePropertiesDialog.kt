@@ -73,6 +73,8 @@ internal fun FilePropertiesDialog(
     var importPending by remember(file) { mutableStateOf(false) }
     val backupStorage = File(context.noBackupFilesDir, "image-patch-backups")
     var backup by remember(file) { mutableStateOf<ImagePatchBackup.Backup?>(null) }
+    var transactionDiagnostic by remember(file) { mutableStateOf<ImagePatchTransaction.Diagnostic?>(null) }
+    var probeResult by remember(file) { mutableStateOf("") }
 
     fun checkPatchImage(bytes: ByteArray, source: ImagePatchArchive.Source) {
         val bounds = ImageAssetDecoder.bounds(bytes, File(source.relative).extension.lowercase())
@@ -167,6 +169,7 @@ internal fun FilePropertiesDialog(
                     TextButton(enabled = !busy && !importPending, onClick = {
                         backupTask {
                             backup = null
+                            transactionDiagnostic = null
                             backup = withContext(Dispatchers.IO) {
                                 check(GameplayBudget.allowsOptionalAnalysis(context))
                                 ImagePatchBackup.load(backupStorage, file) {
@@ -177,6 +180,57 @@ internal fun FilePropertiesDialog(
                             patchMessage = if (backup == null) "저장된 원본 백업 없음" else "원본 백업 무결성 검증 완료"
                         }
                     }) { Text("저장된 원본 백업 확인") }
+                    Text("안전한 파일 교체 진단은 앱 내부 임시 파일만 사용합니다. 게임 폴더의 쓰기 호환성을 보장하지 않습니다.")
+                    TextButton(enabled = !busy && !importPending, onClick = {
+                        backupTask {
+                            probeResult = ""
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                                    ImagePatchTransaction.probe(file, File(context.cacheDir, "image-transaction-probe")) {
+                                        coroutine.ensureActive()
+                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                    }
+                                }
+                                probeResult = "앱 내부 임시 파일 교체·복원 성공 (게임 저장소 미검증)"
+                            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                            catch (e: Exception) {
+                                probeResult = "안전한 교체 시험 실패 또는 미지원: " + (e.message ?: e.javaClass.simpleName)
+                            }
+                        }
+                    }) { Text("안전한 파일 교체 호환성 시험") }
+                    if (probeResult.isNotEmpty()) Text(probeResult)
+                    TextButton(enabled = !busy && !importPending && backup != null, onClick = {
+                        backupTask {
+                            transactionDiagnostic = null
+                            transactionDiagnostic = withContext(Dispatchers.IO) {
+                                val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                                ImagePatchTransaction.diagnose(backupStorage, file) {
+                                    coroutine.ensureActive()
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                }
+                            }
+                        }
+                    }) { Text("패치 작업 기록 및 현재 파일 검사") }
+                    transactionDiagnostic?.let { diagnostic ->
+                        val label = when (diagnostic.journal.phase) {
+                            ImagePatchTransaction.Phase.PREPARED -> "백업 준비"
+                            ImagePatchTransaction.Phase.APPLYING -> "적용 중단 가능성 · 복구 필요"
+                            ImagePatchTransaction.Phase.APPLIED -> "적용 기록 있음"
+                            ImagePatchTransaction.Phase.RESTORED -> "복원 기록 있음"
+                        }
+                        Text("작업 기록: $label · 교체 시도 ${diagnostic.journal.attempted}개")
+                        diagnostic.assets.forEach { asset ->
+                            val state = when (asset.state) {
+                                ImagePatchTransaction.AssetState.ORIGINAL -> "백업 원본과 일치"
+                                ImagePatchTransaction.AssetState.TRANSLATED -> "패치 번역본과 일치"
+                                ImagePatchTransaction.AssetState.CONFLICT -> "다른 버전 또는 변경된 파일"
+                                ImagePatchTransaction.AssetState.UNAVAILABLE -> "안전한 읽기 미지원 또는 파일 오류"
+                            }
+                            Text("${asset.relative} · $state")
+                        }
+                        Text("읽기 전용 검사 결과입니다. 실제 패치 적용·복구는 아직 비활성 상태입니다.")
+                    }
                     backup?.let { saved ->
                         Text("원본 백업 ${saved.rows.size}개 파일 · 패치 SHA-256 ${saved.patchDigest.take(12)}…")
                         saved.rows.forEach { Text(it.source.relative) }

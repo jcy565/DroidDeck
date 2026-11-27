@@ -44,6 +44,34 @@ class ImagePatchTransactionTest {
         assertEquals(ImagePatchTransaction.Phase.APPLIED, f.status().phase)
     }
 
+    @Test fun readOnlyDiagnosticAndPrivateReplacementProbe() {
+        val f = Fixture()
+        val scratch = temp.newFolder()
+        val initial = f.status()
+        val checked = ImagePatchTransaction.diagnose(f.storage, f.root)
+        assertEquals(initial, checked.journal)
+        assertTrue(checked.assets.all { it.state == ImagePatchTransaction.AssetState.ORIGINAL })
+        ImagePatchTransaction.probe(f.root, scratch)
+        assertEquals(0, scratch.listFiles()!!.size)
+        assertEquals(initial, f.status())
+        assertArrayEquals(original, f.a.readBytes())
+        assertArrayEquals(original, f.b.readBytes())
+        assertTrue(runCatching { ImagePatchTransaction.probe(f.root, File(f.root, "scratch")) }.isFailure)
+        assertFalse(File(f.root, "scratch").exists())
+        f.apply()
+        assertTrue(ImagePatchTransaction.diagnose(f.storage, f.root).assets.all {
+            it.state == ImagePatchTransaction.AssetState.TRANSLATED
+        })
+        f.b.writeBytes(byteArrayOf(9))
+        assertEquals(ImagePatchTransaction.AssetState.CONFLICT,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assets.last().state)
+        f.b.delete()
+        Files.createSymbolicLink(f.b.toPath(), f.a.toPath())
+        assertEquals(ImagePatchTransaction.AssetState.UNAVAILABLE,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assets.last().state)
+        assertEquals(ImagePatchTransaction.Phase.APPLIED, f.status().phase)
+    }
+
     @Test fun rollbackAndInterruptedRecovery() {
         val f = Fixture()
         var thrown = false

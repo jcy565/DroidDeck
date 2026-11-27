@@ -132,6 +132,62 @@ internal object ImagePatchTransaction {
         } finally { if (created) dir.deleteFile(temp) }
     }
 
+    enum class AssetState { ORIGINAL, TRANSLATED, CONFLICT, UNAVAILABLE }
+    data class AssetCheck(val relative: String, val state: AssetState)
+    data class Diagnostic(val journal: Journal, val assets: List<AssetCheck>)
+
+    /** Read-only snapshot of verified backup, journal and actual game contents. */
+    @Synchronized
+    fun diagnose(storage: File, root: File, checkpoint: () -> Unit = {}): Diagnostic {
+        val backup = requireNotNull(ImagePatchBackup.load(storage, root, checkpoint))
+        val journal = readJournal(backup)
+        val assets = backup.rows.map { row ->
+            checkpoint()
+            val state = try {
+                val actual = parent(root, row.source.relative) { dir, name -> current(dir, name, checkpoint) }
+                when (actual) {
+                    row.source.originalHash -> AssetState.ORIGINAL
+                    row.outputHash -> AssetState.TRANSLATED
+                    else -> AssetState.CONFLICT
+                }
+            } catch (e: java.util.concurrent.CancellationException) { throw e }
+              catch (_: Exception) { AssetState.UNAVAILABLE }
+            checkpoint()
+            AssetCheck(row.source.relative, state)
+        }
+        return Diagnostic(journal, assets)
+    }
+
+    /** Exercise the replacement primitive only on disposable private files, never on the game. */
+    @Synchronized
+    fun probe(root: File, scratch: File, checkpoint: () -> Unit = {}) {
+        checkpoint()
+        require(Files.isDirectory(root.toPath(), NOFOLLOW_LINKS))
+        val game = root.canonicalFile.toPath()
+        val destination = scratch.canonicalFile.toPath()
+        require(!game.startsWith(destination) && !destination.startsWith(game))
+        require(!Files.isSymbolicLink(scratch.toPath()))
+        require(scratch.isDirectory || scratch.mkdirs())
+        require(Files.isDirectory(scratch.toPath(), NOFOLLOW_LINKS))
+        val sandbox = Files.createTempDirectory(destination, "image-txn-probe-").toFile()
+        val file = File(sandbox, "sample.png")
+        try {
+            val original = byteArrayOf(1, 2, 3)
+            val translated = byteArrayOf(4, 5, 6, 7)
+            FileOutputStream(file).use { out -> out.write(original); out.fd.sync() }
+            val source = ImagePatchArchive.Source(file.name, hash(original), original.size.toLong(), 32, 32)
+            val row = ImagePatchArchive.Row(source, hash(translated), translated.size)
+            replace(sandbox, row, source.originalHash, row.outputHash, translated, checkpoint)
+            replace(sandbox, row, row.outputHash, source.originalHash, original, checkpoint)
+            require(parent(sandbox, file.name) { dir, name -> current(dir, name, checkpoint) } == source.originalHash)
+        } finally {
+            Files.newDirectoryStream(sandbox.toPath()).use { entries ->
+                for (entry in entries) Files.deleteIfExists(entry)
+            }
+            Files.deleteIfExists(sandbox.toPath())
+        }
+    }
+
     @Synchronized
     fun status(storage: File, root: File, checkpoint: () -> Unit = {}): Journal =
         readJournal(requireNotNull(ImagePatchBackup.load(storage, root, checkpoint)))
