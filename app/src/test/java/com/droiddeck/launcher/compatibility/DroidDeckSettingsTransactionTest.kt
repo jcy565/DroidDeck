@@ -35,6 +35,15 @@ class DroidDeckSettingsTransactionTest {
         assertFalse(prefs.contains(key))
     }
 
+    @Test fun resolutionPreviewCannotBeRetargetedToOtherScope() {
+        val change = preview().copy(scope = "desktop")
+        assertThrows(IllegalStateException::class.java) {
+            DroidDeckSettingsTransaction.apply(context, change, panel, true)
+        }
+        assertFalse(prefs.contains(key))
+        assertFalse(prefs.contains("displayResolution.desktop"))
+    }
+
     @Test fun resolutionPreviewRejectsChangedPanel() {
         val change = preview()
         assertThrows(IllegalArgumentException::class.java) {

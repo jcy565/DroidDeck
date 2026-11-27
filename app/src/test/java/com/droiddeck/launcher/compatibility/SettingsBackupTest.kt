@@ -357,6 +357,51 @@ class SettingsBackupTest {
         assertEquals(before, prefs.all)
     }
 
+    @Test fun archiveApprovalRejectsNormalWriteAndRevertAfterConflict() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val old = requireNotNull(SettingsBackup.review(context, key))
+        SettingsBackup.writeNormalResolution(context, "steam", "900p")
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        val fresh = requireNotNull(SettingsBackup.review(context, key))
+        assertEquals(old.current, fresh.current)
+        assertNotEquals(old.revision, fresh.revision)
+        val before = prefs.all
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.keepCurrentAndArchive(context, old, true)
+        }
+        assertEquals(before, prefs.all)
+        SettingsBackup.keepCurrentAndArchive(context, fresh, true)
+        assertEquals(fresh, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun archiveRevisionIsHistoricalAfterLaterNormalWrite() {
+        val review = SettingsBackup.apply(context, key, null, "1280x720")
+        assertNotNull(review.revision)
+        SettingsBackup.keepCurrentAndArchive(context, review, true)
+        SettingsBackup.writeNormalResolution(context, "steam", "1600x900")
+        assertEquals(review, SettingsBackup.archivedReview(context, key))
+    }
+
+    @Test fun malformedRevisionFailsClosedForRecovery() {
+        SettingsBackup.apply(context, key, null, "1280x720")
+        prefs.edit().putString("ai.revision.$key", "bad").commit()
+        val before = prefs.all
+        assertEquals(SettingsBackup.ReviewStatus.INVALID_BACKUP,
+            SettingsBackup.reviewAll(context).single { it.key == key }.status)
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.restore(context, key, true)
+        }
+        assertEquals(before, prefs.all)
+    }
+
+    @Test fun oldArchiveWithoutRevisionRemainsReadable() {
+        val review = SettingsBackup.apply(context, key, null, "1280x720")
+        SettingsBackup.keepCurrentAndArchive(context, review, true)
+        prefs.edit().remove("ai.archive.$key.revision").commit()
+        assertEquals(review.copy(revision = null), SettingsBackup.archivedReview(context, key))
+    }
+
     @Test fun previewCapturesRawAbsenceSeparatelyFromEffectiveValue() {
         val (raw, effective) = SettingsBackup.captureBefore(context, key) { "720p" }
         assertNull(raw)
