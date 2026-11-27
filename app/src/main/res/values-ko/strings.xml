@@ -2099,6 +2099,7 @@
     <string name="phantom_instructions_not_applicable">이 Android 버전에서는 이 제한을 사용하지 않습니다.</string>
     <string name="phantom_fix_toggle">개발자 옵션에서 “하위 프로세스 제한 사용 중지”를 켜고, 이후에도 개발자 옵션을 켜 둔 상태로 유지하세요.</string>
     <string name="phantom_fix_no_toggle">이 Android 버전에는 해당 스위치가 없습니다. 무선 디버깅을 사용하여 이 기기에서 변경하세요.</string>
+    <string name="upd_block_independent_ai">DroidDeck AI는 독립 앱입니다. 공식 릴리스로 업데이트할 수 없습니다. 별도 신뢰 서명으로 검증된 AI 릴리스를 사용하세요.</string>
     <string name="upd_block_no_apk">이 빌드에는 이 DroidDeck 복사본용 다운로드가 없습니다.</string>
     <string name="upd_block_version_code">versionCode %1$d이(가) 설치된 %2$d보다 낮아 Android에서 이 빌드 위에 설치하지 않습니다.</string>
     <string name="upd_fail_downgrade">Android에서는 최신 버전 위에 이전 버전을 설치할 수 없습니다. 채널이 따라잡을 때까지 현재 빌드를 유지하세요.</string>

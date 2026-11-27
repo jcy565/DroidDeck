@@ -20,6 +20,12 @@ import java.security.MessageDigest
 object SelfInstaller {
     const val ACTION_STATUS = "com.droiddeck.launcher.update.INSTALL_STATUS"
 
+    private fun requireOfficialInstall(context: Context) {
+        if (!OfficialUpdatePolicy.allowsOfficialInstall(context.packageName)) {
+            throw IOException(context.getString(R.string.upd_block_independent_ai))
+        }
+    }
+
     fun canInstall(context: Context): Boolean =
         Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
 
@@ -27,6 +33,7 @@ object SelfInstaller {
         Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
 
     fun download(context: Context, apk: AppUpdates.Apk, progress: (Int) -> Unit): File {
+        requireOfficialInstall(context)
         val dir = File(context.cacheDir, "updates")
         dir.listFiles()?.forEach { if (it.name != apk.name) FileUtils.delete(it) }
         dir.mkdirs()
@@ -91,6 +98,7 @@ object SelfInstaller {
     }
 
     fun install(context: Context, apk: File, onSession: (Int) -> Unit = {}) {
+        requireOfficialInstall(context)
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)

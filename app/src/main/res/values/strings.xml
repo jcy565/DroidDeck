@@ -2351,6 +2351,7 @@
     <string name="phantom_instructions_not_applicable">This Android version does not use this limit.</string>
     <string name="phantom_fix_toggle">Turn on “Disable child process restrictions” in Developer options, and keep Developer options on afterwards.</string>
     <string name="phantom_fix_no_toggle">This Android version has no switch for it. Use Wireless debugging to change it from this device.</string>
+    <string name="upd_block_independent_ai">DroidDeck AI is a separate app. Official releases cannot update it. Use a reviewed AI release signed with its own trusted key.</string>
     <string name="upd_block_no_apk">This build has no download for this copy of DroidDeck.</string>
     <string name="upd_block_version_code">Android won\'t install it over this build because its versionCode %1$d is below the installed %2$d.</string>
     <string name="upd_fail_downgrade">Android won\'t install an older version over a newer one. Stay on this build until the channel catches up.</string>

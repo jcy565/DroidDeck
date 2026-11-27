@@ -137,6 +137,16 @@ class AppUpdatesTest {
     }
 
     @Test
+    fun independentAiCannotInstallOfficialReleases() {
+        val ai = Installed("eeeeeee", 0, "0.2.0", 9, updatable = true, independentAi = true)
+        assertEquals(com.droiddeck.launcher.R.string.upd_block_independent_ai,
+            AppUpdates.installBlock(stable, ai)!!.text)
+        assertNotNull(AppUpdates.installBlock(catalog.preview!!, ai))
+        assertNotNull(AppUpdates.installBlock(catalog.tests.single(), ai))
+        assertNull(AppUpdates.installBlock(stable, me("eeeeeee")))
+    }
+
+    @Test
     fun aMissingVariantIsBlockedBeforeDownload() {
         val missing = release("ddddddd", withApk = false)
         assertNotNull(AppUpdates.installBlock(missing, me("eeeeeee")))

@@ -80,6 +80,7 @@ object AppUpdates {
          * offered. Its updates are published on The412Banner/droiddeck-nonadreno-drivers.
          */
         val nonAdrenoTest: Boolean = false,
+        val independentAi: Boolean = false,
     )
 
     enum class PreviewHistoryKind { CURRENT, BEHIND, RECENT }
@@ -129,9 +130,10 @@ object AppUpdates {
         BuildConfig.PR_NUMBER,
         BuildConfig.VERSION_NAME,
         BuildConfig.VERSION_CODE,
-        releaseSigned,
+        releaseSigned && OfficialUpdatePolicy.allowsOfficialInstall(BuildConfig.APPLICATION_ID),
         BuildConfig.COMMIT_TIME,
         nonAdrenoTest = BuildConfig.BUILD_LABEL.contains("non-adreno"),
+        independentAi = OfficialUpdatePolicy.isIndependentAi(BuildConfig.APPLICATION_ID),
     )
 
     fun release(catalog: Catalog, follow: Follow): Release? = when (follow.channel) {
@@ -198,6 +200,7 @@ object AppUpdates {
     }
 
     fun installBlock(r: Release, me: Installed = installed()): InstallBlock? = when {
+        me.independentAi -> InstallBlock(R.string.upd_block_independent_ai)
         me.nonAdrenoTest -> InstallBlock(R.string.upd_block_non_adreno_test)
         r.apk == null -> InstallBlock(R.string.upd_block_no_apk)
         r.apk.versionCode < me.versionCode -> InstallBlock(R.string.upd_block_version_code, r.apk.versionCode, me.versionCode)
