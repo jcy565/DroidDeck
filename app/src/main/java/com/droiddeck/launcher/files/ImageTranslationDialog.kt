@@ -27,6 +27,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var source by remember(file) { mutableStateOf("") }
     var translated by remember(file) { mutableStateOf("") }
+    var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
     var busy by remember(file) { mutableStateOf(false) }
     var message by remember(file) { mutableStateOf("") }
 
@@ -38,16 +39,24 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("PNG·JPEG·WebP 정지 이미지의 문자 추출과 번역문 검토를 지원합니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
-                Text("이미지 인식은 영어 등 라틴 문자용 실험 기능입니다. EXIF 회전은 자동 보정하지 않으며, 잘못 인식된 문장은 직접 수정하세요.")
+                Text("이미지 인식은 영어·일본어·중국어용 실험 기능입니다. EXIF 회전은 자동 보정하지 않으며, 잘못 인식된 문장은 직접 수정하세요.")
                 if (ImageOcrRuntime.enabled) {
+                    Text("인식할 문자 선택: ${script.label}")
+                    ImageTranslationInput.Script.values().forEach { option ->
+                        TextButton(enabled = !busy && option != script, onClick = { script = option }) {
+                            Text(option.label)
+                        }
+                    }
+                    Text("언어를 바꾼 뒤 다시 인식하면 현재 텍스트와 번역 초안이 교체됩니다.")
                     Text("Google ML Kit가 기기에서 이미지 문자를 인식합니다. SDK의 사용량·성능 통계가 Google로 전송될 수 있습니다. 이미지나 인식 결과는 ML Kit 서버로 전송되지 않습니다.")
                     TextButton(enabled = !busy, onClick = {
+                        val selectedScript = script
                         busy = true
                         message = ""
                         scope.launch {
                             try {
                                 val recognized = withContext(Dispatchers.IO) {
-                                    ImageOcrRuntime.recognize(file, ::allowed)
+                                    ImageOcrRuntime.recognize(file, selectedScript, ::allowed)
                                 }
                                 source = recognized
                                 translated = ""
