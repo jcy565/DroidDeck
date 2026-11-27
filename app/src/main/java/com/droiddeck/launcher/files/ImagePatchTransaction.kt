@@ -134,7 +134,9 @@ internal object ImagePatchTransaction {
 
     enum class AssetState { ORIGINAL, TRANSLATED, CONFLICT, UNAVAILABLE }
     data class AssetCheck(val relative: String, val state: AssetState)
-    data class Diagnostic(val journal: Journal, val assets: List<AssetCheck>)
+    data class Diagnostic(val journal: Journal, val assets: List<AssetCheck>) {
+        val assessment: ImagePatchReview.Assessment get() = ImagePatchReview.assess(journal, assets)
+    }
 
     /** Read-only snapshot of verified backup, journal and actual game contents. */
     @Synchronized

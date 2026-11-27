@@ -220,6 +220,14 @@ internal fun FilePropertiesDialog(
                             ImagePatchTransaction.Phase.RESTORED -> "복원 기록 있음"
                         }
                         Text("작업 기록: $label · 교체 시도 ${diagnostic.journal.attempted}개")
+                        val assessment = when (diagnostic.assessment) {
+                            ImagePatchReview.Assessment.ORIGINAL_MATCH -> "현재 파일이 백업 원본과 모두 일치"
+                            ImagePatchReview.Assessment.APPLIED_MATCH -> "현재 파일이 번역본과 모두 일치"
+                            ImagePatchReview.Assessment.INTERRUPTED -> "적용 또는 복원 작업이 중단됐을 수 있음 · 검토 필요"
+                            ImagePatchReview.Assessment.OUTSIDE_JOURNAL -> "교체 시도 기록 밖에서 변경된 번역본 발견 · 자동 복구 금지"
+                            ImagePatchReview.Assessment.BLOCKED -> "파일 충돌 또는 읽기 오류 · 자동 복구 금지"
+                        }
+                        Text("일치 상태: $assessment")
                         diagnostic.assets.forEach { asset ->
                             val state = when (asset.state) {
                                 ImagePatchTransaction.AssetState.ORIGINAL -> "백업 원본과 일치"

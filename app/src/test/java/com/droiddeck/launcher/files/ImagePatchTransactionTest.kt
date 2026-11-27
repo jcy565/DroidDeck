@@ -72,6 +72,41 @@ class ImagePatchTransactionTest {
         assertEquals(ImagePatchTransaction.Phase.APPLIED, f.status().phase)
     }
 
+    @Test fun diagnosesJournalMismatchAndInterruptedRollback() {
+        val f = Fixture()
+        assertEquals(ImagePatchReview.Assessment.ORIGINAL_MATCH,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assessment)
+        f.b.writeBytes(translated)
+        assertEquals(ImagePatchReview.Assessment.OUTSIDE_JOURNAL,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assessment)
+        f.b.writeBytes(original)
+        f.apply()
+        assertEquals(ImagePatchReview.Assessment.APPLIED_MATCH,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assessment)
+        f.a.writeBytes(original)
+        assertEquals(ImagePatchReview.Assessment.INTERRUPTED,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assessment)
+        f.b.writeBytes(byteArrayOf(9))
+        assertEquals(ImagePatchReview.Assessment.BLOCKED,
+            ImagePatchTransaction.diagnose(f.storage, f.root).assessment)
+        assertArrayEquals(byteArrayOf(9), f.b.readBytes())
+        assertEquals(ImagePatchTransaction.Phase.APPLIED, f.status().phase)
+    }
+
+    @Test fun reviewRejectsInvalidJournalAndUnexpectedSuffix() {
+        val original = ImagePatchTransaction.AssetCheck("a.png", ImagePatchTransaction.AssetState.ORIGINAL)
+        val translated = ImagePatchTransaction.AssetCheck("b.png", ImagePatchTransaction.AssetState.TRANSLATED)
+        val journal = ImagePatchTransaction.Journal(ImagePatchTransaction.Phase.APPLYING, 1)
+        assertEquals(ImagePatchReview.Assessment.OUTSIDE_JOURNAL,
+            ImagePatchReview.assess(journal, listOf(original, translated)))
+        assertEquals(ImagePatchReview.Assessment.INTERRUPTED,
+            ImagePatchReview.assess(journal, listOf(translated, original)))
+        assertEquals(ImagePatchReview.Assessment.BLOCKED,
+            ImagePatchReview.assess(journal.copy(attempted = 0), listOf(original, translated)))
+        assertEquals(ImagePatchReview.Assessment.BLOCKED,
+            ImagePatchReview.assess(journal, emptyList()))
+    }
+
     @Test fun rollbackAndInterruptedRecovery() {
         val f = Fixture()
         var thrown = false
