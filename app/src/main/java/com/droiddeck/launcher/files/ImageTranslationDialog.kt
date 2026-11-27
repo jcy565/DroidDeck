@@ -27,6 +27,9 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var source by remember(file) { mutableStateOf("") }
     var translated by remember(file) { mutableStateOf("") }
+    var regions by remember(file) { mutableStateOf<ImageTextRegions.Result?>(null) }
+    var regionIndex by remember(file) { mutableStateOf(0) }
+    var regionEdits by remember(file) { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
     var rotation by remember(file) { mutableStateOf(ImageTranslationInput.Rotation.NONE) }
     var busy by remember(file) { mutableStateOf(true) }
@@ -94,8 +97,11 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                     require(ImageDraftStore.identity(file) == expected) { "인식 중 원본 이미지가 변경됐습니다." }
                                     result
                                 }
-                                source = recognized
+                                source = recognized.text
                                 translated = ""
+                                regions = recognized
+                                regionIndex = 0
+                                regionEdits = emptyMap()
                                 message = "인식된 글자를 확인한 뒤 번역하세요."
                             } catch (e: CancellationException) { throw e }
                             catch (e: Exception) { message = e.message ?: "이미지 인식 실패" }
@@ -107,10 +113,48 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                 }
                 OutlinedTextField(source, { value ->
                     if (value.length <= ImageTranslationInput.MAX_TEXT) {
+                        if (source != value) {
+                            regions = null
+                            regionEdits = emptyMap()
+                            regionIndex = 0
+                        }
                         source = value
                         translated = ""
                     }
                 }, enabled = !busy, label = { Text("추출한 글자 · 수정 가능") }, maxLines = 8)
+                regions?.let { result ->
+                    Text("글자 영역 ${result.regions.size}개 · 인식 이미지 ${result.width} × ${result.height}px")
+                    if (result.partial) Text("일부 영역을 제외했습니다. 회전 인식은 글자 추출만 지원합니다.")
+                    result.regions.getOrNull(regionIndex)?.let { region ->
+                        Text("영역 ${region.id}/${result.regions.size} · 좌표 (${region.box.left}, ${region.box.top}) – (${region.box.right}, ${region.box.bottom})")
+                        Text(region.text)
+                        OutlinedTextField(regionEdits[region.id].orEmpty(), { value ->
+                            if (value.length <= 1000 && value.none(Char::isISOControl)) {
+                                regionEdits = if (value.isEmpty()) regionEdits - region.id
+                                    else regionEdits + (region.id to value)
+                            }
+                        }, enabled = !busy, label = { Text("이 영역의 한국어 번역") }, maxLines = 3)
+                        TextButton(enabled = !busy && regionIndex > 0, onClick = { regionIndex-- }) { Text("이전 영역") }
+                        TextButton(enabled = !busy && regionIndex + 1 < result.regions.size, onClick = { regionIndex++ }) { Text("다음 영역") }
+                        TextButton(enabled = !busy, onClick = {
+                            try {
+                                check(allowed())
+                                AiHostBridge.requireCompatible()
+                                val prompt = ImageTranslationInput.prompt(region.text)
+                                context.startActivity(Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).setType("text/plain")
+                                        .putExtra(Intent.EXTRA_TEXT, prompt), "영역 번역 요청"))
+                            } catch (e: Exception) { message = e.message ?: "공유 실패" }
+                        }) { Text("선택 영역 번역 요청") }
+                        Text("영역별 번역 ${regionEdits.values.count { it.isNotBlank() }}/${result.regions.size}개 · 임시 편집")
+                        TextButton(enabled = !busy && regionEdits.isNotEmpty(), onClick = {
+                            try {
+                                translated = ImageTextRegions.summary(result, regionEdits)
+                                message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 저장되지 않습니다."
+                            } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
+                        }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
+                    }
+                }
                 Text("원본 이미지가 아닌 위 텍스트만 공유 대상으로 전달합니다. 개인정보나 민감한 내용이 없는지 먼저 검토하세요.")
                 TextButton(enabled = !busy && source.isNotBlank(), onClick = {
                     try {
@@ -158,6 +202,9 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         }
                         if (draft == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
                         else {
+                            regions = null
+                            regionEdits = emptyMap()
+                            regionIndex = 0
                             source = draft.source
                             translated = draft.translated
                             script = draft.script
