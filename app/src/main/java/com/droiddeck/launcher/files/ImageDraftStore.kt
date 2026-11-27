@@ -100,6 +100,14 @@ internal object ImageDraftStore {
         } finally { Files.deleteIfExists(temporary) }
     }
 
+    /** A batch must never overwrite a manually saved or damaged existing draft. */
+    @Synchronized
+    fun saveIfAbsent(directory: File, image: File, expected: Identity, draft: Draft): Boolean {
+        if (Files.exists(location(directory, expected).toPath(), NOFOLLOW_LINKS)) return false
+        save(directory, image, expected, draft)
+        return true
+    }
+
     @Synchronized
     fun load(directory: File, expected: Identity): Draft? {
         val file = location(directory, expected)

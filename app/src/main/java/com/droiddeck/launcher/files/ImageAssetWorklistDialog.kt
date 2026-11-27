@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.droiddeck.launcher.compatibility.GameplayBudget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,6 +26,41 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     var busy by remember(queue) { mutableStateOf(false) }
     var message by remember(queue) { mutableStateOf("") }
     var statuses by remember(queue) { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var batchJob by remember(queue) { mutableStateOf<Job?>(null) }
+    var script by remember(queue) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
+    var batchReport by remember(queue) { mutableStateOf<ImageBatchOcr.Report?>(null) }
+    fun runBatch() {
+        if (busy || !ImageOcrRuntime.enabled) return
+        busy = true
+        message = ""
+        batchReport = null
+        statuses = emptyMap()
+        val selected = script
+        batchJob = scope.launch {
+            try {
+                batchReport = withContext(Dispatchers.IO) {
+                    val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                    fun checkpoint() {
+                        coroutine.ensureActive()
+                        if (!GameplayBudget.allowsOptionalAnalysis(context) ||
+                            !GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
+                            throw CancellationException("게임 또는 메모리 상태로 작업을 중단했습니다.")
+                    }
+                    ImageBatchOcr.run(queue, directory, selected, recognize = { file, language ->
+                        ImageOcrRuntime.recognize(file, language, ImageTranslationInput.Rotation.NONE) {
+                            checkpoint()
+                            true
+                        }
+                    }, checkpoint = ::checkpoint)
+                }
+                message = "일괄 OCR 종료. 저장된 초안을 확인하고 번역하세요."
+            } catch (e: CancellationException) {
+                message = "일괄 OCR 중단. 이미 저장한 초안은 유지됩니다."
+                throw e
+            } catch (e: Exception) { message = e.message ?: "일괄 OCR 실패" }
+            finally { busy = false; batchJob = null }
+        }
+    }
     fun refresh() {
         if (busy) return
         busy = true
@@ -99,6 +135,27 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                     }
                 }) { Text("현재 작업 목록을 저장 목록에 추가") }
                 Text("초안 저장은 번역 완료나 게임 적용을 뜻하지 않습니다.")
+                if (ImageOcrRuntime.enabled) {
+                    Text("일괄 인식 언어: ${script.label} · 회전 없음")
+                    Text("파일을 한 개씩 인식하고 원문과 위치를 앱 내부 초안으로 저장합니다. 기존 초안은 건드리지 않습니다. Google ML Kit의 사용량·성능 통계가 전송될 수 있습니다.")
+                    TextButton(enabled = !busy, onClick = {
+                        val choices = ImageTranslationInput.Script.values()
+                        script = choices[(script.ordinal + 1) % choices.size]
+                    }) { Text("인식 언어 변경") }
+                    TextButton(enabled = !busy, onClick = { runBatch() }) { Text("미작업 이미지 일괄 OCR 실행") }
+                    if (batchJob != null) TextButton(onClick = { batchJob?.cancel() }) { Text("일괄 OCR 중단") }
+                    batchReport?.let { report ->
+                        Text("신규 초안 ${report.entries.count { it.state == ImageBatchOcr.State.SAVED }}개 · 기존 유지 ${report.entries.count { it.state == ImageBatchOcr.State.EXISTING }}개 · 실패 ${report.entries.count { it.state == ImageBatchOcr.State.FAILED }}개")
+                        report.entries.forEach { entry ->
+                            val label = when (entry.state) {
+                                ImageBatchOcr.State.SAVED -> "인식 초안 저장"
+                                ImageBatchOcr.State.EXISTING -> "기존 초안 유지"
+                                ImageBatchOcr.State.FAILED -> "인식 또는 저장 실패"
+                            }
+                            Text("${entry.relative} · $label")
+                        }
+                    }
+                } else Text("현재 빌드에는 실험용 OCR이 포함되지 않았습니다.")
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)
                 TextButton(enabled = !busy, onClick = { refresh() }) { Text("진행 상태 새로고침") }
