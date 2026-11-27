@@ -58,11 +58,11 @@ internal object ImageBatchRender {
         verify: (ByteArray, String, ImageAssetDiscovery.Candidate) -> Unit,
         checkpoint: () -> Unit = {}): Report {
         checkpoint()
-        require(staging.isDirectory || staging.mkdirs())
-        require(Files.isDirectory(staging.toPath(), NOFOLLOW_LINKS))
         val privatePath = staging.canonicalFile.toPath()
         val gamePath = queue.root.canonicalFile.toPath()
         require(!privatePath.startsWith(gamePath) && !gamePath.startsWith(privatePath))
+        require(staging.isDirectory || staging.mkdirs())
+        require(Files.isDirectory(staging.toPath(), NOFOLLOW_LINKS))
         val entries = mutableListOf<Entry>()
         var remaining = MAX_BATCH_BYTES
         try {
