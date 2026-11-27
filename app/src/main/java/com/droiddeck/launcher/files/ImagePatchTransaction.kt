@@ -55,7 +55,7 @@ internal object ImagePatchTransaction {
     private fun writeJournal(b: ImagePatchBackup.Backup, j: Journal) {
         valid(j, b)
         val file = journalFile(b).toPath()
-        require(!Files.exists(file, NOFOLLOW_LINKS) || Files.isRegularFile(file, NOFOLLOW_LINKS))
+        require(Files.notExists(file, NOFOLLOW_LINKS) || Files.isRegularFile(file, NOFOLLOW_LINKS))
         val body = listOf("DDIMAGETXN1", b.patchDigest, j.phase.name, j.attempted.toString()).joinToString("\n")
         val temp = Files.createTempFile(b.directory.toPath(), ".transaction-", ".tmp")
         try {
@@ -217,6 +217,11 @@ internal object ImagePatchTransaction {
                 replace(root, row, row.source.originalHash, row.outputHash, bytes, checkpoint)
             }
             require(index == b.rows.size && ImagePatchArchive.digest(patch, checkpoint) == b.patchDigest)
+            // Recheck earlier replacements too, not just the last successful move.
+            for (row in b.rows) parent(root, row.source.relative) { dir, name ->
+                require(current(dir, name, checkpoint) == row.outputHash) { "적용 완료 전 파일이 변경됐습니다." }
+            }
+            checkpoint()
             val done = Journal(Phase.APPLIED, index)
             writeJournal(b, done)
             return done
@@ -227,11 +232,22 @@ internal object ImagePatchTransaction {
         }
     }
 
+    private fun originalConflicts(b: ImagePatchBackup.Backup, root: File, checkpoint: () -> Unit): List<String> =
+        b.rows.mapNotNull { row ->
+            checkpoint()
+            val matches = try {
+                parent(root, row.source.relative) { dir, name -> current(dir, name, checkpoint) } == row.source.originalHash
+            } catch (e: java.util.concurrent.CancellationException) { throw e }
+              catch (_: Exception) { false }
+            if (matches) null else row.source.relative
+        }
+
     @Synchronized
     fun recover(storage: File, root: File, checkpoint: () -> Unit = {}): Recovery {
         val b = requireNotNull(ImagePatchBackup.load(storage, root, checkpoint))
         val j = readJournal(b)
-        if (j.attempted == 0) return Recovery(0, 0, emptyList())
+        // Even with no attempted writes, report unexpected changes rather than claiming success.
+        if (j.attempted == 0) return Recovery(0, 0, originalConflicts(b, root, checkpoint))
         var restored = 0; var unchanged = 0
         val conflicts = mutableListOf<String>()
         val originals = File(b.directory, "originals.zip")
@@ -253,7 +269,11 @@ internal object ImagePatchTransaction {
             }
         }
         require(index == b.rows.size && ImagePatchArchive.digest(originals, checkpoint) == b.archiveDigest)
-        if (conflicts.isEmpty()) writeJournal(b, Journal(Phase.RESTORED, 0))
-        return Recovery(restored, unchanged, conflicts.toList())
+        // Never restore outside the attempted prefix. Verify ALL originals before clearing the journal,
+        // including files outside that prefix and files restored earlier in this pass.
+        val remaining = (conflicts + originalConflicts(b, root, checkpoint)).distinct()
+        checkpoint()
+        if (remaining.isEmpty()) writeJournal(b, Journal(Phase.RESTORED, 0))
+        return Recovery(restored, unchanged, remaining)
     }
 }

@@ -33,6 +33,16 @@ class ImagePatchBackupTest {
         assertTrue(runCatching { ImagePatchBackup.load(storage, root) }.isFailure)
     }
 
+    @Test fun nonDirectoryBackupIsNotTreatedAsMissing() {
+        val root = temp.newFolder()
+        val storage = temp.newFolder()
+        assertNull(ImagePatchBackup.load(storage, root))
+        val location = File(storage, hash(root.canonicalPath.toByteArray(Charsets.UTF_8)))
+        location.writeText("not a backup directory")
+        assertTrue(runCatching { ImagePatchBackup.load(storage, root) }.isFailure)
+        assertEquals("not a backup directory", location.readText())
+    }
+
     @Test fun refusesChangedSourceAndDoesNotCreateBackupInsideGame() {
         val root = temp.newFolder()
         val out = temp.newFolder()

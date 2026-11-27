@@ -127,6 +127,53 @@ class ImagePatchTransactionTest {
         assertArrayEquals(original, f.b.readBytes())
     }
 
+    @Test fun recoveryReportsChangesOutsideAttemptedPrefixWithoutOverwritingThem() {
+        val f = Fixture()
+        var cancelled = false
+        assertTrue(runCatching { f.apply {
+            if (cancelled || f.a.readBytes().contentEquals(translated)) {
+                cancelled = true
+                throw CancellationException()
+            }
+        } }.isFailure)
+        assertEquals(1, f.status().attempted)
+        f.b.writeBytes(translated)
+        val result = f.recover()
+        assertEquals(1, result.restored)
+        assertEquals(listOf("b.dds"), result.conflicts)
+        assertArrayEquals(original, f.a.readBytes())
+        assertArrayEquals(translated, f.b.readBytes())
+        assertEquals(ImagePatchTransaction.Phase.APPLYING, f.status().phase)
+        f.b.writeBytes(original)
+        assertTrue(f.recover().conflicts.isEmpty())
+        assertEquals(ImagePatchTransaction.Phase.RESTORED, f.status().phase)
+    }
+
+    @Test fun recoveryWithoutAttemptsReportsUnexpectedContentAndDoesNotWrite() {
+        val f = Fixture()
+        f.b.writeBytes(byteArrayOf(9))
+        val result = f.recover()
+        assertEquals(0, result.restored)
+        assertEquals(listOf("b.dds"), result.conflicts)
+        assertArrayEquals(byteArrayOf(9), f.b.readBytes())
+        assertEquals(ImagePatchTransaction.Phase.PREPARED, f.status().phase)
+    }
+
+    @Test fun applyRechecksEarlierRowsBeforeMarkingCompletion() {
+        val f = Fixture()
+        var changed = false
+        assertTrue(runCatching { f.apply {
+            if (!changed && f.b.readBytes().contentEquals(translated)) {
+                changed = true
+                f.a.writeBytes(byteArrayOf(9))
+            }
+        } }.isFailure)
+        assertTrue(changed)
+        assertArrayEquals(byteArrayOf(9), f.a.readBytes())
+        assertArrayEquals(original, f.b.readBytes())
+        assertEquals(ImagePatchTransaction.Phase.APPLYING, f.status().phase)
+    }
+
     @Test fun rollbackAndInterruptedRecovery() {
         val f = Fixture()
         var thrown = false

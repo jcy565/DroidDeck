@@ -114,7 +114,7 @@ internal object ImagePatchBackup {
     @Synchronized
     fun load(storage: File, root: File, checkpoint: () -> Unit = {}): Backup? {
         val directory = location(storage, root)
-        if (!Files.exists(directory.toPath(), NOFOLLOW_LINKS)) return null
+        if (Files.notExists(directory.toPath(), NOFOLLOW_LINKS)) return null
         return read(directory, root.canonicalPath, checkpoint)
     }
 
@@ -123,7 +123,7 @@ internal object ImagePatchBackup {
         verify: (ByteArray, ImagePatchArchive.Source) -> Unit, checkpoint: () -> Unit = {}): Backup {
         checkpoint()
         val destination = location(storage, root)
-        require(!Files.exists(destination.toPath(), NOFOLLOW_LINKS)) { "이미 원본 백업이 있습니다. 기존 백업은 덮어쓰지 않습니다." }
+        require(Files.notExists(destination.toPath(), NOFOLLOW_LINKS)) { "이미 원본 백업이 있습니다. 기존 백업은 덮어쓰지 않습니다." }
         val fresh = ImagePatchImport.inspect(root, report.file, verify, checkpoint)
         require(fresh == report && fresh.entries.all { it.state == ImagePatchImport.State.READY }) {
             "모든 패치 대상이 원본과 일치해야 백업할 수 있습니다."
@@ -146,7 +146,7 @@ internal object ImagePatchBackup {
             require(read(temporary, value.root, checkpoint) == value)
             require(ImagePatchImport.inspect(root, report.file, verify, checkpoint) == fresh)
             checkpoint()
-            require(!Files.exists(destination.toPath(), NOFOLLOW_LINKS))
+            require(Files.notExists(destination.toPath(), NOFOLLOW_LINKS))
             Files.move(temporary.toPath(), destination.toPath(), ATOMIC_MOVE)
             return value.copy(directory = destination)
         } finally {
