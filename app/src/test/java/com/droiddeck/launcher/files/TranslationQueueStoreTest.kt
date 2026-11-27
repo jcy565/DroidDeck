@@ -25,6 +25,27 @@ class TranslationQueueStoreTest {
         assertEquals("id\ttext\nmenu\tExit\n", source.readText())
     }
 
+    @Test fun cancellationBeforePublicationPreservesPreviousQueue() {
+        val root = temp.newFolder().canonicalFile
+        val storage = temp.newFolder().canonicalFile
+        File(root, "a.tsv").writeText("id\ttext\na\tStart\n")
+        File(root, "b.tsv").writeText("id\ttext\nb\tExit\n")
+        val all = TranslationWorklist.Queue(root, TranslationDiscovery.inspect(root).candidates)
+        val first = all.copy(files = all.files.take(1))
+        TranslationQueueStore.save(storage, first)
+        val old = storage.listFiles()!!.single().readBytes()
+        var checks = 0
+        val failure = runCatching {
+            TranslationQueueStore.save(storage, all) {
+                if (++checks == all.files.size + 1) throw java.util.concurrent.CancellationException()
+            }
+        }.exceptionOrNull()
+        assertTrue(failure is java.util.concurrent.CancellationException)
+        assertEquals(first, TranslationQueueStore.load(storage, root))
+        assertArrayEquals(old, storage.listFiles()!!.single().readBytes())
+        assertEquals(1, storage.listFiles()!!.size)
+    }
+
     @Test fun refusesDamagedRecordAndOverlappingStorage() {
         val root = temp.newFolder().canonicalFile
         val storage = temp.newFolder().canonicalFile
