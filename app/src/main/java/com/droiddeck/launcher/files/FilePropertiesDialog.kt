@@ -3,6 +3,8 @@ package com.droiddeck.launcher.files
 import androidx.compose.foundation.shape.CircleShape
 import com.droiddeck.launcher.ui.focusGlide
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -66,12 +68,46 @@ internal fun FilePropertiesDialog(
     var imageMessage by remember(file) { mutableStateOf("") }
     var selectedImages by remember(file) { mutableStateOf(emptySet<String>()) }
     var examinedImages by remember(file) { mutableStateOf(emptySet<String>()) }
+    var patchReport by remember(file) { mutableStateOf<ImagePatchImport.Report?>(null) }
+    var patchMessage by remember(file) { mutableStateOf("") }
+    var importPending by remember(file) { mutableStateOf(false) }
+    val importPatch = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        importPending = false
+        if (uri != null && !busy && patchReport == null) {
+            busy = true
+            patchMessage = ""
+            scope.launch {
+                try {
+                    patchReport = withContext(Dispatchers.IO) {
+                        val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                        fun checkpoint() {
+                            coroutine.ensureActive()
+                            if (!GameplayBudget.allowsOptionalAnalysis(context))
+                                throw kotlinx.coroutines.CancellationException("게임 또는 메모리 상태로 검사 중단")
+                        }
+                        requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
+                            ImagePatchImport.copyAndInspect(file, File(context.cacheDir, "image-patch-imports"), input,
+                                verify = { bytes, source ->
+                                    val bounds = ImageAssetDecoder.bounds(bytes, File(source.relative).extension.lowercase())
+                                    require(bounds.width == source.width && bounds.height == source.height)
+                                }, checkpoint = ::checkpoint)
+                        }
+                    }
+                    patchMessage = "읽기 전용 검사 완료. 게임 파일은 변경하지 않았습니다."
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    patchMessage = "패치 검사를 중단했습니다."
+                    throw e
+                } catch (e: Exception) { patchMessage = e.message ?: "ZIP 패치 검사 실패" }
+                finally { busy = false }
+            }
+        }
+    }
     LaunchedEffect(file.absolutePath) {
         attrs = withContext(Dispatchers.IO) { readFileAttrs(file) }
     }
 
     OutlinedAlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!busy && !importPending) onDismiss() },
         title = { Text(stringResource(R.string.fm_properties)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -98,6 +134,44 @@ internal fun FilePropertiesDialog(
                 Spacer(Modifier.height(6.dp))
 
                 if (file.isDirectory) {
+                    Text("이 폴더를 게임 루트로 선택해 DroidDeck 이미지 ZIP 패치를 검사합니다. 출처가 확실한 파일만 선택하세요. 적용 기능은 아직 제공하지 않습니다.")
+                    TextButton(enabled = !busy && !importPending && patchReport == null, onClick = {
+                        try {
+                            importPending = true
+                            importPatch.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
+                        } catch (e: Exception) {
+                            importPending = false
+                            patchMessage = e.message ?: "ZIP 선택 실패"
+                        }
+                    }) { Text("이미지 ZIP 패치 불러오기 및 검사") }
+                    if (patchMessage.isNotEmpty()) Text(patchMessage)
+                    patchReport?.let { report ->
+                        Text("원본 일치 ${report.entries.count { it.state == ImagePatchImport.State.READY }} / ${report.entries.size}개 · 검사 시점 기준")
+                        report.entries.forEach { entry ->
+                            val label = when (entry.state) {
+                                ImagePatchImport.State.READY -> "원본 일치"
+                                ImagePatchImport.State.ALREADY_APPLIED -> "번역본과 동일"
+                                ImagePatchImport.State.MISSING -> "파일 없음"
+                                ImagePatchImport.State.UNSAFE -> "지원하지 않는 경로"
+                                ImagePatchImport.State.MISMATCH -> "원본 버전 불일치"
+                                ImagePatchImport.State.INVALID_OUTPUT -> "패치 이미지 형식 또는 크기 불일치"
+                                ImagePatchImport.State.READ_FAILED -> "읽기 또는 원본 형식 검사 실패"
+                            }
+                            Text("${entry.row.source.relative} · $label")
+                        }
+                        TextButton(enabled = !busy, onClick = {
+                            busy = true
+                            scope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) { java.nio.file.Files.deleteIfExists(report.file.toPath()) }
+                                    patchReport = null
+                                    patchMessage = "임시 검사 파일 삭제 완료"
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (e: Exception) { patchMessage = e.message ?: "임시 파일 삭제 실패" }
+                                finally { busy = false }
+                            }
+                        }) { Text("검사 결과 닫기 및 임시 ZIP 삭제") }
+                    }
                     TextButton(enabled = !busy, onClick = {
                         busy = true
                         scope.launch {
@@ -329,7 +403,7 @@ internal fun FilePropertiesDialog(
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.focusGlide(CircleShape)) { Text(stringResource(R.string.fm_done)) } },
+        confirmButton = { TextButton(enabled = !busy && !importPending, onClick = onDismiss, modifier = Modifier.focusGlide(CircleShape)) { Text(stringResource(R.string.fm_done)) } },
     )
 }
 

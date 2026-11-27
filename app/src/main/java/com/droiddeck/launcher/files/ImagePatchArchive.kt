@@ -86,7 +86,9 @@ internal object ImagePatchArchive {
             }
         }
     }
-    fun verify(file: File, checkpoint: () -> Unit = {}): List<Row> {
+    fun verify(file: File, checkpoint: () -> Unit = {}): List<Row> = inspectPayloads(file, checkpoint) { _, _ -> }
+
+    fun inspectPayloads(file: File, checkpoint: () -> Unit = {}, visit: (Row, ByteArray) -> Unit): List<Row> {
         checkpoint()
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS) && file.length() in 1L..MAX_ARCHIVE)
         return ZipFile(file).use { zip ->
@@ -103,6 +105,7 @@ internal object ImagePatchArchive {
                 checkpoint()
                 val bytes = read(zip, requireNotNull(entries["files/${row.source.relative}"]), MAX_FILE)
                 require(bytes.size == row.outputBytes && hash(bytes) == row.outputHash)
+                visit(row, bytes)
             }
             checkpoint()
             rows
