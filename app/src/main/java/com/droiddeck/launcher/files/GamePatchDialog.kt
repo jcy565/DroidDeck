@@ -262,11 +262,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     } }) { Text("저장된 AI 요청 재개") }
                 TextButton(enabled = !busy, onClick = { runAction {
                     val removed = withContext(Dispatchers.IO) {
-                        val saved = ExchangeCheckpoint.load(exchangeCheckpointFile)
-                        saved != null && ExchangeCheckpoint.clear(exchangeCheckpointFile, saved.id)
+                        ExchangeCheckpoint.discard(exchangeCheckpointFile)
                     }
                     message = if (removed) "저장된 AI 요청 정보를 삭제했습니다." else "저장된 AI 요청이 없습니다."
-                } }) { Text("저장된 AI 요청 정보 지우기") }
+                } }) { Text("저장된 AI 요청 정보 지우기 (손상된 정보 포함)") }
                 exchange?.let { pending ->
                     TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                         val edits = if (translationTable) translations.toMap() else emptyMap()
