@@ -26,7 +26,11 @@ log = pathlib.Path(os.environ['MOCK_LOG'])
 seen = log.read_text().splitlines() if log.exists() else []
 with log.open('a') as f:
     f.write(url + '\\n')
-if url not in seen:
+mirror = 'maven-central.storage-download.googleapis.com' in url
+if url.endswith('.sha512'):
+    if mirror or url not in seen:
+        sys.exit(22)
+elif not mirror:
     sys.exit(22)
 payload = b'verified fixture'
 if url.endswith('.sha512'):
@@ -46,7 +50,11 @@ else:
                 capture_output=True, text=True, timeout=30)
             first = run()
             self.assertEqual(first.returncode, 0, first.stderr)
-            self.assertEqual(36, len(log.read_text().splitlines()))
+            requests = log.read_text().splitlines()
+            self.assertEqual(36, len(requests))
+            mirrors = [url for url in requests if 'maven-central.storage-download.googleapis.com' in url]
+            self.assertEqual(6, len(mirrors))
+            self.assertFalse(any(url.endswith('.sha512') for url in mirrors))
             files = list((root / ".m2").rglob("*.jar"))
             self.assertEqual(3, len(files))
             self.assertEqual(0, run().returncode)

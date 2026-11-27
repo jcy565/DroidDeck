@@ -4,9 +4,15 @@ set -euo pipefail
 # Explicit retries also cover curl builds that exit immediately on HTTP 429.
 download() {
   local relative="$1" dest="$2" delay host
+  local hosts=(repo.maven.apache.org repo1.maven.org)
+  # Use the Google Cloud hosted Maven Central mirror for payloads only.
+  # Expected SHA-512 must still come from Maven Central, not the fallback mirror.
+  if [[ "$relative" != *.sha512 ]]; then
+    hosts+=(maven-central.storage-download.googleapis.com)
+  fi
   for delay in 0 15 30 60; do
     if (( delay > 0 )); then sleep "$delay"; fi
-    for host in repo.maven.apache.org repo1.maven.org; do
+    for host in "${hosts[@]}"; do
       rm -f -- "$dest"
       if curl --fail --silent --show-error --location --proto '=https' \
           --proto-redir '=https' --connect-timeout 30 --max-time 300 \
