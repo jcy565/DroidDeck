@@ -107,6 +107,26 @@ class ImagePatchTransactionTest {
             ImagePatchReview.assess(journal, emptyList()))
     }
 
+    @Test fun invalidJournalIsNeverTreatedAsFreshPreparation() {
+        val f = Fixture()
+        val journal = File(f.backup.directory, "transaction.ddit")
+        assertEquals(ImagePatchTransaction.Phase.PREPARED, f.status().phase)
+        journal.writeText("damaged")
+        assertTrue(runCatching { f.status() }.isFailure)
+        assertTrue(runCatching { f.apply() }.isFailure)
+        assertArrayEquals(original, f.a.readBytes())
+        assertArrayEquals(original, f.b.readBytes())
+        assertTrue(journal.delete())
+        assertTrue(journal.mkdir())
+        assertTrue(runCatching { f.status() }.isFailure)
+        assertTrue(journal.delete())
+        Files.createSymbolicLink(journal.toPath(), File(f.backup.directory, "absent").toPath())
+        assertTrue(runCatching { f.status() }.isFailure)
+        assertTrue(runCatching { f.recover() }.isFailure)
+        assertArrayEquals(original, f.a.readBytes())
+        assertArrayEquals(original, f.b.readBytes())
+    }
+
     @Test fun rollbackAndInterruptedRecovery() {
         val f = Fixture()
         var thrown = false
