@@ -69,6 +69,16 @@ internal fun SettingsExperimentPreviewPanel() {
                 Text("$label: 현재 ${display(choices.first().before)}")
                 choices.forEach { change ->
                     val proposed = display(change.proposed)
+                    val comparison = change.panel?.let { panel ->
+                        OutputResolutionComparison.calculate(panel, change.before, change.proposed)
+                    }
+                    if (comparison != null) {
+                        Text("출력 계산값 (가로 기준): " + comparison.description)
+                        if (comparison.currentFollowsWindow)
+                            Text("현재 설정은 창 크기를 따라 변경될 수 있습니다.")
+                        if (comparison.sameDimensions && change.before != change.proposed)
+                            Text("현재 패널의 계산 크기는 같지만 설정 방식은 다릅니다.")
+                    }
                     val status = if (DroidDeckSettingsPreview.changed(change)) "변경 후보" else "현재 설정과 동일"
                     if (DroidDeckSettingsPreview.changed(change)) {
                         Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
@@ -100,6 +110,11 @@ internal fun SettingsExperimentPreviewPanel() {
                     Text("현재 설정: " + change.before)
                     Text("제안 설정: " + change.proposed)
                     Text("기존 저장값: " + (change.snapshot.raw ?: "없음"))
+                    change.panel?.let { panel ->
+                        val comparison = OutputResolutionComparison.calculate(panel, change.before, change.proposed)
+                        if (comparison != null) Text("출력 계산값 (가로 기준): " + comparison.description)
+                        Text("창 크기, 화면 방향 또는 게임 내부 설정에 따라 실제 출력과 다를 수 있습니다.")
+                    }
                     Text("게임별 설정이 아닙니다. 적용 기능은 검증 전까지 비활성화되어 있습니다.")
                 }
             },
