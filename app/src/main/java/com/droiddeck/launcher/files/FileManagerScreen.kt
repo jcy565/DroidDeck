@@ -577,6 +577,10 @@ fun FileManagerScreen(
             file = file,
             onDismiss = { propertiesTarget = null },
             onChanged = { loadDirectory(currentDir, resetScroll = false) },
+            onTranslationFile = { selected ->
+                propertiesTarget = null
+                patchTarget = selected
+            },
         )
     }
 
