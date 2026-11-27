@@ -27,6 +27,22 @@ class TgaImageTest {
         assertArrayEquals(intArrayOf(top[0]), TgaImage.decode(sample(32, 40), 2).argb)
     }
 
+    @Test fun readsRleAndWritesUncompressedCopy() {
+        val raw = sample(32, 40)
+        val compressed = raw.copyOfRange(0, 18).apply { this[2] = 10 } +
+            byteArrayOf(3) + raw.copyOfRange(18, raw.size)
+        val image = TgaImage.decode(compressed, 1)
+        assertArrayEquals(TgaImage.decode(raw, 1).argb, image.argb)
+        val output = java.io.ByteArrayOutputStream()
+        TgaImage.writeCopy(compressed, 2, 2, output, { y, row ->
+            image.argb.copyInto(row, 0, y * 2, (y + 1) * 2)
+        })
+        assertArrayEquals(raw, output.toByteArray())
+        val run = compressed.copyOfRange(0, 18) + byteArrayOf(0x83.toByte(), 1, 2, 3, 4)
+        assertTrue(TgaImage.decode(run, 1).argb.all { it == 0x04030201 })
+        assertTrue(runCatching { TgaImage.inspect(run.copyOf().apply { this[18] = 0x84.toByte() }) }.isFailure)
+    }
+
     @Test fun rejectsUnsupportedOrTruncatedAssets() {
         val bytes = sample(32, 40)
         for (bad in listOf(bytes.copyOf(17), bytes.copyOf(bytes.size - 1),

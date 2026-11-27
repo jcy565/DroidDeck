@@ -87,7 +87,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
         title = { Text("이미지 번역 · ${file.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("PNG·JPEG·WebP 및 일부 비압축 TGA 이미지의 문자 추출과 번역문 검토를 지원합니다. TGA는 PNG 복사본으로만 출력되며 원래 파일 형식으로 적용되지 않습니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
+                Text("PNG·JPEG·WebP 및 일부 비압축·RLE TGA 이미지의 문자 추출과 번역문 검토를 지원합니다. TGA는 비압축 TGA 또는 PNG 복사본으로 내보낼 수 있습니다. 원본 이미지나 게임 파일은 수정하지 않습니다.")
                 Text("이미지 인식은 영어·일본어·중국어용 실험 기능입니다. EXIF 회전은 자동 보정하지 않으며, 잘못 인식된 문장은 직접 수정하세요.")
                 if (ImageOcrRuntime.enabled) {
                     Text("인식할 문자 선택: ${script.label}")
@@ -177,7 +177,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 초안 저장 버튼으로 별도 보관할 수 있습니다."
                             } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
                         }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
-                        Text("최대 8Mi 픽셀의 원본 해상도 PNG 복사본을 생성합니다. 단색 또는 가로·세로 그라데이션을 추정하거나 검은 배경으로 덮습니다. 복잡한 무늬 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
+                        Text("최대 8Mi 픽셀의 원본 해상도 미리보기를 생성합니다. TGA 디코딩 및 출력에는 별도 크기 제한이 있습니다. 단색 또는 가로·세로 그라데이션을 추정하거나 검은 배경으로 덮습니다. 복잡한 무늬 복원, 원본 압축 형식·메타데이터 보존은 지원하지 않습니다.")
                         Text("배경 방식: " + backgroundStyle.label)
                         TextButton(enabled = !busy, onClick = {
                             imagePreview = null
@@ -246,6 +246,21 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                     message = "새 PNG 복사본 저장: ${saved.name}. 원본은 수정하지 않았습니다."
                                 }
                             }) { Text("검토한 이미지 PNG 복사본 저장") }
+                            if (file.extension.lowercase() == "tga") {
+                                Text("TGA 복사본은 원본 크기·비트 깊이·방향을 유지하되 비압축으로 저장합니다. 최대 8MiB이며 원본 메타데이터는 보존하지 않습니다.")
+                                TextButton(enabled = !busy && identity != null && !showOriginal, onClick = {
+                                    val expected = requireNotNull(identity)
+                                    draftAction {
+                                        val saved = withContext(Dispatchers.IO) {
+                                            ImageOverlayRenderer.saveCopy(file, expected, bitmap, asTga = true) {
+                                                ensureActive()
+                                                check(allowed())
+                                            }
+                                        }
+                                        message = "새 TGA 복사본 저장: ${saved.name}. 원본은 수정하지 않았습니다."
+                                    }
+                                }) { Text("검토한 이미지 TGA 복사본 저장") }
+                            }
                             TextButton(enabled = !busy, onClick = { imagePreview = null; originalPreview = null; showOriginal = false }) { Text("미리보기 닫기") }
                         }
                     }

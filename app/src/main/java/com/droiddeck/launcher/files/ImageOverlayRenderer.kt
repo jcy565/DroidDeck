@@ -158,16 +158,25 @@ internal object ImageOverlayRenderer {
 
     /** Allocate a fresh unique file in the original folder; never open the original for writing. */
     fun saveCopy(file: File, expected: ImageDraftStore.Identity, preview: Bitmap,
-        checkpoint: () -> Unit): File {
+        asTga: Boolean = false, checkpoint: () -> Unit): File {
         checkpoint()
         require(ImageDraftStore.identity(file) == expected)
         require(!preview.isRecycled && preview.width.toLong() * preview.height <= ImageOverlayPlan.MAX_EXPORT_PIXELS)
         val parent = requireNotNull(file.canonicalFile.parentFile)
         require(Files.isDirectory(parent.toPath(), NOFOLLOW_LINKS))
-        val output = Files.createTempFile(parent.toPath(), "dd-translated-", ".png").toFile()
+        require(!asTga || file.extension.lowercase() == "tga")
+        val output = Files.createTempFile(parent.toPath(), "dd-translated-", if (asTga) ".tga" else ".png").toFile()
         try {
             FileOutputStream(output).use {
-                require(preview.compress(Bitmap.CompressFormat.PNG, 100, it)) { "PNG 생성 실패" }
+                if (asTga) {
+                    val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use(ImageTranslationInput::read)
+                    val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
+                        .joinToString("") { "%02x".format(it.toInt() and 255) }
+                    require(hash == expected.digest)
+                    TgaImage.writeCopy(bytes, preview.width, preview.height, it, { y, row ->
+                        preview.getPixels(row, 0, preview.width, 0, y, preview.width, 1)
+                    }, checkpoint)
+                } else require(preview.compress(Bitmap.CompressFormat.PNG, 100, it)) { "PNG 생성 실패" }
                 it.fd.sync()
             }
             checkpoint()
