@@ -180,22 +180,39 @@ internal fun FilePropertiesDialog(
                             patchMessage = if (backup == null) "저장된 원본 백업 없음" else "원본 백업 무결성 검증 완료"
                         }
                     }) { Text("저장된 원본 백업 확인") }
-                    Text("안전한 파일 교체 진단은 앱 내부 임시 파일만 사용합니다. 게임 폴더의 쓰기 호환성을 보장하지 않습니다.")
+                    Text("게임 폴더는 읽기 전용으로 검사하고, 파일 교체 시험은 앱 내부 임시 파일만 사용합니다. 게임 폴더의 쓰기 호환성을 보장하지 않습니다.")
                     TextButton(enabled = !busy && !importPending, onClick = {
                         backupTask {
                             probeResult = ""
+                            val readResult = withContext(Dispatchers.IO) {
+                                val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                                ImagePatchStorageCheck.inspect(file) {
+                                    coroutine.ensureActive()
+                                    if (!GameplayBudget.allowsOptionalAnalysis(context))
+                                        throw kotlinx.coroutines.CancellationException("게임 또는 메모리 상태 변경")
+                                }
+                            }
+                            val label = when (readResult) {
+                                ImagePatchStorageCheck.Result.READ_CAPABLE -> "게임 폴더 안전한 읽기 경로 확인"
+                                ImagePatchStorageCheck.Result.UNSAFE_ROOT -> "게임 폴더 경로 불일치 또는 심볼릭 링크"
+                                ImagePatchStorageCheck.Result.NO_SECURE_STREAM -> "게임 저장소 안전한 디렉터리 핸들 미지원"
+                                ImagePatchStorageCheck.Result.NO_POSIX_IDENTITY -> "게임 저장소 POSIX 파일 식별 정보 미지원"
+                                ImagePatchStorageCheck.Result.READ_FAILED -> "게임 저장소 읽기 실패"
+                            }
+                            probeResult = label
                             try {
                                 withContext(Dispatchers.IO) {
                                     val coroutine = kotlinx.coroutines.currentCoroutineContext()
                                     ImagePatchTransaction.probe(file, File(context.cacheDir, "image-transaction-probe")) {
                                         coroutine.ensureActive()
-                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        if (!GameplayBudget.allowsOptionalAnalysis(context))
+                                            throw kotlinx.coroutines.CancellationException("게임 또는 메모리 상태 변경")
                                     }
                                 }
-                                probeResult = "앱 내부 임시 파일 교체·복원 성공 (게임 저장소 미검증)"
+                                probeResult = "$label\n앱 내부 임시 파일 교체·복원 성공 (게임 저장소 쓰기 미검증)"
                             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                             catch (e: Exception) {
-                                probeResult = "안전한 교체 시험 실패 또는 미지원: " + (e.message ?: e.javaClass.simpleName)
+                                probeResult = "$label\n앱 내부 교체 시험 실패 또는 미지원: " + (e.message ?: e.javaClass.simpleName)
                             }
                         }
                     }) { Text("안전한 파일 교체 호환성 시험") }
