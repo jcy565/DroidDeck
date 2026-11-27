@@ -4,6 +4,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.ensureActive
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +35,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
     var source by remember(file) { mutableStateOf("") }
     var translated by remember(file) { mutableStateOf("") }
     var regions by remember(file) { mutableStateOf<ImageTextRegions.Result?>(null) }
+    var imagePreview by remember(file) { mutableStateOf<Bitmap?>(null) }
     var regionIndex by remember(file) { mutableStateOf(0) }
     var regionEdits by remember(file) { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var script by remember(file) { mutableStateOf(ImageTranslationInput.Script.LATIN) }
@@ -99,6 +107,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 }
                                 source = recognized.text
                                 translated = ""
+                                imagePreview = null
                                 regions = recognized
                                 regionIndex = 0
                                 regionEdits = emptyMap()
@@ -114,6 +123,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                 OutlinedTextField(source, { value ->
                     if (value.length <= ImageTranslationInput.MAX_TEXT) {
                         if (source != value) {
+                            imagePreview = null
                             regions = null
                             regionEdits = emptyMap()
                             regionIndex = 0
@@ -130,6 +140,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         Text(region.text)
                         OutlinedTextField(regionEdits[region.id].orEmpty(), { value ->
                             if (value.length <= 1000 && value.none(Char::isISOControl)) {
+                                imagePreview = null
                                 regionEdits = if (value.isEmpty()) regionEdits - region.id
                                     else regionEdits + (region.id to value)
                             }
@@ -153,6 +164,39 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                                 message = "입력한 영역의 번역만 전체 번역문으로 옮겼습니다. 위치 정보는 저장되지 않습니다."
                             } catch (e: Exception) { message = e.message ?: "영역 번역 취합 실패" }
                         }) { Text("입력한 영역 번역 취합 (전체 번역문 교체)") }
+                        Text("검은 배경과 흰 글자로 번역 영역을 덮는 실험용 PNG 복사본입니다. 원래 배경을 복원하지 않으며 일부 원문이 남을 수 있습니다. 축소 인식 해상도로 출력합니다.")
+                        TextButton(enabled = !busy && identity != null && regionEdits.isNotEmpty(), onClick = {
+                            val expected = requireNotNull(identity)
+                            val edits = regionEdits.toMap()
+                            imagePreview = null
+                            draftAction {
+                                imagePreview = withContext(Dispatchers.IO) {
+                                    ImageOverlayRenderer.render(file, expected, result, edits) {
+                                        ensureActive()
+                                        check(allowed()) { "게임 또는 메모리 상태로 이미지 작업을 중단했습니다." }
+                                    }
+                                }
+                                message = "번역 이미지 미리보기입니다. 내용을 확인하세요."
+                            }
+                        }) { Text("번역 이미지 미리보기 생성") }
+                        imagePreview?.let { bitmap ->
+                            val display = remember(bitmap) { bitmap.asImageBitmap() }
+                            Image(bitmap = display, contentDescription = "번역 이미지 미리보기",
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
+                            TextButton(enabled = !busy && identity != null, onClick = {
+                                val expected = requireNotNull(identity)
+                                draftAction {
+                                    val saved = withContext(Dispatchers.IO) {
+                                        ImageOverlayRenderer.saveCopy(file, expected, bitmap) {
+                                            ensureActive()
+                                            check(allowed()) { "게임 또는 메모리 상태로 이미지 저장을 중단했습니다." }
+                                        }
+                                    }
+                                    message = "새 PNG 복사본 저장: ${saved.name}. 원본은 수정하지 않았습니다."
+                                }
+                            }) { Text("검토한 이미지 PNG 복사본 저장") }
+                            TextButton(enabled = !busy, onClick = { imagePreview = null }) { Text("미리보기 닫기") }
+                        }
                     }
                 }
                 Text("원본 이미지가 아닌 위 텍스트만 공유 대상으로 전달합니다. 개인정보나 민감한 내용이 없는지 먼저 검토하세요.")
@@ -202,6 +246,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                         }
                         if (draft == null) message = "현재 이미지 버전에 저장된 초안이 없습니다."
                         else {
+                            imagePreview = null
                             regions = null
                             regionEdits = emptyMap()
                             regionIndex = 0
@@ -214,7 +259,7 @@ internal fun ImageTranslationDialog(file: File, onDismiss: () -> Unit) {
                     }
                 }) { Text("저장 초안 불러오기 (현재 편집 내용 교체)") }
                 if (message.isNotEmpty()) Text(message)
-                Text("닫기 전에 초안을 직접 저장하세요. 이미지 글자 교체 및 실시간 화면 번역은 아직 지원하지 않습니다.")
+                Text("닫기 전에 초안을 직접 저장하세요. 영역별 위치는 저장되지 않습니다. 실시간 화면 번역은 지원하지 않습니다.")
             }
         },
         confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } },
