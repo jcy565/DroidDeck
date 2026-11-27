@@ -624,4 +624,50 @@ class SettingsBackupTest {
         assertNull(SettingsBackup.archivedReview(context, key))
         assertEquals(before, prefs.all)
     }
+
+    @Test fun applyRejectsReentrantNormalWriteDuringEffectiveCheck() {
+        val preview = SettingsBackup.capturePreview(context, key) { "720p" }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, preview.raw, "1280x720", preview) {
+                SettingsBackup.writeNormalResolution(context, "steam", "900p")
+                true
+            }
+        }
+        assertEquals("900p", SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+    }
+
+    @Test fun applyRejectsReentrantNormalWriteAndResetToAbsent() {
+        val preview = SettingsBackup.capturePreview(context, key) { "720p" }
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, preview.raw, "1280x720", preview) {
+                SettingsBackup.writeNormalResolution(context, "steam", "900p")
+                SettingsBackup.resetNormalSessionSettings(context) { it == key }
+                true
+            }
+        }
+        assertNull(SettingsBackup.raw(context, key))
+        assertNull(SettingsBackup.review(context, key))
+        assertNotEquals(preview.revision, SettingsBackup.capturePreview(context, key) { "720p" }.revision)
+    }
+
+    @Test fun applyPreservesUnexpectedJournalCreatedDuringEffectiveCheck() {
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720") {
+                prefs.edit().putBoolean("ai.backup.$key.present", false).commit()
+                true
+            }
+        }
+        assertTrue(prefs.contains("ai.backup.$key.present"))
+        assertFalse(prefs.contains("ai.backup.$key.applied"))
+        assertNull(SettingsBackup.raw(context, key))
+    }
+
+    @Test fun applyCanRetryAfterEffectiveCheckRefusalWithoutLeakingAdmission() {
+        assertThrows(IllegalStateException::class.java) {
+            SettingsBackup.apply(context, key, null, "1280x720") { false }
+        }
+        val review = SettingsBackup.apply(context, key, null, "1280x720") { true }
+        assertEquals(review, SettingsBackup.review(context, key))
+    }
 }

@@ -103,7 +103,16 @@ internal object SettingsBackup {
         val currentRevision = revision(context, key)
         check(expectedPreview == null || (expectedPreview.key == key && expectedPreview.raw == expectedRaw &&
             expectedPreview.revision == currentRevision)) { "미리보기 이후 설정이 변경되었습니다." }
-        check(raw(context, key) == expectedRaw && verifyBefore()) { "설정이 변경되었습니다." }
+        check(raw(context, key) == expectedRaw) { "설정이 변경되었습니다." }
+        // The caller-supplied effective-value check may call synchronized normal
+        // settings writers reentrantly. Never trust the pre-callback revision alone.
+        val checkedState = p.all
+        check(verifyBefore()) { "설정이 변경되었습니다." }
+        check(p.all == checkedState && revision(context, key) == currentRevision &&
+            raw(context, key) == expectedRaw && recordFields.none { p.contains(b + it) }) {
+            "설정 확인 중 저장 상태가 변경되었습니다."
+        }
+        check(GameplayBudget.allows(GameplayBudget.Work.SETTINGS_WRITE))
         val recordId = UUID.randomUUID().toString()
         val newRevision = UUID.randomUUID().toString()
         val e = p.edit().putString(b + "applied", proposed)
