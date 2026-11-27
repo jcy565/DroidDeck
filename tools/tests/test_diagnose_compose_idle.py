@@ -41,7 +41,15 @@ printf '%s' "$3" > app/build/test-results/testReleaseUnitTest/TEST.xml
             self.assertEqual(3, len(classes))
             self.assertEqual("test\texit_code", methods[0])
             self.assertEqual(methods[0], classes[0])
-            self.assertEqual(13, len((root / "calls.txt").read_text().splitlines()))
+            group = (out / "group-summary.tsv").read_text().splitlines()
+            self.assertEqual([methods[0], "component-navigation\t0"], group)
+            first_group_selector = "com.droiddeck.launcher.ui.BottomScreenBarTest"
+            expected_calls = [first_group_selector] + [
+                row.split("\t")[0] for row in methods[1:] + classes[1:]
+            ]
+            self.assertEqual(expected_calls, (root / "calls.txt").read_text().splitlines())
+            self.assertEqual(first_group_selector,
+                             (out / "component-navigation/results/TEST.xml").read_text())
             self.assertTrue(methods[2].endswith("\t4"))
             self.assertTrue(classes[1].endswith("\t7"))
             self.assertTrue(classes[2].endswith("\t0"))
