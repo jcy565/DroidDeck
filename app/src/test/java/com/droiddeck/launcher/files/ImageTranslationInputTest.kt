@@ -31,4 +31,13 @@ class ImageTranslationInputTest {
         assertTrue(runCatching { input.validateText("x".repeat(input.MAX_TEXT + 1)) }.isFailure)
         assertTrue(runCatching { input.validateText("a\u0000b") }.isFailure)
     }
+    @Test fun supportsSelectedScriptsAndQuarterTurnRotations() {
+        val input = ImageTranslationInput
+        assertEquals(listOf("LATIN", "JAPANESE", "CHINESE"), ImageTranslationInput.Script.values().map { it.name })
+        assertEquals(listOf(0, 90, 180, 270), ImageTranslationInput.Rotation.values().map { it.degrees })
+        for (source in listOf("こんにちは", "你好", "游戏设置", "ゲーム開始", "English 日本語 中文")) {
+            assertEquals(source, input.validateText(source))
+            assertTrue(input.prompt(source).endsWith(source))
+        }
+    }
 }
