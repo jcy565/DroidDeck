@@ -10,8 +10,7 @@ internal object GamePatchAuthor {
     private val number = Regex("""[-+]?\d{1,9}(?:\.\d{1,6})?""")
     private val keyPattern = Regex("[A-Za-z0-9_.-]{1,80}")
     private val token = Regex("""\{[A-Za-z0-9_]{1,40}\}|%(?:[1-9][0-9]?\$)?[sdif]|%%|\\[nrt\\]""")
-    private const val LIMIT = 1024 * 1024
-    private const val MAX_ROWS = 100
+    private const val LIMIT = TranslationLimits.MAX_PATCH_BYTES
 
     fun mod(original: String, section: String?, command: String): GameConfigPreview.Preview {
         require(command.length <= 160)
@@ -32,7 +31,7 @@ internal object GamePatchAuthor {
     data class Row(val id: String, val text: String)
 
     private fun tokens(text: String): List<String> {
-        require(text.isNotBlank() && text.length <= 1000 && text.none(Char::isISOControl))
+        require(text.isNotBlank() && text.length <= TranslationLimits.MAX_TEXT_CHARS && text.none(Char::isISOControl))
         val parts = token.findAll(text).map { it.value }.toList()
         require(token.replace(text, "").none { it in "{}%\\<>" }) {
             "지원하지 않는 변수, 이스케이프 또는 태그가 있습니다."
@@ -53,7 +52,7 @@ internal object GamePatchAuthor {
         else TranslationTable.matchesExtension(source, extension)
 
     fun extract(source: String): List<Row> {
-        require(source.length <= 262144)
+        require(source.length <= TranslationLimits.MAX_SOURCE_CHARS)
         if (TranslationJson.isCandidate(source)) {
             return TranslationJson.entries(source).map { entry ->
                 require(keyPattern.matches(entry.id)) { "지원하지 않는 JSON 키입니다." }
@@ -72,7 +71,7 @@ internal object GamePatchAuthor {
                 "중복 ID 또는 지원하지 않는 번역 행입니다."
             }
             tokens(parsed.text)
-            require(rows.size < MAX_ROWS) { "최대 100개 문장을 지원합니다." }
+            require(rows.size < TranslationLimits.MAX_ROWS) { "최대 ${TranslationLimits.MAX_ROWS}개 문장을 지원합니다." }
             rows.add(Row(parsed.id, parsed.text))
         }
         require(rows.isNotEmpty())

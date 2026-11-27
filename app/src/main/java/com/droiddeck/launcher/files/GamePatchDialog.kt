@@ -180,7 +180,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 } }) { Text("간단한 모드 제작") }
             }
             if (translationTable) {
-                Text("파일 기반 한글 패치 제작: id/text TSV·CSV, 문자열 JSON 사전 · 자동 파일 번역 미지원")
+                Text("파일 기반 한글 패치 제작: id/text TSV·CSV, 문자열 JSON 사전 · 최대 ${TranslationLimits.MAX_ROWS}문장 · 자동 파일 번역 미지원")
                 Text("화면 실시간 번역은 지원하지 않습니다. 초안을 저장해 나중에 이어서 작업할 수 있습니다.")
                 TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
@@ -257,7 +257,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         batchImporter.launch(arrayOf("application/json", "text/plain"))
                     }) { Text("일괄 번역 파일 불러오기") }
                     OutlinedTextField(translations[row.id].orEmpty(), { value ->
-                        if (value.length <= 1000) {
+                        if (value.length <= TranslationLimits.MAX_TEXT_CHARS) {
                             translations = if (value.isEmpty()) translations - row.id
                                 else translations + (row.id to value)
                             preview = null

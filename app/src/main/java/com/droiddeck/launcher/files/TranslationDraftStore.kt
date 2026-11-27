@@ -13,7 +13,7 @@ import java.security.MessageDigest
 
 /** Explicitly saved drafts are private to the app and bound to an exact source revision. */
 internal object TranslationDraftStore {
-    private const val LIMIT = 400 * 1024
+    private const val LIMIT = TranslationLimits.MAX_DRAFT_BYTES
     private const val MAGIC = "DDTRANSLATION1"
 
     private fun digest(bytes: ByteArray): ByteArray =
@@ -29,9 +29,9 @@ internal object TranslationDraftStore {
 
     private fun validate(source: String, edits: Map<String, String>) {
         val ids = GamePatchAuthor.extract(source).map { it.id }.toSet()
-        require(edits.isNotEmpty() && edits.size <= 100 && edits.keys.all { it in ids })
+        require(edits.isNotEmpty() && edits.size <= TranslationLimits.MAX_ROWS && edits.keys.all { it in ids })
         // Incomplete translations may be saved; final authoring still validates placeholders.
-        require(edits.values.all { it.isNotEmpty() && it.length <= 1000 })
+        require(edits.values.all { it.isNotEmpty() && it.length <= TranslationLimits.MAX_TEXT_CHARS })
     }
 
     private fun location(directory: File, target: String, source: String): File {
@@ -93,7 +93,7 @@ internal object TranslationDraftStore {
         val edits = DataInputStream(ByteArrayInputStream(body)).use { input ->
             require(input.readUTF() == MAGIC && input.readUTF() == identity(target, source))
             val count = input.readInt()
-            require(count in 1..100)
+            require(count in 1..TranslationLimits.MAX_ROWS)
             val result = linkedMapOf<String, String>()
             repeat(count) {
                 val id = input.readUTF()

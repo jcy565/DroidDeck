@@ -78,9 +78,10 @@ internal object TranslationJson {
         }
     }
 
-    fun entries(source: String, maxEntries: Int = 100): List<Entry> {
-        require(maxEntries in 1..102)
-        require(source.length <= 262144)
+    fun entries(source: String, maxEntries: Int = TranslationLimits.MAX_ROWS,
+        maxChars: Int = TranslationLimits.MAX_SOURCE_CHARS): List<Entry> {
+        require(maxEntries in 1..TranslationLimits.MAX_BATCH_ENTRIES)
+        require(maxChars in 1..TranslationLimits.MAX_BATCH_BYTES && source.length <= maxChars)
         val reader = Reader(source)
         reader.expect('{')
         val rows = mutableListOf<Entry>()
@@ -120,12 +121,18 @@ internal object TranslationJson {
 
     fun rewrite(source: String, edits: Map<String, String>): String {
         val entries = entries(source)
-        require(edits.keys.all { key -> entries.any { it.id == key } })
-        val output = StringBuilder(source)
-        for (entry in entries.asReversed()) {
-            val translated = edits[entry.id] ?: continue
-            if (translated != entry.text) output.replace(entry.start, entry.end, quote(translated))
+        val ids = entries.map { it.id }.toSet()
+        require(edits.keys.all { it in ids })
+        return buildString {
+            var cursor = 0
+            for (entry in entries) {
+                val translated = edits[entry.id] ?: continue
+                if (translated == entry.text) continue
+                append(source, cursor, entry.start)
+                append(quote(translated))
+                cursor = entry.end
+            }
+            append(source, cursor, source.length)
         }
-        return output.toString()
     }
 }

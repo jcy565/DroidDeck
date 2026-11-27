@@ -32,10 +32,11 @@ class TranslationBatchTest {
         assertEquals(mapOf("bye" to "안녕히"), draft)
     }
 
-    @Test fun supportsFullHundredRowBatchWithMetadata() {
-        val many = (1..100).joinToString("\n", "id\ttext\n") { "id$it\tText $it" }
+    @Test fun supportsFullCapacityBatchWithMetadata() {
+        val many = (1..TranslationLimits.MAX_ROWS).joinToString("\n", "id\ttext\n") { "id$it\tText $it" }
         val payload = TranslationBatch.export(target, many)
-        assertEquals(102, TranslationJson.entries(payload, 102).size)
+        assertEquals(TranslationLimits.MAX_BATCH_ENTRIES,
+            TranslationJson.entries(payload, TranslationLimits.MAX_BATCH_ENTRIES).size)
         assertTrue(runCatching { TranslationJson.entries(payload) }.isFailure)
         assertEquals(mapOf("id1" to "문장 1"), TranslationBatch.merge(target, many,
             payload.replace("\"Text 1\"", "\"문장 1\""), emptyMap()))

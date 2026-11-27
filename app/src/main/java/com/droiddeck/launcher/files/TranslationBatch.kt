@@ -19,7 +19,7 @@ internal object TranslationBatch {
             rows.map { PREFIX + it.id to it.text }
         return fields.joinToString(",\n", "{\n", "\n}\n") { (key, value) ->
             "  " + TranslationJson.quote(key) + ": " + TranslationJson.quote(value)
-        }.also { require(it.length <= 262144) }
+        }.also { require(it.toByteArray(Charsets.UTF_8).size <= TranslationLimits.MAX_BATCH_BYTES) }
     }
 
     /** Only changed values are imported. Never silently replace existing edits. */
@@ -28,7 +28,10 @@ internal object TranslationBatch {
         require(target.isNotBlank())
         val rows = GamePatchAuthor.extract(source).associateBy { it.id }
         require(existing.keys.all { it in rows })
-        val fields = TranslationJson.entries(payload, maxEntries = 102).associate { it.id to it.text }
+        require(payload.length <= TranslationLimits.MAX_BATCH_BYTES &&
+            payload.toByteArray(Charsets.UTF_8).size <= TranslationLimits.MAX_BATCH_BYTES)
+        val fields = TranslationJson.entries(payload, maxEntries = TranslationLimits.MAX_BATCH_ENTRIES,
+            maxChars = TranslationLimits.MAX_BATCH_BYTES).associate { it.id to it.text }
         require(fields[SOURCE] == hash(source) && fields[TARGET] == hash(target)) {
             "다른 파일 또는 다른 원본 버전의 번역 작업입니다."
         }
