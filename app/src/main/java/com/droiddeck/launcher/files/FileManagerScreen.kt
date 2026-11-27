@@ -165,6 +165,7 @@ fun FileManagerScreen(
     var selectedEntry by remember { mutableStateOf<File?>(null) }
     var showMenuFor by remember { mutableStateOf<File?>(null) }
     var patchTarget by remember { mutableStateOf<File?>(null) }
+    var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
     var clipboardFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var isCutOperation by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
@@ -581,9 +582,19 @@ fun FileManagerScreen(
                 propertiesTarget = null
                 patchTarget = selected
             },
+            onTranslationQueue = { queue ->
+                propertiesTarget = null
+                translationQueue = queue
+            },
         )
     }
 
+    if (patchTarget == null) {
+        translationQueue?.let { queue ->
+            TranslationWorklistDialog(queue, onOpen = { selected -> patchTarget = selected },
+                onDismiss = { translationQueue = null })
+        }
+    }
     patchTarget?.let { file ->
         GamePatchDialog(file) { patchTarget = null }
     }
