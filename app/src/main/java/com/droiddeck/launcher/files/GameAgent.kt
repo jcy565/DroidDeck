@@ -28,7 +28,7 @@ internal object GameAgent {
         data class Advice(val explanation: String, val evidence: String) : Result
     }
     private data class Input(val task: Task, val prompt: String,
-        val allowedIds: Set<String> = emptySet(), val next: Int = 0)
+        val allowedIds: Set<String> = emptySet())
 
     private fun task(extension: String): Task = when (extension.lowercase()) {
         "ini", "cfg" -> Task.CONFIG
@@ -66,13 +66,13 @@ internal object GameAgent {
                 require(request.existing.keys.all { it in ids })
                 require(request.existing.values.all { it.isNotEmpty() && it.length <= TranslationLimits.MAX_TEXT_CHARS })
                 require(request.start in 0..rows.size)
-                val next = minOf(request.start + MAX_TRANSLATION_ROWS, rows.size)
-                val selected = rows.subList(request.start, next).filter { it.id !in request.existing }
-                require(selected.isNotEmpty()) { "No untranslated rows in this window" }
+                val selected = TranslationAgentWindow.missing(rows.map { it.id }, request.existing.keys,
+                    request.start, MAX_TRANSLATION_ROWS).map { rows[it] }
+                require(selected.isNotEmpty()) { "미번역 문장이 없습니다. 기존 초안을 검토하세요." }
                 val fields = selected.joinToString(",", "{", "}") { q("row." + it.id) + ":" + q(it.text) }
                 Input(kind, rules + "Allowed output: {\"action\":\"translate\",\"explanation\":\"...\", " +
                     "\"row.ID\":\"Korean translation\"}. Only listed IDs. Keep placeholders exactly. " +
-                    "User request: $instruction. Selected source strings: $fields", selected.map { it.id }.toSet(), next)
+                    "User request: $instruction. Selected source strings: $fields", selected.map { it.id }.toSet())
             }
         }
     }
@@ -150,7 +150,12 @@ internal object GameAgent {
                 require(edits.keys.all { it in input.allowedIds })
                 val preview = GamePatchAuthor.translation(request.source, edits)
                 require(preview.original != preview.proposed) { "No translated change" }
-                Result.Translation(request.existing + edits, input.next, explanation)
+                val rows = GamePatchAuthor.extract(request.source)
+                val originals = rows.associate { it.id to it.text }
+                val changed = edits.filter { (id, value) -> originals.getValue(id) != value }
+                val merged = request.existing + changed
+                val next = TranslationAgentWindow.next(rows.map { it.id }, merged.keys, request.start)
+                Result.Translation(merged, next, explanation)
             }
             else -> error("Unsupported model action")
         }
