@@ -4,10 +4,15 @@ package com.droiddeck.launcher.compatibility
 internal object GameHistoryQuery {
     data class Selection(val where: String, val args: List<String>, val limit: Int)
 
+    fun validVersion(version: String?): Boolean = version == null ||
+        (version.isNotBlank() && version.length <= 128 && version.none(Char::isISOControl))
+
+    fun observationVersion(recentlyObserved: String?, confirmed: Boolean): String? =
+        recentlyObserved?.takeIf { confirmed && validVersion(it) }
+
     fun validateIdentity(gameId: String, gameVersion: String?) {
         require(gameId.isNotBlank() && gameId.length <= 256)
-        require(gameVersion == null || (gameVersion.isNotBlank() &&
-            gameVersion.length <= 128 && gameVersion.none(Char::isISOControl)))
+        require(validVersion(gameVersion))
     }
 
     fun recent(gameId: String, limit: Int, gameVersion: String?): Selection {

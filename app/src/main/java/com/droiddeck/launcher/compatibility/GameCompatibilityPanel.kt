@@ -2,10 +2,13 @@ package com.droiddeck.launcher.compatibility
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,11 +26,13 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         val scope = rememberCoroutineScope()
         var report by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
         var busy by remember { mutableStateOf(true) }
-        var currentVersionOnly by remember { mutableStateOf(gameVersion != null) }
+        val observedVersion = gameVersion?.takeIf(GameHistoryQuery::validVersion)
+        var currentVersionOnly by remember { mutableStateOf(observedVersion != null) }
+        var confirmedVersion by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf<String?>(null) }
 
         suspend fun refresh() {
-            report = service.report(gameId, gameVersion = gameVersion.takeIf { currentVersionOnly })
+            report = service.report(gameId, gameVersion = observedVersion.takeIf { currentVersionOnly })
         }
 
         LaunchedEffect(service) {
@@ -46,8 +51,8 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("게임 호환성 기록")
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
-            Text(if (gameVersion == null) "설치 버전: 확인되지 않음" else "설치 버전 (최근 조회): $gameVersion")
-            if (gameVersion != null) {
+            Text(if (observedVersion == null) "설치 버전: 확인되지 않음" else "설치 버전 (최근 조회): $observedVersion")
+            if (observedVersion != null) {
                 Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
                     if (!busy) {
                         busy = true
@@ -68,7 +73,10 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                     }
                 }) { Text(if (currentVersionOnly) "현재 버전 기록 · 전체 버전 보기" else "전체 버전 기록 · 현재 버전 보기") }
             }
+            Text(if (currentVersionOnly) "현재 버전 최근 20건 (버전 미확인 제외)"
+                else "전체 버전 최근 20건 (버전 미확인 포함)")
             report?.let { current ->
+                if (currentVersionOnly && current.observations.isEmpty()) Text("현재 버전의 기록이 없습니다.")
                 Text(current.description)
                 if (!currentVersionOnly && current.observations.isNotEmpty()) {
                     val groups = GameHistoryByVersion.summarize(current.observations)
@@ -90,6 +98,14 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             RuntimeFexPreviewPanel(profileKey)
             SettingsRecoveryReviewPanel()
             Text("직접 확인한 실행 결과를 기록하세요.")
+            if (observedVersion != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = confirmedVersion, enabled = !busy,
+                        onCheckedChange = { confirmedVersion = it })
+                    Text("실행한 게임의 버전이 최근 조회값과 일치함을 확인했습니다.")
+                }
+            }
+            if (!confirmedVersion) Text("버전 미확인으로 기록합니다.")
             listOf(
                 GameRunHistory.Outcome.PLAYABLE to "플레이 가능",
                 GameRunHistory.Outcome.BLACK_SCREEN to "검은 화면",
@@ -100,12 +116,18 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                     if (!busy) {
                         busy = true
                         error = null
+                        val recordedVersion = GameHistoryQuery.observationVersion(observedVersion, confirmedVersion)
+                        confirmedVersion = false
                         scope.launch {
                             var saved = false
                             try {
-                                service.record(GameRunHistory.Observation(gameId, gameVersion,
+                                service.record(GameRunHistory.Observation(gameId, recordedVersion,
                                     outcome, System.currentTimeMillis()))
                                 saved = true
+                                if (recordedVersion == null) {
+                                    currentVersionOnly = false
+                                    report = null
+                                }
                                 refresh()
                             } catch (e: CancellationException) {
                                 throw e

@@ -25,4 +25,11 @@ class GameHistoryQueryTest {
             }
         }
     }
+    @Test fun versionMustBeConfirmedForManualObservation() {
+        assertNull(GameHistoryQuery.observationVersion("1.2", false))
+        assertEquals("1.2", GameHistoryQuery.observationVersion("1.2", true))
+        assertNull(GameHistoryQuery.observationVersion(null, true))
+        for (invalid in listOf("", " ", "v\n1", "v".repeat(129)))
+            assertNull(GameHistoryQuery.observationVersion(invalid, true))
+    }
 }

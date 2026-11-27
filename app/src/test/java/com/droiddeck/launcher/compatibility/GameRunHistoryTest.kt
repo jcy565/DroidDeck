@@ -79,6 +79,15 @@ class GameRunHistoryTest {
         assertEquals(listOf(observation("steam:1", 1)), history.recent("steam:1"))
     }
 
+    @Test fun unconfirmedObservationAppearsOnlyInAllVersionView() {
+        val entry = observation("steam:1", 1).copy(
+            gameVersion = GameHistoryQuery.observationVersion("1.2", false))
+        history.record(entry)
+        assertNull(entry.gameVersion)
+        assertEquals(listOf(entry), history.recent("steam:1"))
+        assertTrue(history.recent("steam:1", gameVersion = "1.2").isEmpty())
+    }
+
     @Test fun boundsStorageAndQuerySize() {
         history.record(observation("old", 0))
         repeat(500) { history.record(observation("new", it.toLong())) }
