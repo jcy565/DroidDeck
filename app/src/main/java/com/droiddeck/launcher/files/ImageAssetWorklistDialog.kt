@@ -10,6 +10,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -49,6 +51,49 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     val approvals = File(context.noBackupFilesDir, "image-approvals")
     var approvedStates by remember(queue) { mutableStateOf<Map<String, ImageApprovalStore.State>>(emptyMap()) }
     var approvedPreview by remember(queue) { mutableStateOf<Pair<String, Bitmap>?>(null) }
+    var patch by remember(queue) { mutableStateOf<ImagePatchArchive.Package?>(null) }
+    var exportPending by remember(queue) { mutableStateOf(false) }
+    val exportPatch = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        exportPending = false
+        val saved = patch
+        if (uri != null && saved != null && !busy) {
+            busy = true
+            message = ""
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        fun checkWork() {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                        }
+                        require(ImagePatchArchive.verify(saved.file, ::checkWork) == saved.rows &&
+                            ImagePatchArchive.digest(saved.file, ::checkWork) == saved.digest)
+                        val digest = java.security.MessageDigest.getInstance("SHA-256")
+                        var total = 0L
+                        java.nio.file.Files.newInputStream(saved.file.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS).use { input ->
+                            requireNotNull(context.contentResolver.openOutputStream(uri, "w")).use { output ->
+                                val buffer = ByteArray(65536)
+                                while (true) {
+                                    ensureActive()
+                                    checkWork()
+                                    val n = input.read(buffer)
+                                    if (n < 0) break
+                                    total += n
+                                    require(total <= ImagePatchArchive.MAX_ARCHIVE)
+                                    output.write(buffer, 0, n)
+                                    digest.update(buffer, 0, n)
+                                }
+                            }
+                        }
+                        require(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == saved.digest)
+                    }
+                    message = "ZIP 내보내기 완료. 게임에는 적용하지 않았습니다."
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { message = "ZIP 내보내기 실패. 대상에 불완전한 파일이 남았을 수 있습니다." }
+                finally { busy = false }
+            }
+        }
+    }
 
     fun approvalTask(action: suspend () -> Unit) {
         if (busy) return
@@ -239,7 +284,7 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     }
     LaunchedEffect(queue) { refresh() }
     AlertDialog(
-        onDismissRequest = { if (!busy) onDismiss() },
+        onDismissRequest = { if (!busy && !exportPending) onDismiss() },
         title = { Text("이미지 한글화 작업 목록") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -510,6 +555,47 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                     Image(bitmap = remember(image) { image.asImageBitmap() }, contentDescription = name,
                         modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
                 }
+                val validCandidates = queue.candidates.filter { approvedStates[it.relative] == ImageApprovalStore.State.VALID }
+                Text("현재 유효 표시된 승인 이미지 ${validCandidates.size}개 · 패치 생성 시 다시 확인합니다.")
+                TextButton(enabled = !busy && !exportPending && patch == null && validCandidates.isNotEmpty(), onClick = {
+                    approvalTask {
+                        val selected = validCandidates.toList()
+                        patch = withContext(Dispatchers.IO) {
+                            val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                            fun checkpoint() {
+                                coroutine.ensureActive()
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                            }
+                            val sources = selected.map { c ->
+                                ImagePatchArchive.Source(c.relative, c.digest, c.bytes, c.width, c.height)
+                            }
+                            ImagePatchArchive.create(queue.root, File(context.cacheDir, "image-patches"), sources, load = { source ->
+                                checkpoint()
+                                val c = selected.single { it.relative == source.relative }
+                                requireNotNull(ImageApprovalStore.read(approvals, queue, directory, c,
+                                    ImageBatchRenderRuntime::verify)).bytes
+                            }, checkpoint = ::checkpoint)
+                        }
+                        message = "승인 이미지 ZIP 패치 생성 및 내부 검증 완료."
+                    }
+                }) { Text("유효 승인 이미지 ZIP 패치 생성") }
+                patch?.let { saved ->
+                    Text("패치 ${saved.rows.size}개 파일 · 게임에 미적용 · 원본 파일 해시 포함")
+                    saved.rows.forEach { Text(it.source.relative) }
+                    TextButton(enabled = !busy && !exportPending, onClick = {
+                        try {
+                            exportPending = true
+                            exportPatch.launch("droiddeck-image-patch.zip")
+                        } catch (e: Exception) { exportPending = false; message = e.message ?: "파일 선택기 실행 실패" }
+                    }) { Text("ZIP 패치 파일 내보내기") }
+                    TextButton(enabled = !busy && !exportPending, onClick = {
+                        approvalTask {
+                            withContext(Dispatchers.IO) { java.nio.file.Files.deleteIfExists(saved.file.toPath()) }
+                            patch = null
+                            message = "임시 패치 파일 삭제 완료"
+                        }
+                    }) { Text("임시 ZIP 삭제") }
+                }
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)
                 TextButton(enabled = !busy, onClick = { refresh() }) { Text("진행 상태 새로고침") }
@@ -525,6 +611,6 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                 }
             }
         },
-        confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("목록 닫기") } },
+        confirmButton = { TextButton(enabled = !busy && !exportPending, onClick = onDismiss) { Text("목록 닫기") } },
     )
 }
