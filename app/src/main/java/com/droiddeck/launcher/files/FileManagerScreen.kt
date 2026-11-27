@@ -165,6 +165,7 @@ fun FileManagerScreen(
     var selectedEntry by remember { mutableStateOf<File?>(null) }
     var showMenuFor by remember { mutableStateOf<File?>(null) }
     var patchTarget by remember { mutableStateOf<File?>(null) }
+    var imageTranslationTarget by remember { mutableStateOf<File?>(null) }
     var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
     var clipboardFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var isCutOperation by remember { mutableStateOf(false) }
@@ -597,6 +598,9 @@ fun FileManagerScreen(
     }
     patchTarget?.let { file ->
         GamePatchDialog(file) { patchTarget = null }
+    }
+    imageTranslationTarget?.let { file ->
+        ImageTranslationDialog(file) { imageTranslationTarget = null }
     }
 
     if (selectedEntry != null && selectedEntry != showMenuFor) {
@@ -1200,6 +1204,8 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in ImageTranslationInput.extensions) {
+                                    imageTranslationTarget = file
                                 } else if (!selectionMode && file.isFile && file.extension.lowercase() in GamePatchStore.extensions + "log") {
                                     patchTarget = file
                                 }
@@ -1281,6 +1287,8 @@ fun FileManagerScreen(
                                         pickPrefs.edit().putString("lastFilePickerDir", currentDir.absolutePath).apply()
                                         onPick?.invoke(file)
                                     }
+                                } else if (!selectionMode && file.isFile && file.extension.lowercase() in ImageTranslationInput.extensions) {
+                                    imageTranslationTarget = file
                                 } else if (!selectionMode && file.isFile && file.extension.lowercase() in GamePatchStore.extensions + "log") {
                                     patchTarget = file
                                 }
