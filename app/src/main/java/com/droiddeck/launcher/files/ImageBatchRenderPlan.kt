@@ -7,6 +7,16 @@ import java.util.concurrent.CancellationException
 internal object ImageBatchRenderPlan {
     enum class State { READY, MISSING, INCOMPLETE, INVALID }
     data class Entry(val candidate: ImageAssetDiscovery.Candidate, val state: State)
+    fun requireReady(c: ImageAssetDiscovery.Candidate, draft: ImageDraftStore.Draft): ImageTextRegions.Result {
+        val regions = requireNotNull(draft.regions)
+        require(!regions.partial && draft.rotation == ImageTranslationInput.Rotation.NONE &&
+            regions.regions.isNotEmpty() && draft.edits.keys == regions.regions.map { it.id }.toSet())
+        require(draft.translated == ImageTextRegions.summary(regions, draft.edits))
+        ImageOverlayPlan.originalSize(ImageOverlayPlan.prepare(regions, draft.edits),
+            regions.width, regions.height, c.width, c.height)
+        return regions
+    }
+
     fun inspect(queue: ImageAssetDiscovery.Queue, drafts: File, checkpoint: () -> Unit = {}): List<Entry> =
         queue.candidates.map { c ->
             checkpoint()
@@ -20,9 +30,7 @@ internal object ImageBatchRenderPlan {
                     regions == null || regions.partial || draft.rotation != ImageTranslationInput.Rotation.NONE ||
                         regions.regions.isEmpty() || draft.edits.keys != regions.regions.map { it.id }.toSet() -> State.INCOMPLETE
                     else -> {
-                        require(draft.translated == ImageTextRegions.summary(regions, draft.edits))
-                        ImageOverlayPlan.originalSize(ImageOverlayPlan.prepare(regions, draft.edits),
-                            regions.width, regions.height, c.width, c.height)
+                        requireReady(c, draft)
                         State.READY
                     }
                 }

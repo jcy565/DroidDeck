@@ -1,6 +1,12 @@
 package com.droiddeck.launcher.files
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.content.Intent
@@ -36,6 +42,55 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
     var reviewed by remember(queue) { mutableStateOf<ImageBatchExchange.Review?>(null) }
     var renderPlan by remember(queue) { mutableStateOf<List<ImageBatchRenderPlan.Entry>>(emptyList()) }
     val exchangeDirectory = File(context.noBackupFilesDir, "image-exchanges")
+    var staged by remember(queue) { mutableStateOf<ImageBatchRender.Report?>(null) }
+    var stagedPreview by remember(queue) { mutableStateOf<Pair<String, Bitmap>?>(null) }
+    var renderJob by remember(queue) { mutableStateOf<Job?>(null) }
+    var batchStyle by remember(queue) { mutableStateOf(ImageOverlayPlan.Background.MATCH_FLAT) }
+
+    fun stageImages() {
+        if (busy || staged != null) return
+        busy = true
+        message = ""
+        val style = ImageOverlayPlan.Appearance(batchStyle, ImageOverlayPlan.Foreground.AUTO, ImageOverlayPlan.Weight.NORMAL)
+        renderJob = scope.launch {
+            try {
+                staged = withContext(Dispatchers.IO) {
+                    val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                    fun checkpoint() {
+                        coroutine.ensureActive()
+                        if (!GameplayBudget.allowsOptionalAnalysis(context) ||
+                            !GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
+                            throw CancellationException("게임 또는 메모리 상태로 출력 중단")
+                    }
+                    ImageBatchRender.run(queue, directory, File(context.cacheDir, "image-batch-review"),
+                        encode = { file, id, draft, ext, output, check ->
+                            ImageBatchRenderRuntime.encode(file, id, draft, ext, output, style, check)
+                        }, verify = ImageBatchRenderRuntime::verify, checkpoint = ::checkpoint)
+                }
+                message = "검토용 출력 생성 완료. 아직 게임에 적용하지 않았습니다."
+            } catch (e: CancellationException) {
+                message = "일괄 출력 중단. 이번 작업의 임시 출력은 제거됩니다."
+                throw e
+            } catch (e: Exception) { message = e.message ?: "일괄 출력 실패" }
+            finally { busy = false; renderJob = null }
+        }
+    }
+
+    fun discardStaged() {
+        if (busy) return
+        val report = staged ?: return
+        busy = true
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) { ImageBatchRender.discard(report) }
+                staged = null
+                stagedPreview = null
+                message = "임시 검토 파일 제거 완료"
+            } catch (e: CancellationException) { throw e }
+              catch (e: Exception) { message = e.message ?: "검토 파일 제거 실패" }
+            finally { busy = false }
+        }
+    }
 
     fun restoreExchange() {
         if (busy) return
@@ -316,6 +371,52 @@ internal fun ImageAssetWorklistDialog(queue: ImageAssetDiscovery.Queue, onOpen: 
                         }
                         Text("${it.candidate.relative} · $label")
                     }
+                }
+                Text("일괄 출력은 최대 파일당 8MiB, 실행당 64MiB입니다. TGA는 비압축, DDS는 손실 재압축, JPEG·WebP는 PNG로 출력합니다. 모든 결과는 앱 캐시의 미승인 검토본입니다.")
+                TextButton(enabled = !busy && staged == null, onClick = {
+                    val choices = ImageOverlayPlan.Background.values()
+                    batchStyle = choices[(batchStyle.ordinal + 1) % choices.size]
+                }) { Text("일괄 배경 방식: ${batchStyle.label}") }
+                TextButton(enabled = !busy && staged == null, onClick = { stageImages() }) { Text("검토용 이미지 일괄 생성") }
+                if (renderJob != null) TextButton(onClick = { renderJob?.cancel() }) { Text("일괄 출력 중단") }
+                staged?.let { report ->
+                    Text("생성 ${report.entries.count { it.state == ImageBatchRender.State.STAGED }} / ${report.entries.size}개")
+                    report.entries.forEach { entry ->
+                        val label = when (entry.state) {
+                            ImageBatchRender.State.STAGED -> "미승인 검토본"
+                            ImageBatchRender.State.SKIPPED -> "초안 미완료"
+                            ImageBatchRender.State.FAILED -> "출력 실패"
+                            ImageBatchRender.State.LIMIT -> "용량 한도"
+                        }
+                        Text("${entry.relative} · $label")
+                        entry.artifact?.let { artifact ->
+                            TextButton(enabled = !busy, onClick = {
+                                busy = true
+                                message = ""
+                                stagedPreview = null
+                                scope.launch {
+                                    try {
+                                        val image = withContext(Dispatchers.IO) {
+                                            ImageBatchRenderRuntime.preview(artifact) {
+                                                ensureActive()
+                                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                            }
+                                        }
+                                        stagedPreview = entry.relative to image
+                                    } catch (e: CancellationException) { throw e }
+                                    catch (e: Exception) { message = e.message ?: "출력 검토 실패" }
+                                    finally { busy = false }
+                                }
+                            }) { Text("실제 출력 미리보기 (${artifact.file.extension.uppercase()})") }
+                        }
+                    }
+                    stagedPreview?.let { (name, image) ->
+                        Text("$name · 축소 검토")
+                        Image(bitmap = remember(image) { image.asImageBitmap() }, contentDescription = name,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp))
+                    }
+                    TextButton(enabled = !busy, onClick = { discardStaged() }) { Text("임시 검토본 삭제") }
+                    Text("작업 목록을 닫으면 검토 목록은 사라집니다. 캐시는 기기에서 제거될 수 있습니다.")
                 }
                 if (busy) Text("파일 확인 중…")
                 if (message.isNotEmpty()) Text(message)
