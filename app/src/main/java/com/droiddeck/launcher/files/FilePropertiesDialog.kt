@@ -49,6 +49,7 @@ internal fun FilePropertiesDialog(
     file: File,
     onDismiss: () -> Unit,
     onChanged: () -> Unit,
+    onTranslationFile: ((File) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -56,6 +57,8 @@ internal fun FilePropertiesDialog(
     var attrs by remember(file.absolutePath) { mutableStateOf<FileAttrState?>(null) }
     var busy by remember(file.absolutePath) { mutableStateOf(false) }
     var usage by remember(file) { mutableStateOf("") }
+    var discovery by remember(file) { mutableStateOf<TranslationDiscovery.Report?>(null) }
+    var discoveryMessage by remember(file) { mutableStateOf("") }
     LaunchedEffect(file.absolutePath) {
         attrs = withContext(Dispatchers.IO) { readFileAttrs(file) }
     }
@@ -111,6 +114,50 @@ internal fun FilePropertiesDialog(
                         }
                     }) { Text("폴더 사용량 분석") }
                     if (usage.isNotEmpty()) Text(usage)
+                    if (onTranslationFile != null) {
+                        TextButton(enabled = !busy, onClick = {
+                            busy = true
+                            discovery = null
+                            discoveryMessage = ""
+                            scope.launch {
+                                try {
+                                    discovery = withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context)) { "게임 또는 메모리 상태 때문에 탐색을 보류했습니다." }
+                                        TranslationDiscovery.inspect(file) {
+                                            ensureActive()
+                                            check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN)) { "게임 상태가 바뀌어 탐색을 중단했습니다." }
+                                        }
+                                    }
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (e: Exception) { discoveryMessage = e.message ?: "번역 대상 탐색 실패" }
+                                finally { busy = false }
+                            }
+                        }) { Text("한글 패치 대상 탐색") }
+                        if (discoveryMessage.isNotEmpty()) Text(discoveryMessage)
+                        discovery?.let { report ->
+                            Text("지원 형식 후보 ${report.candidates.size}개 · 검사 ${report.examined}개 · 제외 ${report.rejected}개" +
+                                if (report.partial) " (부분 탐색)" else "")
+                            Text("CSV·TSV·JSON의 지원 구조만 확인했습니다. 실제 게임 번역 파일인지는 직접 확인하세요.")
+                            report.candidates.forEach { candidate ->
+                                TextButton(enabled = !busy, onClick = {
+                                    busy = true
+                                    scope.launch {
+                                        try {
+                                            val selected = withContext(Dispatchers.IO) {
+                                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                                val checked = TranslationDiscovery.open(file, candidate)
+                                                check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
+                                                checked
+                                            }
+                                            onTranslationFile(selected)
+                                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                        catch (e: Exception) { discoveryMessage = e.message ?: "파일 열기 실패" }
+                                        finally { busy = false }
+                                    }
+                                }) { Text("${candidate.relative} · ${candidate.rows}문장") }
+                            }
+                        }
+                    }
                 }
                 val state = attrs
                 AttributeToggleRow(
