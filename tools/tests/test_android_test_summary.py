@@ -13,7 +13,7 @@ class AndroidTestSummaryTest(unittest.TestCase):
     def test_failure_pass_skip_and_missing_are_distinct(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
-            (directory / 'TEST-a.xml').write_text('''<testsuite>
+            (directory / 'TEST-a.xml').write_text('''<testsuite tests="4">
                 <testcase classname="A" name="known"><failure/></testcase>
                 <testcase classname="A" name="fixed"/>
                 <testcase classname="A" name="skip"><skipped/></testcase>
@@ -31,7 +31,7 @@ class AndroidTestSummaryTest(unittest.TestCase):
     def test_duplicate_is_not_a_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
-            (directory / 'TEST-a.xml').write_text('''<testsuite>
+            (directory / 'TEST-a.xml').write_text('''<testsuite tests="2">
                 <testcase classname="A" name="case"/>
                 <testcase classname="A" name="case"/>
             </testsuite>''')
@@ -54,10 +54,46 @@ class AndroidTestSummaryTest(unittest.TestCase):
     def test_missing_identity_is_not_counted_as_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
-            (directory / 'TEST-a.xml').write_text('<testsuite><testcase name="x"/></testsuite>')
+            (directory / 'TEST-a.xml').write_text('<testsuite tests="1"><testcase name="x"/></testsuite>')
             result = summary.summarize(directory, set(), 'failure')
             self.assertEqual(result['observed_cases'], 0)
             self.assertFalse(result['clean_observed_reports'])
+
+    def check_xml(self, xml):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / 'TEST-a.xml').write_text(xml)
+            return summary.summarize(directory, {'A.case'}, 'success')
+
+    def test_incomplete_or_missing_declared_count(self):
+        for attrs in ('tests="2"', '', 'tests="invalid"', 'tests="-1"'):
+            with self.subTest(attrs=attrs):
+                result = self.check_xml(f'<testsuite {attrs}><testcase classname="A" name="case"/></testsuite>')
+                self.assertFalse(result['clean_observed_reports'])
+                self.assertEqual(result['baseline_observed_passing'], [])
+                self.assertEqual(result['baseline_not_observed'], ['A.case'])
+
+    def test_declared_failure_count_mismatch(self):
+        result = self.check_xml('<testsuite tests="1" failures="1"><testcase classname="A" name="case"/></testsuite>')
+        self.assertFalse(result['clean_observed_reports'])
+        self.assertEqual(result['observed_cases'], 0)
+
+    def test_contradictory_status_is_rejected(self):
+        result = self.check_xml('<testsuite tests="1"><testcase classname="A" name="case"><failure/><skipped/></testcase></testsuite>')
+        self.assertFalse(result['clean_observed_reports'])
+        self.assertEqual(result['observed_cases'], 0)
+
+    def test_aggregate_suite_count(self):
+        suite = '<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase classname="A" name="case"/></testsuite>'
+        self.assertTrue(self.check_xml(f'<testsuites tests="1">{suite}</testsuites>')['clean_observed_reports'])
+        result = self.check_xml(f'<testsuites tests="2">{suite}</testsuites>')
+        self.assertFalse(result['clean_observed_reports'])
+        self.assertEqual(result['observed_cases'], 0)
+
+    def test_nested_cases_are_not_counted(self):
+        result = self.check_xml('<testsuite tests="0"><wrapper><testcase classname="A" name="case"/></wrapper></testsuite>')
+        self.assertFalse(result['clean_observed_reports'])
+        self.assertEqual(result['observed_cases'], 0)
 
 
 if __name__ == '__main__':

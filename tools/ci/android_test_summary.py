@@ -6,6 +6,41 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 
+def validated_cases(root):
+    """Reject incomplete or contradictory suites before counting any of their rows."""
+    if root.tag == 'testsuite':
+        suites = [root]
+    elif root.tag == 'testsuites':
+        suites = root.findall('testsuite')
+        if not suites or any(child.tag != 'testsuite' for child in root):
+            raise ValueError('unexpected testsuites contents')
+    else:
+        raise ValueError('unexpected XML root')
+    cases = []
+    for suite in suites:
+        rows = suite.findall('testcase')
+        if len(list(suite.iter('testcase'))) != len(rows) or suite.findall('testsuite'):
+            raise ValueError('nested testsuite or testcase')
+        if int(suite.get('tests', '-1')) != len(rows):
+            raise ValueError('missing or inconsistent declared testcase count')
+        totals = dict(failures=0, errors=0, skipped=0)
+        for case in rows:
+            if not case.get('classname', '').strip() or not case.get('name', '').strip():
+                raise ValueError('missing test identity')
+            markers = [tag for tag in ('failure', 'error', 'skipped') for _ in case.findall(tag)]
+            if len(markers) > 1:
+                raise ValueError('contradictory testcase status')
+            if markers:
+                totals[{'failure': 'failures', 'error': 'errors', 'skipped': 'skipped'}[markers[0]]] += 1
+            cases.append(case)
+        for key, actual in totals.items():
+            if key in suite.attrib and int(suite.attrib[key]) != actual:
+                raise ValueError(f'inconsistent declared {key} count')
+    if root.tag == 'testsuites' and 'tests' in root.attrib and int(root.attrib['tests']) != len(cases):
+        raise ValueError('inconsistent aggregate testcase count')
+    return cases
+
+
 def summarize(directory, baseline, outcome):
     observed = {}
     problems = []
@@ -17,13 +52,8 @@ def summarize(directory, baseline, outcome):
     for path in files:
         try:
             root = ET.parse(path).getroot()
-            if root.tag not in ('testsuite', 'testsuites'):
-                raise ValueError('unexpected XML root')
-            for case in root.iter('testcase'):
+            for case in validated_cases(root):
                 name = case.get('classname', '') + '.' + case.get('name', '')
-                if not case.get('classname') or not case.get('name'):
-                    problems.append(f'{path.name}: missing test identity')
-                    continue
                 status = next((status for tag, status in [('error', 'error'), ('failure', 'failed'), ('skipped', 'skipped')]
                                if case.find(tag) is not None), 'passed')
                 counts[status] += 1
