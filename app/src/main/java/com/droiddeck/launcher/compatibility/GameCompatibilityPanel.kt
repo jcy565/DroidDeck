@@ -70,6 +70,18 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             }
             report?.let { current ->
                 Text(current.description)
+                if (!currentVersionOnly && current.observations.isNotEmpty()) {
+                    val groups = GameHistoryByVersion.summarize(current.observations)
+                    Text("조회된 기록의 버전별 분류 (최신 관측 순)")
+                    groups.take(5).forEach { group ->
+                        Text("버전: " + (group.version ?: "미확인"))
+                        Text(GameHistorySummary.describe(group.summary))
+                    }
+                    if (groups.size > 5) Text("나머지 버전 분류 ${groups.size - 5}개")
+                    Text("아래 확인 방법은 가장 최근 관측 기록 기준입니다: " +
+                        (current.observations.first().gameVersion ?: "버전 미확인"))
+                    Text("이전 버전의 결과로 현재 버전의 호환성을 판단할 수 없습니다.")
+                }
                 current.advice.forEach { Text("• " + it) }
             }
             error?.let { Text(it) }
