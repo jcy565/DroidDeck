@@ -167,6 +167,7 @@ fun FileManagerScreen(
     var patchTarget by remember { mutableStateOf<File?>(null) }
     var imageTranslationTarget by remember { mutableStateOf<File?>(null) }
     var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
+    var imageQueue by remember { mutableStateOf<ImageAssetDiscovery.Queue?>(null) }
     var clipboardFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var isCutOperation by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
@@ -586,6 +587,12 @@ fun FileManagerScreen(
             onTranslationQueue = { queue ->
                 propertiesTarget = null
                 translationQueue = queue
+                imageQueue = null
+            },
+            onImageQueue = { queue ->
+                propertiesTarget = null
+                translationQueue = null
+                imageQueue = queue
             },
         )
     }
@@ -598,6 +605,12 @@ fun FileManagerScreen(
     }
     patchTarget?.let { file ->
         GamePatchDialog(file) { patchTarget = null }
+    }
+    if (imageTranslationTarget == null && patchTarget == null) {
+        imageQueue?.let { queue ->
+            ImageAssetWorklistDialog(queue, onOpen = { selected -> imageTranslationTarget = selected },
+                onDismiss = { imageQueue = null })
+        }
     }
     imageTranslationTarget?.let { file ->
         ImageTranslationDialog(file) { imageTranslationTarget = null }
