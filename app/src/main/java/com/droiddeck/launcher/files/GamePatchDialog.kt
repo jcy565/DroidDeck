@@ -185,7 +185,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             require(uri.scheme == "content")
             pendingModel = withContext(Dispatchers.IO) {
                 context.contentResolver.openInputStream(uri)?.use {
-                    AiModelUpdates.inspect(it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                    AiModelUpdates.inspect(it) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                 } ?: error("모델 명세를 읽을 수 없습니다.")
             }
             message = "서명된 모델 명세를 검증했습니다. 아래 정보를 확인하고 모델 파일을 선택하세요."
@@ -197,7 +197,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             require(uri.scheme == "content")
             val manifest = withContext(Dispatchers.IO) {
                 context.contentResolver.openInputStream(uri)?.use {
-                    AiModelUpdates.install(managedModelDirectory, pending, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                    AiModelUpdates.install(managedModelDirectory, pending, it) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                 } ?: error("모델 파일을 읽을 수 없습니다.")
             }
             managedRevision = manifest.revision
@@ -366,7 +366,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }
                     TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                         val prior = withContext(Dispatchers.IO) {
-                            AiModelUpdates.rollback(managedModelDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                            AiModelUpdates.rollback(managedModelDirectory) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                         }
                         managedRevision = prior.revision
                         pendingModel = null
@@ -378,7 +378,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         retirementChoices = emptyList()
                         reviewedRetirement = null
                         retirementChoices = withContext(Dispatchers.IO) {
-                            AiModelUpdates.retirementCandidates(managedModelDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                            AiModelUpdates.retirementCandidates(managedModelDirectory) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                         }
                         message = if (retirementChoices.isEmpty()) "정리할 비활성 모델이 없습니다." else "정리할 모델을 선택하세요. 현재 활성 모델은 제외됩니다."
                     } }) { Text("비활성 모델 저장공간 확인") }
@@ -395,7 +395,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             else "현재 모델이나 복구용 모델이 참조하지 않는 파일입니다.")
                         TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                             val result = withContext(Dispatchers.IO) {
-                                AiModelUpdates.retire(managedModelDirectory, candidate) { GameplayBudget.allowsOptionalAnalysis(context) }
+                                AiModelUpdates.retire(managedModelDirectory, candidate) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                             }
                             retirementChoices = emptyList()
                             reviewedRetirement = null

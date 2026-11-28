@@ -8,6 +8,8 @@ on:
       - 'app/src/noLocalAi/java/**'
       - 'app/src/main/java/com/droiddeck/launcher/files/GamePatchDialog.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/GameAgent.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/AiModelUpdates.kt'
+      - 'ai-core/src/main/java/com/droiddeck/ai/core/ModelRelease.java'
       - 'app/src/main/java/com/droiddeck/launcher/files/ChatGptExchange.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/ExchangeCheckpoint.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/GamePatchStore.kt'

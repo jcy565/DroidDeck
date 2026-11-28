@@ -195,3 +195,9 @@
 - 기준 632f8a1028028193e1d4bd99cff80003af2f7e09, staging 46116709235 / job 140892067915 실제 JUnit 로그 OK (93 tests). 통합 Android 46116662577 in_progress/미정; 원래 브랜치는 변경하지 않고 staging에서 후속 작업.
 - ExchangeCheckpoint 저장의 최종 이동 전 및 읽기 도중 취소 확인, GamePatchDialog의 코루틴/게임 예산과 연결. 저장 취소 시 기존 재개 정보 보존, 신규 임시 파일만 정리. 자동 공유/전송 없음. GameAgent 외부 교환의 UUID 형식 정규 검증, 잘못된 UTF-16 거부, 로그 꼬리 경계의 surrogate 분리 방지. 경계가 달라진 이전 요청은 fingerprint 불일치 시 새 요청 필요.
 - ChatGPT 교환 및 체크포인트 기존/신규 JVM 테스트 연결, Android workflow 경로 보완. 신규 테스트 및 Android 소스 컴파일 미확인. 기기 0/8, APK/키/배포 없음. 공식 할당량 조회 불가로 코드와 인계 동시 저장. 다음: CI 결과 및 ancestry 확인 후 통합, 최신 Android 컴파일.
+
+### 서명 모델 검증 및 정리 안정성
+- staging 46116918317 / job 140892706515 실제 JUnit OK (106 tests). Android 46116662577 / job 140891924333 기본/실험형 컴파일 성공 및 ARM64 확인. ahead 2/behind 0 및 종료 상태 확인 후 원래 브랜치를 8d9510df8c90b23121e79e31564c335f1db7780d로 비강제 통합. 통합 CI 보호를 위해 다음 변경은 staging에 저장.
+- ModelRelease는 읽기 완료 직후 및 검증 반환 전 예산 확인, 잘못된 저장소 경로 거부, 정리 후보의 파일 크기/수정·생성 시각/가능한 파일 식별자를 검토 상태에 바인딩하고 삭제 직전 재검사한다. 이는 파일 시스템 메타데이터 기반 검사이며 외부 변경과 삭제를 원자적으로 묶거나 콘텐츠를 인증하지 않는다. 정리 취소 후 기존 정책대로 orphan이 남을 수 있다.
+- AiModelUpdates의 검토 명세 바이트를 방어 복사하고 GamePatchDialog의 모델 가져오기/rollback/정리 콜백에 코루틴 취소 검사를 연결. 실제 개인 키/모델은 사용하지 않으며 신규 JVM 테스트는 생성한 시험용 키와 가짜 바이트만 사용한다.
+- 신규 ModelRelease 회귀와 기존 테스트를 JVM CI에 연결하고 Android 경로 필터를 보완. 신규 테스트 및 Android 컴파일 미확인. 실기 0/8, APK/키/배포 없음. 할당량 조회 불가로 코드와 함께 저장. 다음: CI 결과/ancestry 확인 후 통합, 실기 준비.

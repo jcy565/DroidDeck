@@ -64,7 +64,8 @@ public final class ModelRelease {
         byte[] data = new byte[n]; in.readFully(data); return verify(data, key);
     }
     private static State read(Path dir, PublicKey key) throws IOException, GeneralSecurityException {
-        if (Files.isSymbolicLink(dir)) throw new IOException("Unsafe model directory");
+        if (!Files.notExists(dir, LinkOption.NOFOLLOW_LINKS) && !Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS))
+            throw new IOException("Unsafe model directory");
         Path state = dir.resolve("models.state");
         if (Files.notExists(state, LinkOption.NOFOLLOW_LINKS)) return null;
         if (!Files.isRegularFile(state, LinkOption.NOFOLLOW_LINKS) || Files.size(state) > 16 + 2 * MAX_MANIFEST) throw new IOException("Invalid state");
@@ -96,7 +97,7 @@ public final class ModelRelease {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         long total = 0; byte[] buffer = new byte[128 * 1024];
         while (true) {
-            check(allowed); int n = input.read(buffer); if (n < 0) break;
+            check(allowed); int n = input.read(buffer); check(allowed); if (n < 0) break;
             if (n == 0 || total + n > m.bytes) throw new IOException("Model size mismatch");
             total += n; digest.update(buffer, 0, n); if (output != null) output.write(buffer, 0, n);
         }
@@ -107,6 +108,7 @@ public final class ModelRelease {
         Path path = blob(dir, m);
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || Files.size(path) != m.bytes) throw new IOException("Missing or invalid model");
         try (InputStream input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) { hash(input, null, m, allowed); }
+        check(allowed);
         return path;
     }
     private static void compatible(Manifest m, int host, int runtime) throws IOException {
@@ -157,15 +159,24 @@ public final class ModelRelease {
         public final long bytes;
         public final int previousRevision; // 0 for an unreferenced blob
         private final int highest, activeRevision, rollbackRevision;
-        private Retirement(String sha256, long bytes, int previousRevision, State state) {
-            this.sha256 = sha256; this.bytes = bytes; this.previousRevision = previousRevision;
+        private final java.nio.file.attribute.FileTime modified, created;
+        private final Object fileKey;
+        private Retirement(String sha256, java.nio.file.attribute.BasicFileAttributes attrs, int previousRevision, State state) {
+            this.sha256 = sha256; this.bytes = attrs.size(); this.previousRevision = previousRevision;
+            modified = attrs.lastModifiedTime(); created = attrs.creationTime(); fileKey = attrs.fileKey();
             highest = state == null ? 0 : state.highest;
             activeRevision = state == null ? 0 : state.active.revision;
             rollbackRevision = state == null || state.previous == null ? 0 : state.previous.revision;
         }
         private boolean same(Retirement other) {
             return sha256.equals(other.sha256) && bytes == other.bytes && previousRevision == other.previousRevision
-                && highest == other.highest && activeRevision == other.activeRevision && rollbackRevision == other.rollbackRevision;
+                && highest == other.highest && activeRevision == other.activeRevision && rollbackRevision == other.rollbackRevision
+                && modified.equals(other.modified) && created.equals(other.created)
+                && java.util.Objects.equals(fileKey, other.fileKey);
+        }
+        private boolean matchesFile(java.nio.file.attribute.BasicFileAttributes attrs) {
+            return attrs.isRegularFile() && bytes == attrs.size() && modified.equals(attrs.lastModifiedTime())
+                && created.equals(attrs.creationTime()) && java.util.Objects.equals(fileKey, attrs.fileKey());
         }
     }
     public static final class RetirementResult {
@@ -187,7 +198,9 @@ public final class ModelRelease {
                 String digest = name.substring(0, 64);
                 if (state != null && state.active.sha256.equals(digest)) continue;
                 int prior = state != null && state.previous != null && state.previous.sha256.equals(digest) ? state.previous.revision : 0;
-                result.add(new Retirement(digest, Files.size(file), prior, state));
+                java.nio.file.attribute.BasicFileAttributes attrs = Files.readAttributes(file,
+                    java.nio.file.attribute.BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+                if (attrs.isRegularFile()) result.add(new Retirement(digest, attrs, prior, state));
             }
         }
         result.sort(java.util.Comparator.comparing(r -> r.sha256));
@@ -196,7 +209,9 @@ public final class ModelRelease {
     public static synchronized java.util.List<Retirement> retirementCandidates(Path dir, PublicKey key, BooleanSupplier allowed)
             throws IOException, GeneralSecurityException {
         check(allowed);
-        return candidates(dir, read(dir, key));
+        java.util.List<Retirement> result = candidates(dir, read(dir, key));
+        check(allowed);
+        return result;
     }
     public static synchronized RetirementResult retire(Path dir, Retirement reviewed, PublicKey key, BooleanSupplier allowed)
             throws IOException, GeneralSecurityException {
@@ -213,6 +228,8 @@ public final class ModelRelease {
         Path file = dir.resolve(current.sha256 + ".task");
         if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) return new RetirementResult(removeRollback, false);
         try {
+            if (!current.matchesFile(Files.readAttributes(file, java.nio.file.attribute.BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS))) return new RetirementResult(removeRollback, false);
             return new RetirementResult(removeRollback, Files.deleteIfExists(file));
         } catch (IOException e) {
             return new RetirementResult(removeRollback, false);

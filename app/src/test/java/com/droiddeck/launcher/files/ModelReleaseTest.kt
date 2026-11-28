@@ -84,6 +84,48 @@ class ModelReleaseTest {
         assertEquals(2, ModelRelease.retirementCandidates(dir, key.public) { true }.single().previousRevision)
     }
 
+    @Test fun cancellationAtModelEofPreservesPreviousState() {
+        val dir = folder.newFolder().toPath()
+        ModelRelease.install(dir, manifest(1, first), first.inputStream(), key.public, 1, 1) { true }
+        val before = dir.resolve("models.state").toFile().readBytes()
+        var allowed = true
+        val stream = object : java.io.ByteArrayInputStream(second) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = super.read(b, off, len)
+                if (n == -1) allowed = false
+                return n
+            }
+        }
+        assertTrue(runCatching {
+            ModelRelease.install(dir, manifest(2, second), stream, key.public, 1, 1) { allowed }
+        }.isFailure)
+        assertArrayEquals(before, dir.resolve("models.state").toFile().readBytes())
+        assertEquals(2, dir.toFile().listFiles()!!.size)
+        assertArrayEquals(first, ModelRelease.verifiedActive(dir, key.public, 1, 1) { true }.toFile().readBytes())
+    }
+
+    @Test fun changedRetirementFileRequiresFreshReview() {
+        val dir = folder.newFolder().toPath()
+        ModelRelease.install(dir, manifest(1, first), first.inputStream(), key.public, 1, 1) { true }
+        ModelRelease.install(dir, manifest(2, second), second.inputStream(), key.public, 1, 1) { true }
+        val reviewed = ModelRelease.retirementCandidates(dir, key.public) { true }.single()
+        val candidate = dir.resolve(reviewed.sha256 + ".task")
+        val before = dir.resolve("models.state").toFile().readBytes()
+        val modified = java.nio.file.Files.getLastModifiedTime(candidate)
+        candidate.toFile().writeBytes(byteArrayOf(9, 9, 9))
+        java.nio.file.Files.setLastModifiedTime(candidate, java.nio.file.attribute.FileTime.fromMillis(modified.toMillis() + 10000))
+        assertTrue(runCatching { ModelRelease.retire(dir, reviewed, key.public) { true } }.isFailure)
+        assertArrayEquals(before, dir.resolve("models.state").toFile().readBytes())
+        assertArrayEquals(byteArrayOf(9, 9, 9), candidate.toFile().readBytes())
+        assertArrayEquals(second, ModelRelease.verifiedActive(dir, key.public, 1, 1) { true }.toFile().readBytes())
+    }
+
+    @Test fun invalidModelDirectoryIsNotReportedAsEmpty() {
+        val dir = folder.newFile().toPath()
+        assertTrue(runCatching { ModelRelease.active(dir, key.public, 1, 1) }.isFailure)
+        assertTrue(runCatching { ModelRelease.retirementCandidates(dir, key.public) { true } }.isFailure)
+    }
+
     @Test fun interruptedRetirementLeavesReviewableOrphan() {
         val dir = folder.newFolder().toPath()
         ModelRelease.install(dir, manifest(1, first), first.inputStream(), key.public, 1, 1) { true }

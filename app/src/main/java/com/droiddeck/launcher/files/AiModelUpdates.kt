@@ -8,7 +8,10 @@ import java.io.InputStream
 /** Only the pinned APK trust key authorizes managed model data. */
 internal object AiModelUpdates {
     const val RUNTIME_API = 1 // Experimental MediaPipe .task contract, not a model-format proof.
-    data class Pending(val encoded: ByteArray, val manifest: ModelRelease.Manifest)
+    class Pending internal constructor(encoded: ByteArray, val manifest: ModelRelease.Manifest) {
+        private val reviewedBytes = encoded.clone()
+        internal fun encodedCopy(): ByteArray = reviewedBytes.clone()
+    }
 
     fun inspect(input: InputStream, allowed: () -> Boolean): Pending {
         AiHostBridge.requireCompatible()
@@ -17,6 +20,7 @@ internal object AiModelUpdates {
         while (true) {
             check(allowed())
             val n = input.read(buffer)
+            check(allowed())
             if (n < 0) break
             require(n > 0 && out.size() + n <= ModelRelease.MAX_MANIFEST) { "모델 명세 크기 초과" }
             out.write(buffer, 0, n)
@@ -24,6 +28,7 @@ internal object AiModelUpdates {
         val bytes = out.toByteArray()
         val manifest = ModelRelease.verify(bytes, AiGlossaryUpdates.key())
         require(manifest.compatible(AiHostBridge.HOST_API, RUNTIME_API)) { "엔진 또는 모델 런타임 버전이 호환되지 않습니다." }
+        check(allowed())
         return Pending(bytes, manifest)
     }
 
@@ -35,7 +40,7 @@ internal object AiModelUpdates {
     fun install(directory: File, pending: Pending, input: InputStream, allowed: () -> Boolean): ModelRelease.Manifest {
         AiHostBridge.requireCompatible()
         return LocalAgentRuntime.withIdleModelStore {
-            ModelRelease.install(directory.toPath(), pending.encoded, input, AiGlossaryUpdates.key(),
+            ModelRelease.install(directory.toPath(), pending.encodedCopy(), input, AiGlossaryUpdates.key(),
                 AiHostBridge.HOST_API, RUNTIME_API) { allowed() }
         }
     }
