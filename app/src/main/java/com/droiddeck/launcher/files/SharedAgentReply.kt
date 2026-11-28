@@ -53,6 +53,7 @@ internal object SharedAgentReply {
         if (replaceExisting) ExchangeCheckpoint.save(file, saved)
         else ExchangeCheckpoint.saveForHandoff(file, saved)
         clearOtherRequests(context, saved.id)
+        changes.value++
     }
 
     @Synchronized fun discardSavedExchange(context: Context): Boolean = synchronized(ExchangeCheckpoint) {
@@ -62,8 +63,9 @@ internal object SharedAgentReply {
     }
 
     @Synchronized fun completeSavedExchange(context: Context, id: String) = synchronized(ExchangeCheckpoint) {
-        ExchangeCheckpoint.clear(checkpointFile(context), id)
+        val removed = ExchangeCheckpoint.clear(checkpointFile(context), id)
         clear(context, id)
+        if (removed) changes.value++
     }
 
     private fun publish(context: Context, id: String, response: String) {
