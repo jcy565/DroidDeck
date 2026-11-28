@@ -23,15 +23,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 2) {
+private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE trial (id INTEGER PRIMARY KEY, game TEXT NOT NULL,
             model TEXT NOT NULL, scene TEXT, gpu TEXT, driver TEXT, proton TEXT, width INTEGER, height INTEGER,
-            recorded INTEGER NOT NULL, frames INTEGER NOT NULL, fps REAL NOT NULL, p95 REAL NOT NULL)""")
+            recorded INTEGER NOT NULL, frames INTEGER NOT NULL, fps REAL NOT NULL, p95 REAL NOT NULL,
+            coverage_version INTEGER NOT NULL DEFAULT 0)""")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        require(oldVersion == 1 && newVersion == 2)
-        db.execSQL("ALTER TABLE trial ADD COLUMN scene TEXT")
+        require(oldVersion in 1..2 && newVersion == 3)
+        if (oldVersion == 1) db.execSQL("ALTER TABLE trial ADD COLUMN scene TEXT")
+        db.execSQL("ALTER TABLE trial ADD COLUMN coverage_version INTEGER NOT NULL DEFAULT 0")
     }
 
     fun record(values: ContentValues): String {
@@ -41,7 +43,7 @@ private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-
             val sample = OptimizationComparison.Sample(values.getAsString("game"), values.getAsString("model"),
                 values.getAsString("scene"), values.getAsInteger("width"), values.getAsInteger("height"),
                 values.getAsDouble("fps"), values.getAsDouble("p95"))
-            val previous = db.rawQuery("SELECT fps, p95 FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? ORDER BY id DESC LIMIT 1",
+            val previous = db.rawQuery("SELECT fps, p95 FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? AND coverage_version=1 ORDER BY id DESC LIMIT 1",
                 arrayOf(sample.gameId, sample.deviceId, sample.scene, sample.outputWidth.toString(), sample.outputHeight.toString())).use {
                 if (it.moveToFirst()) sample.copy(fps = it.getDouble(0), p95Ms = it.getDouble(1)) else null
             }
@@ -50,7 +52,7 @@ private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-
             db.setTransactionSuccessful()
             return listOfNotNull(previous?.let { "이전  " + format(it.fps, it.p95Ms) },
                 "이번  " + format(sample.fps, sample.p95Ms),
-                previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it, sample)) } ?: "같은 장면과 출력 해상도의 첫 측정입니다.").joinToString("\n")
+                previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it, sample)) } ?: "같은 장면과 출력 해상도의 첫 검증된 측정입니다.").joinToString("\n")
         } finally { db.endTransaction() }
     }
 
@@ -113,6 +115,7 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                         put("frames", metrics.frames)
                         put("fps", metrics.fps)
                         put("p95", metrics.p95Ms)
+                        put("coverage_version", 1)
                     }
                     message = withContext(Dispatchers.IO) { TrialDatabase(context).use { it.record(values) } }
                 } catch (e: CancellationException) { throw e }
