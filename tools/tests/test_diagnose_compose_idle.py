@@ -44,7 +44,10 @@ printf '%s' "$3" > app/build/test-results/testReleaseUnitTest/TEST.xml
             group = (out / "group-summary.tsv").read_text().splitlines()
             self.assertEqual([methods[0], "component-navigation\t0"], group)
             first_group_selector = "com.droiddeck.launcher.ui.BottomScreenBarTest"
-            expected_calls = [first_group_selector] + [
+            self.assertEqual([methods[0], "component-pair\t7"],
+                             (out / "pair-summary.tsv").read_text().splitlines())
+            self.assertFalse((out / "component-pair/results").exists())
+            expected_calls = [first_group_selector, "com.droiddeck.launcher.ui.ComponentDownloadsDrawerTest"] + [
                 row.split("\t")[0] for row in methods[1:] + classes[1:]
             ]
             self.assertEqual(expected_calls, (root / "calls.txt").read_text().splitlines())
