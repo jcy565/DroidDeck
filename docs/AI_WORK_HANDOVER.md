@@ -251,3 +251,7 @@
 
 ### 승인된 신규 APK 빌드 실행 확인
 - ai-device-validation-next를 c9742460981a42411334c3d1db7a57140dacd17f로 비강제 fast-forward 완료. 실제 Actions [46121382760](https://github.com/jcy565/DroidDeck/actions/runs/46121382760) / head c9742460981a42411334c3d1db7a57140dacd17f / 조회 상태 in_progress/미정 확인. 빌드 브랜치는 실행 종료까지 변경하지 않는다. 이 인계 갱신은 비빌드 브랜치에만 저장. 기존 APK 및 공식 main 보존. 결과/새 APK SHA-256/전체 Android·Python 테스트/서명은 미확인. 다음: 실제 실행 로그 및 아티팩트 확인, 성공 시 새 APK 독립 검증, 소유자 서명 및 D01~D08. 실패 시 실제 원인에 한해 수정하고 보호 정책 우회 금지. 공식 할당량 조회 불가로 실행 ID 선저장.
+
+### 신규 APK 빌드 중간 검증
+- 실행 46121382760, 소스 c9742460981a42411334c3d1db7a57140dacd17f, 현재 in_progress/미정. 소스 고정 job 140906473667 실제 checkout 로그에서 c9742460981a42411334c3d1db7a57140dacd17f 일치 확인. Xbox ARM64 job 140906518448 성공, backend/source 아티팩트 메타데이터 조회: 15253208328 (xbox-arm64), 15253123681 (xbox-corresponding-source). 실제 다운로드/내용 검증은 아직 하지 않았다.
+- 조회된 작업: Pin source tree=completed/success; Python and native regression tests=in_progress/미정; Xbox ARM64 backend=completed/success; Store engines host tests=in_progress/미정; components-runner / Pick runner=completed/success; Prepare verified components=in_progress/미정. 아직 새 APK 및 전체 테스트 결과를 성공으로 판정하지 않는다. 빌드 브랜치 변경 금지 유지. 공식 할당량 조회 불가로 비빌드 브랜치에 단계 기록. 다음: 동일 run의 종료/로그/아티팩트 확인 후 성공하면 독립 검증, 실패하면 실제 원인 분석. 소유자 서명/실기 0/8 유지.
