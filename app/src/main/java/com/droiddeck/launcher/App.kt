@@ -7,6 +7,18 @@ import com.droiddeck.launcher.session.EnhancedSessionLogShare
 import com.droiddeck.launcher.session.GpuClockPin
 
 class App : Application() {
+    private var aiMemoryCallbacksEnabled = false
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (aiMemoryCallbacksEnabled) com.droiddeck.launcher.compatibility.SmartMemory.onMemoryPressure(level)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (aiMemoryCallbacksEnabled) com.droiddeck.launcher.compatibility.SmartMemory.onMemoryPressure(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+    }
+
     override fun attachBaseContext(base: android.content.Context) {
         super.attachBaseContext(com.droiddeck.launcher.core.AppLanguage.wrap(base))
         val process = if (android.os.Build.VERSION.SDK_INT >= 28) Application.getProcessName() else packageName
@@ -43,6 +55,7 @@ class App : Application() {
         }
         if (process == "$packageName:vr_recovery" || process == "$packageName:rgb_diagnostic" ||
             process == "$packageName:shortcuts_sync" || process == "$packageName:bottom_desktop") return
+        aiMemoryCallbacksEnabled = process == packageName
         CrashHandler.install(this)
         com.droiddeck.launcher.input.ShortcutsRelay.Holder.install(this)
         com.droiddeck.launcher.agent.AgentHost.refresh(this)
