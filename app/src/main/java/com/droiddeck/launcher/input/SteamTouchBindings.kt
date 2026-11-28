@@ -203,8 +203,16 @@ object SteamTouchBindings {
     }
 
 
-    private val cache = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+    private val bitmapCache = lazy {
+        object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
+            override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+        }
+    }
+    private val cache by bitmapCache
+
+    // Drop cache references only; never recycle bitmaps still held by the UI.
+    internal fun releaseCachedIcons() {
+        if (bitmapCache.isInitialized()) cache.evictAll()
     }
     private val missing = HashSet<String>()
 
