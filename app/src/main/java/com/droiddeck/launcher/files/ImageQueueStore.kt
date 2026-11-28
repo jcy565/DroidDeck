@@ -21,7 +21,8 @@ internal object ImageQueueStore {
     }
 
     private fun location(directory: File, root: String): File {
-        require(!Files.isSymbolicLink(directory.toPath()))
+        require(Files.notExists(directory.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS)) { "이미지 작업 목록 저장 경로가 안전하지 않습니다." }
         val game = File(root).toPath()
         val storage = directory.canonicalFile.toPath()
         require(!game.startsWith(storage) && !storage.startsWith(game)) { "작업 목록은 게임 폴더와 분리된 저장소에 보관해야 합니다." }
