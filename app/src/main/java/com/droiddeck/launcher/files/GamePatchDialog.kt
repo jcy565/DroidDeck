@@ -59,6 +59,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var exchangeInstruction by remember(file) { mutableStateOf("") }
     var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
     var exchangeReply by remember(file) { mutableStateOf("") }
+    var fallbackReview by remember(file) { mutableStateOf<LocalAgentFallback.Reason?>(null) }
     var modelDigest by remember(file) { mutableStateOf("") }
     var pendingModel by remember(file) { mutableStateOf<AiModelUpdates.Pending?>(null) }
     var managedRevision by remember(file) { mutableStateOf<Int?>(null) }
@@ -429,15 +430,16 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     TextButton(enabled = !busy && pendingExport == null && LocalModelStore.validDigest(modelDigest),
                         onClick = { modelImporter.launch(arrayOf("*/*")) }) { Text("로컬 모델 가져오기") }
                 }
+                Text("로컬 AI 우선 · 처리 불가, 시간 초과 또는 응답 검증 실패 시 ChatGPT 요청을 준비합니다. 공유 전 요청 전문을 확인하세요.")
                 OutlinedTextField(agentInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) agentInstruction = it },
                     enabled = !busy, label = { Text("AI에게 작업 요청") })
-                TextButton(enabled = !busy && pendingExport == null && agentInstruction.isNotBlank() &&
-                    (if (managedModels) managedRevision != null else LocalModelStore.validDigest(modelDigest)) &&
-                    (!translationTable || translationRows.isNotEmpty()),
+                TextButton(enabled = !busy && pendingExport == null && exchange == null && agentInstruction.isNotBlank() &&
+                    (!translationTable || translationRows.any { it.id !in translations }),
                     onClick = {
-                        if (!busy && pendingExport == null) {
+                        if (!busy && pendingExport == null && exchange == null) {
                             busy = true
                             preview = null
+                            fallbackReview = null
                             val digest = modelDigest
                             val instruction = agentInstruction
                             val edits = if (translationTable) translations.toMap() else emptyMap()
@@ -445,20 +447,39 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             val expected = translationSource
                             agentJob = scope.launch {
                                 try {
-                                    val result = withContext(Dispatchers.IO) {
-                                        check(allowsAgentWork()) { GameplayBudget.admission(context, localModel = true).guidance }
+                                    val outcome = withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context)) {
+                                            "게임 실행 또는 메모리 상태 때문에 AI 작업을 보류했습니다."
+                                        }
                                         val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                                         if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
+                                        val target = file.canonicalPath
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)
-                                        val result = GameAgent.run(request, ::allowsAgentWork,
-                                            { LocalAgentRuntime.openSelected(context, ::allowsAgentWork) {
-                                                if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
-                                                else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
-                                            } }, 120_000)
-                                        check(allowsAgentWork())
-                                        if (!log) require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
-                                        result
+                                        LocalAgentFallback.run(target, request,
+                                            localAllowed = { allowsAgentWork() &&
+                                                (if (managedModels) managedRevision != null else LocalModelStore.validDigest(digest)) },
+                                            externalAllowed = { GameplayBudget.allowsOptionalAnalysis(context) },
+                                            unchanged = {
+                                                file.canonicalPath == target &&
+                                                    (if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()) == source
+                                            },
+                                            local = {
+                                                GameAgent.run(request, ::allowsAgentWork,
+                                                    { LocalAgentRuntime.openSelected(context, ::allowsAgentWork) {
+                                                        if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
+                                                        else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
+                                                    } }, 120_000)
+                                            })
                                     }
+                                    if (outcome is LocalAgentFallback.Outcome.External) {
+                                        exchangeInstruction = instruction
+                                        exchangeReply = ""
+                                        exchange = outcome.pending
+                                        fallbackReview = outcome.reason
+                                        message = outcome.reason.label + " ChatGPT 요청을 검토하세요."
+                                        return@launch
+                                    }
+                                    val result = (outcome as LocalAgentFallback.Outcome.Local).result
                                     when (result) {
                                         is GameAgent.Result.Patch -> {
                                             preview = result.preview
@@ -487,7 +508,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                                 }
                             }
                         }
-                    }) { Text("AI 실행 · 초안 생성") }
+                    }) { Text("로컬 AI 우선 실행 · 필요 시 ChatGPT") }
                 TextButton(enabled = agentJob != null, onClick = { agentJob?.cancel() }) { Text("AI 작업 취소") }
                 if (translationTable) Text("번역 대상 추출 후 현재 문장부터 최대 5개를 AI에 요청합니다.")
             }
@@ -800,6 +821,36 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             }
         }) { Text("백업 후 적용") }
     }, dismissButton = { TextButton(enabled = !busy && pendingExport == null, onClick = { requestClose() }) { Text("닫기") } })
+    fallbackReview?.let { reason ->
+        val pending = exchange
+        if (pending != null) AlertDialog(
+            onDismissRequest = { fallbackReview = null },
+            title = { Text("ChatGPT로 이어서 작업") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    Text(reason.label)
+                    Text("선택 파일의 내용이 포함됩니다. 개인정보·계정 정보가 없는지 확인하고 공유하세요.")
+                    OutlinedTextField(pending.prompt, {}, readOnly = true,
+                        label = { Text("ChatGPT에 공유할 요청 전문") }, maxLines = 10)
+                    Text("ChatGPT에서 응답을 받은 뒤 이 편집기의 JSON 응답 입력란에 붙여넣으세요.")
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                try {
+                    AiHostBridge.requireCompatible()
+                    val share = Intent(Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(Intent.EXTRA_TEXT, pending.prompt)
+                    try {
+                        context.startActivity(Intent(share).setPackage("com.openai.chatgpt"))
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        context.startActivity(Intent.createChooser(share, "ChatGPT로 공유"))
+                    }
+                    fallbackReview = null
+                } catch (_: Exception) { message = "ChatGPT 공유 화면을 열지 못했습니다. 요청 전문을 복사할 수 있습니다."; fallbackReview = null }
+            }) { Text("검토 후 ChatGPT 열기") } },
+            dismissButton = { TextButton(onClick = { fallbackReview = null }) { Text("나중에 공유") } }
+        )
+    }
     if (confirmDiscard) AlertDialog(
         onDismissRequest = { confirmDiscard = false },
         title = { Text("저장하지 않은 번역이 있습니다") },

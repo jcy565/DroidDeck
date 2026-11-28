@@ -772,3 +772,7 @@ Expose current session/memory admission reason on demand in compatibility and ex
 
 ## Folder AI workspace
 Adds AI workspace entry in the file manager sort menu (non-picker only), with module/runtime availability, on-demand memory/focus admission, direct reopen of current folder's saved text/image queues and existing folder discovery tools. No background scans or automatic network/model/file modifications. The center is folder-scoped, not a global dashboard of every game; existing game compatibility/performance screens remain separate. Pending Android compile and actual device navigation checks. Keep active integration CI 46103956740 unchanged until terminal.
+
+
+## Local-first ChatGPT fallback
+Local runtime can explicitly decline via local-only defer response, or unavailable/timeout/invalid output/exception routes to same bound ChatGptExchange request. Cancellation, changed source, and gameplay/system memory denial do not create an external exchange. Existing pending exchange not overwritten. Explicit review dialog shares via ChatGPT Android package when available or chooser; no automatic transmission/API calls. Response manually pasted and validated by existing exchange workflow. Standard APK without local runtime continues manual ChatGPT flow; experimental flavor and real app handoff not verified. Added fake-model regression tests, unexecuted. Stage while integrated CI runs.

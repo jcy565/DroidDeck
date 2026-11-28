@@ -27,6 +27,9 @@ internal object GameAgent {
             val explanation: String) : Result
         data class Advice(val explanation: String, val evidence: String) : Result
     }
+    /** A local model may explicitly decline a task; never treat this as a patch or advice. */
+    class NeedsExternalHelp : IllegalStateException("로컬 AI가 추가 지원을 요청했습니다.")
+
     private data class Input(val task: Task, val prompt: String,
         val allowedIds: Set<String> = emptySet())
 
@@ -98,7 +101,10 @@ internal object GameAgent {
         val input = prepare(request)
         check(allowed())
         val output = modelFactory().use { model ->
-            withTimeout(timeoutMillis) { model.complete(input.prompt) }
+            withTimeout(timeoutMillis) {
+                model.complete(input.prompt + "\nLocal model only: if you cannot reliably complete the task, " +
+                    "return exactly {\\\"action\\\":\\\"defer\\\",\\\"explanation\\\":\\\"reason in Korean\\\"}.")
+            }
         }
         currentCoroutineContext().ensureActive()
         check(allowed()) { "Game or memory budget changed" }
@@ -129,6 +135,10 @@ internal object GameAgent {
         val explanation = requireNotNull(fields["explanation"])
         require(explanation.isNotBlank() && explanation.length <= 2000 && explanation.none { it.isISOControl() && it != '\n' })
         val result = when (fields["action"]) {
+            "defer" -> {
+                require(exchangeId == null && fields.keys == setOf("action", "explanation"))
+                throw NeedsExternalHelp()
+            }
             "advice" -> {
                 require(input.task != Task.TRANSLATION && fields.keys == setOf("action", "explanation"))
                 Result.Advice(explanation, if (input.task == Task.LOG)
