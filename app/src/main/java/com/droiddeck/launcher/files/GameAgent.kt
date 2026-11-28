@@ -103,7 +103,7 @@ internal object GameAgent {
         val output = modelFactory().use { model ->
             withTimeout(timeoutMillis) {
                 model.complete(input.prompt + "\nLocal model only: if you cannot reliably complete the task, " +
-                    "return exactly {\\\"action\\\":\\\"defer\\\",\\\"explanation\\\":\\\"reason in Korean\\\"}.")
+                    """return exactly {"action":"defer","explanation":"reason in Korean"}.""")
             }
         }
         currentCoroutineContext().ensureActive()

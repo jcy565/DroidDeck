@@ -441,6 +441,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             preview = null
                             fallbackReview = null
                             val digest = modelDigest
+                            val hasModel = if (managedModels) managedRevision != null else LocalModelStore.validDigest(digest)
                             val instruction = agentInstruction
                             val edits = if (translationTable) translations.toMap() else emptyMap()
                             val start = if (translationTable) translationIndex else 0
@@ -456,8 +457,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                                         val target = file.canonicalPath
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)
                                         LocalAgentFallback.run(target, request,
-                                            localAllowed = { allowsAgentWork() &&
-                                                (if (managedModels) managedRevision != null else LocalModelStore.validDigest(digest)) },
+                                            localAllowed = { allowsAgentWork() && hasModel },
                                             externalAllowed = { GameplayBudget.allowsOptionalAnalysis(context) },
                                             unchanged = {
                                                 file.canonicalPath == target &&

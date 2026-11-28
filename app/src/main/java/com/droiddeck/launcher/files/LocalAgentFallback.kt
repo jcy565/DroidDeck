@@ -22,11 +22,10 @@ internal object LocalAgentFallback {
         externalAllowed: () -> Boolean, unchanged: suspend () -> Boolean,
         local: suspend () -> GameAgent.Result): Outcome {
         currentCoroutineContext().ensureActive()
+        var result: GameAgent.Result? = null
         val reason = if (!localAllowed()) Reason.LOCAL_UNAVAILABLE else try {
-            val result = local()
-            currentCoroutineContext().ensureActive()
-            check(unchanged()) { "원본 또는 번역 초안이 변경됐습니다." }
-            return Outcome.Local(result)
+            result = local()
+            null
         } catch (e: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
             Reason.TIMEOUT
@@ -38,6 +37,12 @@ internal object LocalAgentFallback {
             Reason.LOCAL_FAILED
         }
         currentCoroutineContext().ensureActive()
+        if (reason == null) {
+            check(unchanged()) { "원본 또는 번역 초안이 변경됐습니다." }
+            currentCoroutineContext().ensureActive()
+            check(localAllowed()) { "로컬 AI 실행 조건이 변경됐습니다." }
+            return Outcome.Local(requireNotNull(result))
+        }
         check(externalAllowed()) { "게임 실행 또는 메모리 상태 때문에 ChatGPT 요청 준비를 보류했습니다." }
         check(unchanged()) { "원본 또는 번역 초안이 변경됐습니다. 다시 요청하세요." }
         val pending = ChatGptExchange.create(target, request)
