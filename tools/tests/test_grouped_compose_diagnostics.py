@@ -50,13 +50,17 @@ sys.exit(int(os.environ["GROUP_EXIT"]) if len(selectors) > 1 else 0)
                                env={**os.environ, "NDK_VERSION": "mock", "GROUP_EXIT": str(group_exit)},
                                capture_output=True, text=True)
                 calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
-                self.assertEqual(14, len(calls))
+                self.assertEqual(15, len(calls))
+                self.assertEqual(GROUP[-2:], calls[1])
+                self.assertEqual(["test\texit_code", f"component-pair\t{group_exit}"],
+                                 (out / "pair-summary.tsv").read_text().splitlines())
+                self.assertEqual(GROUP[-2:], json.loads((out / "component-pair/results/TEST.xml").read_text()))
                 self.assertEqual(GROUP, calls[0])
                 self.assertEqual(["test\texit_code", f"component-navigation\t{group_exit}"],
                                  (out / "group-summary.tsv").read_text().splitlines())
                 self.assertEqual(GROUP, json.loads((old / "TEST.xml").read_text()))
                 self.assertFalse((old / "stale.xml").exists())
-                for filename, count, offset in (("summary.tsv", 11, 1), ("class-summary.tsv", 2, 12)):
+                for filename, count, offset in (("summary.tsv", 11, 2), ("class-summary.tsv", 2, 13)):
                     rows = (out / filename).read_text().splitlines()[1:]
                     self.assertEqual(count, len(rows))
                     self.assertEqual([[row.split("\t")[0]] for row in rows], calls[offset:offset+count])
