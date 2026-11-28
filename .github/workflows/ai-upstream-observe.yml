@@ -1,0 +1,48 @@
+name: AI upstream observation
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-upstream-observe.yml'
+      - 'tools/ci/ai_upstream_*.py'
+      - 'tools/ci/test_ai_upstream_*.py'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test observation rules
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p test_ai_upstream_observe.py -v
+      - name: Observe canonical upstream main without advancing the integration baseline
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
+          out="$RUNNER_TEMP/upstream-observation"
+          mkdir -p "$out"
+          baseline=c6169cba808d82f4d247b00bf01827506c1db54d
+          ai="$GITHUB_SHA"
+          upstream_url=https://github.com/Droid-Deck/DroidDeck.git
+          upstream="$(git ls-remote --exit-code "$upstream_url" refs/heads/main | cut -f1)"
+          [[ "$upstream" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags --no-recurse-submodules "$upstream_url" "$upstream"
+          test "$(git rev-parse FETCH_HEAD)" = "$upstream"
+          policy="$(sha256sum tools/ci/ai_upstream_*.py | sha256sum | cut -d' ' -f1)"
+          status=0
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_observe.py --baseline "$baseline" --ai "$ai" --upstream "$upstream" --policy "$policy" > "$out/observation.json" || status=$?
+          jq -e --arg upstream "$upstream" --arg baseline "$baseline" '.upstream == $upstream and .baseline == $baseline and .last_good_changed == false and .release_approved == false' "$out/observation.json"
+          jq '{baseline,upstream,status,observation_key,requires_preview}' "$out/observation.json"
+          test -z "$(git status --porcelain)"
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-upstream-observation
+          path: ${{ runner.temp }}/upstream-observation/
+          if-no-files-found: error
+          retention-days: 30
