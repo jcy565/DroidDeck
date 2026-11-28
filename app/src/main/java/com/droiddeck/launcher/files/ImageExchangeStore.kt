@@ -17,8 +17,12 @@ internal object ImageExchangeStore {
 
     private fun location(directory: File, root: File): File {
         require(Files.isDirectory(root.toPath(), NOFOLLOW_LINKS))
-        require(!Files.isSymbolicLink(directory.toPath()))
-        return File(directory, hash(root.canonicalPath.toByteArray(Charsets.UTF_8)) + ".exchange")
+        require(Files.notExists(directory.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS)) { "이미지 번역 요청 저장 경로가 안전하지 않습니다." }
+        val game = root.canonicalFile.toPath()
+        val storage = directory.canonicalFile.toPath()
+        require(!game.startsWith(storage) && !storage.startsWith(game)) { "번역 요청은 게임 폴더와 분리된 저장소에 보관해야 합니다." }
+        return File(directory, hash(game.toString().toByteArray(Charsets.UTF_8)) + ".exchange")
     }
 
     private fun fingerprint(request: ImageBatchExchange.Request): String {
@@ -49,8 +53,8 @@ internal object ImageExchangeStore {
         require(request.targets.all { it.candidate in queue.candidates })
         val file = location(directory, queue.root)
         require(directory.isDirectory || directory.mkdirs())
-        require(!Files.isSymbolicLink(directory.toPath()))
-        require(!Files.exists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        require(Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
+        require(Files.notExists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         val temp = Files.createTempFile(directory.toPath(), "exchange-", ".tmp")
         try {
             FileOutputStream(temp.toFile()).use { raw ->
@@ -65,15 +69,18 @@ internal object ImageExchangeStore {
     @Synchronized
     fun restore(directory: File, queue: ImageAssetDiscovery.Queue, drafts: File,
         checkpoint: () -> Unit = {}): ImageBatchExchange.Request? {
+        checkpoint()
         val file = location(directory, queue.root)
-        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null
+        if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         require(file.length() in 1L..LIMIT.toLong())
         val data = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { val bytes = ByteArray(LIMIT + 1)
             var size = 0
             while (size < bytes.size) {
+                checkpoint()
                 val n = it.read(bytes, size, bytes.size - size)
                 if (n < 0) break
+                require(n > 0) { "번역 요청 파일 읽기가 진행되지 않습니다." }
                 size += n
             }
             bytes.copyOf(size) }
@@ -84,8 +91,10 @@ internal object ImageExchangeStore {
             require(it.read() == -1)
             pair
         }
+        require(expected.matches(Regex("[0-9a-f]{64}")))
         val request = ImageBatchExchange.prepare(queue, drafts, token, checkpoint)
         require(fingerprint(request) == expected) { "원본 또는 번역 초안이 변경되어 이전 요청을 복원할 수 없습니다." }
+        checkpoint()
         return request
     }
 }
