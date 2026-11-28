@@ -47,14 +47,26 @@ internal class GameRunHistory(context: Context) :
         }
     }
 
-    fun recent(gameId: String, limit: Int = 20, gameVersion: String? = null): List<Observation> {
+    fun recent(gameId: String, limit: Int = 20, gameVersion: String? = null,
+        checkpoint: () -> Unit = {}): List<Observation> {
+        checkpoint()
         val selection = GameHistoryQuery.recent(gameId, limit, gameVersion)
         return readableDatabase.query("runs", arrayOf("game_id", "game_version", "outcome", "recorded_at"),
             selection.where, selection.args.toTypedArray(), null, null, "id DESC", selection.limit.toString()).use { cursor ->
             buildList {
-                while (cursor.moveToNext()) add(Observation(cursor.getString(0),
-                    if (cursor.isNull(1)) null else cursor.getString(1),
-                    Outcome.valueOf(cursor.getString(2)), cursor.getLong(3)))
+                while (true) {
+                    checkpoint()
+                    val hasRow = cursor.moveToNext()
+                    checkpoint()
+                    if (!hasRow) break
+                    val observedId = cursor.getString(0)
+                    val observedVersion = if (cursor.isNull(1)) null else cursor.getString(1)
+                    GameHistoryQuery.requireScopedRow(gameId, gameVersion, observedId, observedVersion)
+                    val recordedAt = cursor.getLong(3)
+                    require(recordedAt >= 0 && size < selection.limit)
+                    add(Observation(observedId, observedVersion, Outcome.valueOf(cursor.getString(2)), recordedAt))
+                }
+                checkpoint()
             }
         }
     }

@@ -21,6 +21,14 @@ class GameCompatibilityServiceTest {
         assertEquals(GameHistoryAdvice.recommend(GameRunHistory.Outcome.BLACK_SCREEN), report.advice)
     }
 
+    @Test fun rejectsMalformedOrOversizedObservations() {
+        val valid = GameRunHistory.Observation("steam:1", null, GameRunHistory.Outcome.STARTED, 1)
+        for (bad in listOf(listOf(valid.copy(recordedAt = -1)), listOf(valid.copy(gameVersion = "v\n1")),
+            List(101) { valid })) {
+            assertTrue(runCatching { GameCompatibilityService.analyze(bad) }.isFailure)
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsMixedGameReports() {
         GameCompatibilityService.analyze(listOf(

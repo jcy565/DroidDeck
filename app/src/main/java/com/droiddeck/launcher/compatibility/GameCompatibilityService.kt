@@ -2,6 +2,7 @@ package com.droiddeck.launcher.compatibility
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /** Explicit observations only. Callers must not infer playability from process startup. */
@@ -20,11 +21,17 @@ internal class GameCompatibilityService(context: Context) {
     }
 
     suspend fun report(gameId: String, limit: Int = 20, gameVersion: String? = null): Report = withContext(Dispatchers.IO) {
-        ensureAnalysisAvailable()
-        GameRunHistory(appContext).use { history ->
-            val recent = history.recent(gameId, limit, gameVersion)
+        val checkpoint = {
+            ensureActive()
             ensureAnalysisAvailable()
-            analyze(recent)
+        }
+        checkpoint()
+        GameRunHistory(appContext).use { history ->
+            val recent = history.recent(gameId, limit, gameVersion, checkpoint)
+            checkpoint()
+            val result = analyze(recent)
+            checkpoint()
+            result
         }
     }
 
@@ -37,7 +44,15 @@ internal class GameCompatibilityService(context: Context) {
     /** Caller must explicitly associate the supplied log with the selected game. */
     suspend fun reportWithLog(gameId: String, log: String, limit: Int = 20): LogReport =
         withContext(Dispatchers.IO) {
-            combine(report(gameId, limit), log)
+            ensureActive()
+            ensureAnalysisAvailable()
+            val history = report(gameId, limit)
+            ensureActive()
+            ensureAnalysisAvailable()
+            val result = combine(history, log)
+            ensureActive()
+            ensureAnalysisAvailable()
+            result
         }
 
     companion object {
@@ -50,8 +65,13 @@ internal class GameCompatibilityService(context: Context) {
 
         /** Input is newest first, as returned by GameRunHistory.recent. */
         internal fun analyze(observations: List<GameRunHistory.Observation>): Report {
-            require(observations.map { it.gameId }.distinct().size <= 1)
+            require(observations.size <= 100)
             val snapshot = observations.toList()
+            require(snapshot.size <= 100 && snapshot.map { it.gameId }.distinct().size <= 1)
+            snapshot.forEach {
+                GameHistoryQuery.validateIdentity(it.gameId, it.gameVersion)
+                require(it.recordedAt >= 0)
+            }
             val summary = GameHistorySummary.summarize(snapshot.map { it.outcome })
             val latest = snapshot.firstOrNull()?.outcome ?: GameRunHistory.Outcome.UNKNOWN
             return Report(snapshot, summary, GameHistorySummary.describe(summary),
