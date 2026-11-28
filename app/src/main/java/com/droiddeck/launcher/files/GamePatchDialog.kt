@@ -128,7 +128,7 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
                 }
             }
             check(GameplayBudget.allowsOptionalAnalysis(context))
-            ExchangeCheckpoint.saveForHandoff(exchangeCheckpointFile, saved)
+            SharedAgentReply.saveCheckpoint(context, saved, replaceExisting = false)
         }
         AiHostBridge.requireCompatible()
         val share = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -360,9 +360,7 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
                     } }) { Text("저장한 AI 요청 및 공유 응답 재개") }
                 TextButton(enabled = !busy, onClick = { runAction {
                     val removed = withContext(Dispatchers.IO) {
-                        val removed = ExchangeCheckpoint.discard(exchangeCheckpointFile)
-                        SharedAgentReply.discard(context)
-                        removed
+                        SharedAgentReply.discardSavedExchange(context)
                     }
                     message = if (removed) "저장된 AI 요청 정보를 삭제했습니다." else "저장된 AI 요청이 없습니다."
                 } }) { Text("저장된 AI 요청 정보 지우기 (손상된 정보 포함)") }
@@ -374,8 +372,7 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                             val saved = ChatGptExchange.checkpoint(pending, file.canonicalPath, source, edits)
                             check(GameplayBudget.allowsOptionalAnalysis(context))
-                            ExchangeCheckpoint.save(exchangeCheckpointFile, saved)
-                            SharedAgentReply.clearOtherRequests(context, saved.id)
+                            SharedAgentReply.saveCheckpoint(context, saved, replaceExisting = true)
                         }
                         message = "현재 요청의 재개 정보를 저장했습니다. 이전 저장 요청은 교체됐습니다."
                     } }) { Text("현재 요청 저장 (이전 저장 요청 교체)") }
@@ -454,8 +451,7 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
                         }
                         val cleanupFailed = withContext(Dispatchers.IO) {
                             runCatching {
-                                SharedAgentReply.clear(context, pending.id)
-                                ExchangeCheckpoint.clear(exchangeCheckpointFile, pending.id)
+                                SharedAgentReply.completeSavedExchange(context, pending.id)
                             }.isFailure
                         }
                         if (cleanupFailed) message += " · 저장된 요청 정보 정리 실패"
