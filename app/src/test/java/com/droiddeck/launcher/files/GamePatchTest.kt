@@ -108,6 +108,45 @@ class GamePatchTest {
         assertEquals("x=1", file.readText())
     }
 
+    @Test fun busySessionBeforeReplacementPreservesBothApplyAndRestoreInputs() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        fun blockFinalWrite(): () -> Unit {
+            var checks = 0
+            return { check(++checks == 1) { "session started" } }
+        }
+        assertThrows(IllegalStateException::class.java) {
+            GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(),
+                backups, blockFinalWrite())
+        }
+        assertEquals("x=1", file.readText())
+        assertTrue(backups.listFiles()!!.isEmpty())
+        val backup = GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(), backups)
+        val record = backup.readBytes()
+        assertThrows(IllegalStateException::class.java) {
+            GamePatchStore.restore(root, backup, file.name, blockFinalWrite())
+        }
+        assertEquals("x=2", file.readText())
+        assertArrayEquals(record, backup.readBytes())
+        assertEquals(listOf(file), root.listFiles()!!.toList())
+        GamePatchStore.restore(root, backup, file.name)
+        assertEquals("x=1", file.readText())
+    }
+
+    @Test fun backupEnumerationCanStopWhenSessionStarts() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val backup = GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(), backups)
+        var checkpoints = 0
+        assertThrows(IllegalStateException::class.java) {
+            GamePatchStore.history(root, file.name, backups) { check(++checkpoints < 2) }
+        }
+        assertEquals(2, checkpoints)
+        assertEquals(backup, GamePatchStore.history(root, file.name, backups).restorable)
+    }
+
     @Test fun refusesStalePreviewAndRestore() {
         val root = temp.newFolder()
         val backups = temp.newFolder()

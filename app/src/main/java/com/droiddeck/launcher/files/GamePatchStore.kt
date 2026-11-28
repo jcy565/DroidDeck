@@ -53,7 +53,7 @@ internal object GamePatchStore {
         return out.toByteArray()
     }
 
-    private fun replace(file: File, expected: ByteArray, bytes: ByteArray) {
+    private fun replace(file: File, expected: ByteArray, bytes: ByteArray, checkWrite: () -> Unit) {
         require(bytes.size <= LIMIT)
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
         val temp = Files.createTempFile(file.parentFile!!.toPath(), ".ddpatch-", ".tmp")
@@ -68,12 +68,15 @@ internal object GamePatchStore {
             require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
             require(read(temp.toFile()).contentEquals(bytes)) { "Temporary patch verification failed" }
             require(read(file).contentEquals(expected)) { "File changed; preview again" }
+            checkWrite()
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
         } finally { Files.deleteIfExists(temp) }
     }
 
     @Synchronized
-    fun apply(root: File, relative: String, expected: ByteArray, proposed: ByteArray, backupDir: File): File {
+    fun apply(root: File, relative: String, expected: ByteArray, proposed: ByteArray, backupDir: File,
+              checkWrite: () -> Unit = {}): File {
+        checkWrite()
         require(expected.size <= LIMIT && proposed.size <= LIMIT)
         val original = expected.copyOf()
         val replacement = proposed.copyOf()
@@ -114,7 +117,14 @@ internal object GamePatchStore {
             backup.delete()
             throw e
         }
-        replace(file, original, replacement)
+        replace(file, original, replacement) {
+            try {
+                checkWrite()
+            } catch (e: Exception) {
+                Files.deleteIfExists(backup.toPath())
+                throw e
+            }
+        }
         return backup
     }
 
@@ -124,16 +134,23 @@ internal object GamePatchStore {
         history(root, relative, backupDir).restorable
 
     @Synchronized
-    fun history(root: File, relative: String, backupDir: File): History {
+    fun history(root: File, relative: String, backupDir: File,
+                checkpoint: () -> Unit = {}): History {
+        checkpoint()
         val file = target(root, relative)
         val currentHash = hash(read(file))
         if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return History(null, "")
-        val candidates = backupDir.listFiles().orEmpty()
-            .filter { it.name.startsWith("ddpatch-") && it.extension == "bak" &&
-                Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= BACKUP_LIMIT }
-            .sortedByDescending { it.lastModified() }
+        val candidates = Files.newDirectoryStream(backupDir.toPath()).use { entries ->
+            entries.mapNotNull { path ->
+                checkpoint()
+                val candidate = path.toFile()
+                candidate.takeIf { it.name.startsWith("ddpatch-") && it.extension == "bak" &&
+                    Files.isRegularFile(path, NOFOLLOW_LINKS) && it.length() <= BACKUP_LIMIT }
+            }
+        }.sortedByDescending { it.lastModified() }
         var status = ""
         for (candidate in candidates) {
+            checkpoint()
             val record = runCatching { readBackup(root, candidate) }.getOrNull() ?: continue
             if (record.relativePath != relative) continue
             if (status.isEmpty()) status = when (currentHash) {
@@ -190,12 +207,13 @@ internal object GamePatchStore {
     }
 
     @Synchronized
-    fun restore(root: File, backup: File, selected: String? = null) {
+    fun restore(root: File, backup: File, selected: String? = null, checkWrite: () -> Unit = {}) {
+        checkWrite()
         val record = readBackup(root, backup)
         require(selected == null || selected == record.relativePath) { "Backup target changed" }
         val file = target(root, record.relativePath)
         val current = read(file)
         require(hash(current) == record.appliedHash) { "File changed since patch" }
-        replace(file, current, record.original)
+        replace(file, current, record.original, checkWrite)
     }
 }

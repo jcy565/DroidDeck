@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.droiddeck.launcher.compatibility.GameplayBudget
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +81,25 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             finally { busy = false }
         }
     }
+    fun CoroutineScope.checkPatchWrite() {
+        ensureActive()
+        check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
+    }
+
+    suspend fun patchHistory() = withContext(Dispatchers.IO) {
+        try {
+            if (!GameplayBudget.allowsOptionalAnalysis(context)) return@withContext null
+            GamePatchStore.history(root, file.name, backups) {
+                ensureActive()
+                check(GameplayBudget.allows(GameplayBudget.Work.ANALYSIS))
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun original() = withContext(Dispatchers.IO) { LocalGameAdvisor.decode(GamePatchStore.readTarget(file)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runAction {
@@ -204,9 +225,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             }
         }
         if (!log) {
-            val history = withContext(Dispatchers.IO) {
-                runCatching { GamePatchStore.history(root, file.name, backups) }.getOrNull()
-            }
+            val history = patchHistory()
             backup = history?.restorable
             message = history?.status.orEmpty()
         }
@@ -685,10 +704,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             backup?.let { saved ->
                 TextButton(enabled = !busy, onClick = { runAction {
                     withContext(Dispatchers.IO) {
-                        check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
-                        GamePatchStore.restore(root, saved, file.name)
+                        GamePatchStore.restore(root, saved, file.name) { checkPatchWrite() }
                     }
-                    backup = withContext(Dispatchers.IO) { GamePatchStore.findMatchingBackup(root, file.name, backups) }
+                    backup = patchHistory()?.restorable
                     preview = null
                     message = "복원했습니다."
                 } }) { Text("최근 변경 복원") }
@@ -699,8 +717,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         TextButton(enabled = !busy && pendingExport == null && plan != null && plan.original != plan.proposed, onClick = {
             if (plan != null) runAction {
                 backup = withContext(Dispatchers.IO) {
-                    check(GameplayBudget.allows(GameplayBudget.Work.PATCH_WRITE)) { "게임 또는 설치 세션을 종료한 후 다시 시도하세요." }
-                    GamePatchStore.apply(root, file.name, plan.original.toByteArray(), plan.proposed.toByteArray(), backups)
+                    GamePatchStore.apply(root, file.name, plan.original.toByteArray(), plan.proposed.toByteArray(), backups) {
+                        checkPatchWrite()
+                    }
                 }
                 preview = null
                 message = "백업 후 적용했습니다."
