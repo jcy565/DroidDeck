@@ -780,3 +780,7 @@ Local runtime can explicitly decline via local-only defer response, or unavailab
 
 ## ChatGPT handoff continuity
 Both reviewed manual and local-fallback share actions now validate source/draft binding and persist a resumable checkpoint before opening ChatGPT. Existing different or corrupt checkpoint is never silently replaced. Unsaved translation edits must be saved explicitly before sharing; no automatic file modification. Explicit clipboard paste reads one bounded text item only, never auto-accepts response. Request remains saved if app launch fails. Checkpoint is a single slot; resume requires same file, source and saved edits. Added regression test; not compiled or executed. Active integration CI unchanged.
+
+
+## No-paste Android response handoff
+Add exported text/plain ACTION_SEND receiver with dedicated share label, bounded strict flat JSON, saved checkpoint ID/action validation, private one-slot response inbox and in-editor reactive import only when response field empty. Existing source/draft checks and explicit acceptance remain mandatory. Shared links are rejected (no network scraping); actual ChatGPT selected-text share depends on app/Android UI, not a documented automatic callback. Existing clipboard/manual route remains fallback. Response inbox cleared on accepted reply; private preferences may retain unaccepted response until replacement/clear. No automatic transmission or API calls. Added parser test; not compiled or device-verified.

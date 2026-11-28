@@ -59,6 +59,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var exchangeInstruction by remember(file) { mutableStateOf("") }
     var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
     var exchangeReply by remember(file) { mutableStateOf("") }
+    val sharedReplyRevision by SharedAgentReply.revision.collectAsState()
     var fallbackReview by remember(file) { mutableStateOf<LocalAgentFallback.Reason?>(null) }
     var modelDigest by remember(file) { mutableStateOf("") }
     var pendingModel by remember(file) { mutableStateOf<AiModelUpdates.Pending?>(null) }
@@ -67,6 +68,18 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var reviewedRetirement by remember(file) { mutableStateOf<ModelRelease.Retirement?>(null) }
     val managedModels = AiGlossaryUpdates.configured
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(exchange?.id, sharedReplyRevision) {
+        val pendingId = exchange?.id ?: return@LaunchedEffect
+        val received = try {
+            withContext(Dispatchers.IO) { SharedAgentReply.load(context, pendingId) }
+        } catch (e: CancellationException) { throw e }
+          catch (_: Exception) { null }
+        if (received != null && exchange?.id == pendingId && exchangeReply.isBlank()) {
+            exchangeReply = received
+            message = "공유한 AI 응답을 받았습니다. 검증 후 초안에 반영하세요."
+        }
+    }
 
     fun allowsAgentWork(): Boolean {
         return AiHostBridge.availability().enabled &&
@@ -112,7 +125,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             catch (_: android.content.ActivityNotFoundException) {
                 context.startActivity(Intent.createChooser(share, "ChatGPT로 공유"))
             }
-            message = "요청 재개 정보 저장 완료. ChatGPT 응답을 복사한 후 돌아오세요."
+            message = "요청 재개 정보 저장 완료. ChatGPT에서 응답 JSON 텍스트를 선택·공유하고 DroidDeck AI 응답을 선택하세요."
         } catch (_: Exception) {
             message = "요청은 저장됐지만 공유 화면을 열지 못했습니다. 요청 전문을 직접 복사하세요."
         }
@@ -338,6 +351,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                         sharePreparedRequest(pending)
                     } }) { Text("검토 후 요청 저장 및 ChatGPT 열기") }
+                    Text("복사·붙여넣기 없이 응답 JSON 텍스트를 Android 공유 메뉴의 DroidDeck AI 응답으로 보낼 수 있습니다. 대화 링크는 지원하지 않습니다.")
                     OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
                         enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
                     TextButton(enabled = !busy, onClick = {
@@ -385,7 +399,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             is GameAgent.Result.Advice -> { preview = null; message = result.explanation + "\n" + result.evidence }
                         }
                         val cleanupFailed = withContext(Dispatchers.IO) {
-                            runCatching { ExchangeCheckpoint.clear(exchangeCheckpointFile, pending.id) }.isFailure
+                            runCatching {
+                                SharedAgentReply.clear(context, pending.id)
+                                ExchangeCheckpoint.clear(exchangeCheckpointFile, pending.id)
+                            }.isFailure
                         }
                         if (cleanupFailed) message += " · 저장된 요청 정보 정리 실패"
                         exchange = null
@@ -868,7 +885,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     Text("선택 파일의 내용이 포함됩니다. 개인정보·계정 정보가 없는지 확인하고 공유하세요.")
                     OutlinedTextField(pending.prompt, {}, readOnly = true,
                         label = { Text("ChatGPT에 공유할 요청 전문") }, maxLines = 10)
-                    Text("ChatGPT에서 응답을 받은 뒤 이 편집기의 JSON 응답 입력란에 붙여넣으세요.")
+                    Text("ChatGPT에서 응답 JSON 텍스트를 선택해 공유하고 DroidDeck AI 응답을 선택하세요. 대화 링크가 아닌 텍스트여야 합니다.")
                 }
             },
             confirmButton = { TextButton(enabled = !busy, onClick = {
