@@ -56,11 +56,18 @@ internal object ImageAssetDecoder {
                 throw failure
             }
         }
-        return requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
+        val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
             BitmapFactory.Options().apply {
                 inSampleSize = sample
                 inMutable = mutable
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             })) { "이미지를 읽을 수 없습니다." }
+        try {
+            checkpoint()
+            return bitmap
+        } catch (failure: Throwable) {
+            bitmap.recycle()
+            throw failure
+        }
     }
 }

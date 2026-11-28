@@ -18,7 +18,8 @@ internal object ImagePatchPngCheck {
         var chunks = 0
         var color = -1
         var depth = -1
-        var palette = false
+        var paletteEntries = 0
+        var transparency = false
         var data = false
         var dataEnded = false
         var dataBytes = 0L
@@ -34,7 +35,15 @@ internal object ImagePatchPngCheck {
                 require(type.all { it in 'A'..'Z' || it in 'a'..'z' } && type[2] in 'A'..'Z')
                 val payload = offset + 8
                 val crc = CRC32()
-                crc.update(bytes, offset + 4, 4 + size)
+                var crcOffset = offset + 4
+                val crcEnd = payload + size
+                while (crcOffset < crcEnd) {
+                    checkpoint()
+                    val count = minOf(65536, crcEnd - crcOffset)
+                    crc.update(bytes, crcOffset, count)
+                    crcOffset += count
+                }
+                checkpoint()
                 require(crc.value == u32(bytes, payload + size))
                 require(chunks != 1 || type == "IHDR")
                 if (data && type != "IDAT") dataEnded = true
@@ -55,12 +64,24 @@ internal object ImagePatchPngCheck {
                         stream = ImagePatchPngStream(width, height, depth, color, bytes[payload + 12].toInt() == 1)
                     }
                     "PLTE" -> {
-                        require(!palette && !data && color !in setOf(0, 4) && size in 3..768 && size % 3 == 0)
+                        require(paletteEntries == 0 && !transparency && !data && color !in setOf(0, 4) && size in 3..768 && size % 3 == 0)
                         if (color == 3) require(size / 3 <= (1 shl depth))
-                        palette = true
+                        paletteEntries = size / 3
+                    }
+                    "tRNS" -> {
+                        require(!transparency && !data)
+                        fun sample(at: Int) = ((bytes[at].toInt() and 255) shl 8) or (bytes[at + 1].toInt() and 255)
+                        val maximum = (1 shl depth) - 1
+                        when (color) {
+                            0 -> require(size == 2 && sample(payload) <= maximum)
+                            2 -> require(size == 6 && (0..2).all { sample(payload + it * 2) <= maximum })
+                            3 -> require(size in 1..paletteEntries)
+                            else -> error("PNG with alpha must not contain tRNS")
+                        }
+                        transparency = true
                     }
                     "IDAT" -> {
-                        require(!dataEnded && (color != 3 || palette))
+                        require(!dataEnded && (color != 3 || paletteEntries > 0))
                         data = true
                         dataBytes += size
                         requireNotNull(stream).feed(bytes, payload, size, checkpoint)

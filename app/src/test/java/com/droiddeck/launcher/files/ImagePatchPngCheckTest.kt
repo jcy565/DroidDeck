@@ -70,6 +70,40 @@ class ImagePatchPngCheckTest {
         assertTrue(runCatching { ImagePatchPngCheck.validate(bytes, 7, 8) }.isFailure)
     }
 
+    @Test fun rejectsInvalidTransparencyChunksAndAcceptsValidOnes() {
+        fun h(depth: Int, color: Int) = chunk("IHDR", byteArrayOf(0,0,0,1,0,0,0,1,depth.toByte(),color.toByte(),0,0,0))
+        fun d(raw: ByteArray) = chunk("IDAT", ByteArrayOutputStream().also { buffer ->
+            DeflaterOutputStream(buffer).use { it.write(raw) }
+        }.toByteArray())
+        val gray = h(8, 0)
+        val grayData = d(byteArrayOf(0, 0))
+        val grayTransparency = chunk("tRNS", byteArrayOf(0, 127))
+        ImagePatchPngCheck.validate(signature + gray + grayTransparency + grayData + end, 1, 1)
+        rejects(signature + gray + chunk("tRNS", byteArrayOf(1, 0)) + grayData + end)
+        rejects(signature + gray + grayTransparency + grayTransparency + grayData + end)
+        rejects(signature + gray + grayData + grayTransparency + end)
+        rejects(signature + header + grayTransparency + chunk("IDAT", data) + end)
+        val indexed = h(1, 3)
+        val palette = chunk("PLTE", byteArrayOf(0,0,0,127,127,127))
+        val alpha = chunk("tRNS", byteArrayOf(0))
+        ImagePatchPngCheck.validate(signature + indexed + palette + alpha + grayData + end, 1, 1)
+        rejects(signature + indexed + alpha + palette + grayData + end)
+        rejects(signature + indexed + palette + chunk("tRNS", byteArrayOf(0,0,0)) + grayData + end)
+        val rgb = h(8, 2)
+        val rgbData = d(byteArrayOf(0,0,0,0))
+        val rgbAlpha = chunk("tRNS", byteArrayOf(0,1,0,2,0,3))
+        ImagePatchPngCheck.validate(signature + rgb + rgbAlpha + rgbData + end, 1, 1)
+        rejects(signature + rgb + chunk("tRNS", byteArrayOf(0,1,0,2,1,0)) + rgbData + end)
+    }
+
+    @Test fun largeChunkCancellationBeforeCrcFinishes() {
+        val bytes = signature + header + chunk("tEXt", ByteArray(512 * 1024)) + chunk("IDAT", data) + end
+        var checks = 0
+        assertTrue(runCatching { ImagePatchPngCheck.validate(bytes, 1, 1) {
+            if (++checks == 8) throw CancellationException()
+        } }.exceptionOrNull() is CancellationException)
+    }
+
     @Test fun cancellationIsNotSwallowed() {
         assertTrue(runCatching { ImagePatchPngCheck.validate(valid(), 1, 1) {
             throw CancellationException()

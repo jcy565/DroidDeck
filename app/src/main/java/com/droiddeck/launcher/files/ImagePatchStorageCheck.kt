@@ -29,6 +29,7 @@ internal object ImagePatchStorageCheck {
                 val view = handle.getFileAttributeView(PosixFileAttributeView::class.java)
                     ?: return Result.NO_POSIX_IDENTITY
                 val attrs = view.readAttributes()
+                checkpoint()
                 return if (attrs.isDirectory && attrs.fileKey() != null) Result.READ_CAPABLE
                     else Result.NO_POSIX_IDENTITY
             }
