@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/ai-0711-security-preflight.yml'
       - 'gradle/wrapper/**'
+      - 'gradle/ai-signing.gradle'
+      - 'tools/ci/AiSigningPolicy.java'
+      - 'tools/ci/test_ai_signing_policy.py'
       - 'gradle/verification-metadata.xml'
       - 'app/build.gradle'
       - 'shortcuts/build.gradle'
@@ -24,6 +27,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Test AI signing policy with temporary fixture only
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p test_ai_signing_policy.py -v
       - name: Verify wrapper before any Gradle execution
         run: |
           set -euo pipefail
