@@ -49,8 +49,19 @@ class SteamControllerBleTest {
     }
 
     @After fun close() {
-        controller.stop()
-        handler.looper.quit()
+        shutdown(controller, handler)
+    }
+
+    private fun shutdown(target: SteamControllerBle, workerHandler: Handler) {
+        val worker = workerHandler.looper.thread
+        try {
+            target.stop()
+        } finally {
+            workerHandler.looper.quit()
+            // Do not let callbacks survive into a different Robolectric application sandbox.
+            worker.join(5_000)
+        }
+        assertFalse("BLE worker survived test teardown", worker.isAlive)
     }
 
     @Test fun stopReleasesAndDetachesInputBeforeQueuedCallbacksCanPublish() {
@@ -125,8 +136,7 @@ class SteamControllerBleTest {
             assertFalse(Writer.connections.last())
             assertTrue(Writer.reports.last().all { it == 0.toByte() })
         } finally {
-            replacement.stop()
-            replacementHandler.looper.quit()
+            shutdown(replacement, replacementHandler)
         }
     }
 
@@ -141,8 +151,7 @@ class SteamControllerBleTest {
             assertEquals(connections, Writer.connections)
             assertEquals(reports, Writer.reports.size)
         } finally {
-            unused.stop()
-            ReflectionHelpers.getField<Handler>(unused, "handler").looper.quit()
+            shutdown(unused, ReflectionHelpers.getField<Handler>(unused, "handler"))
         }
     }
 
