@@ -106,10 +106,42 @@ if (aiInventoryOnly) {
         }
     }
 }
+// Host-side source and Robolectric regression only. Never a distributable build.
+def aiRegressionTask = ':app:testReleaseUnitTest'
+def aiRegressionOnly = project.findProperty('aiSourceRegressionOnly') == 'true'
+if (aiRegressionOnly) {
+    if (aiInventoryOnly || gradle.startParameter.taskNames != [aiRegressionTask] ||
+        project.findProperty('skipRust') != 'true' || vitureSdkDir || uvcDir) {
+        throw new GradleException('AI source regression requires one explicit host test task, skipRust=true and no vendor SDKs')
+    }
+    if (System.getenv('DD_AI_KEYSTORE') || System.getenv('DD_AI_KEY_PASSWORD') ||
+        System.getenv('DD_AI_STORE_PASSWORD')) {
+        throw new GradleException('Signing credentials are forbidden in source regression mode')
+    }
+    gradle.taskGraph.whenReady { graph ->
+        def paths = graph.allTasks.collect { it.path }
+        def forbidden = graph.allTasks.findAll { task ->
+            def name = task.name.toLowerCase(java.util.Locale.ROOT)
+            task.project.path == ':shortcuts' ||
+                name.startsWith('assemble') || name.startsWith('bundle') ||
+                name.startsWith('install') || name.startsWith('sign') ||
+                name.startsWith('validatesigning') || name == 'verifyaisigning' ||
+                name == 'stageShortcuts'.toLowerCase(java.util.Locale.ROOT) ||
+                name == 'buildruststores' || name == 'buildvkbridgeserver' ||
+                name == 'verifyruntimeinputs' || name == 'stagelocalpacks' ||
+                (name.startsWith('package') && !(name in [
+                    'packagereleaseresources', 'packagereleaseunittestforunittest'
+                ]))
+        }
+        if (!paths.contains(aiRegressionTask) || !forbidden.isEmpty()) {
+            throw new GradleException('Non-test task graph rejected: ' + forbidden.collect { it.path })
+        }
+    }
+}
 def addonPacks = ['proot', 'directaudio', 'tracking', 'xbox', 'comet', 'butler', 'powervr', 'ubisoft', 'rockstar', 'dirt', 'epic'].collectEntries { name ->
     def pack = file("build/packs/${name}.tar.zst")
     if (!pack.isFile()) {
-        if (ciBuild && !aiInventoryOnly) throw new GradleException("Add-on pack ${pack} is missing: run tools/packs/build.sh app/build/packs")
+        if (ciBuild && !aiInventoryOnly && !aiRegressionOnly) throw new GradleException("Add-on pack ${pack} is missing: run tools/packs/build.sh app/build/packs")
         if (name == 'proot' && prootPackPin.PROOT_PACK_SHA256) {
             return [(name): [sha256: prootPackPin.PROOT_PACK_SHA256, size: (prootPackPin.PROOT_PACK_SIZE ?: '0') as long]]
         }
@@ -296,8 +328,10 @@ def stageShortcuts = tasks.register('stageShortcuts', Copy) {
     into(layout.buildDirectory.dir('shortcutsAssets'))
     rename { 'shortcuts.apk' }
 }
-android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('shortcutsAssets'))
-tasks.named('preBuild').configure { dependsOn(stageShortcuts) }
+if (!aiRegressionOnly) {
+    android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('shortcutsAssets'))
+    tasks.named('preBuild').configure { dependsOn(stageShortcuts) }
+}
 
 def stageGogNotices = tasks.register('stageGogNotices', Copy) {
     from(layout.projectDirectory.dir('src/main/rust/stores/vendor/xdelta3')) { include 'LICENSE', 'README.droiddeck.md' }
@@ -306,7 +340,7 @@ def stageGogNotices = tasks.register('stageGogNotices', Copy) {
 android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('gogNotices'))
 tasks.named('preBuild').configure { dependsOn(stageGogNotices) }
 
-if (!ciBuild) {
+if (!ciBuild && !aiRegressionOnly) {
     def stageLocalPacks = tasks.register('stageLocalPacks', Sync) {
         from(layout.buildDirectory.dir('packs')) { include '*.tar.zst' }
         into(layout.buildDirectory.dir('localPackAssets/packs'))
@@ -356,7 +390,7 @@ def buildRustStores = tasks.register('buildRustStores', Exec) {
         'build', '--release', '--locked'
 }
 if (!skipRust) android.sourceSets.main.jniLibs.srcDir(rustJniLibsDir)
-tasks.named('preBuild').configure { dependsOn(buildRustStores) }
+if (!aiRegressionOnly) tasks.named('preBuild').configure { dependsOn(buildRustStores) }
 
 def maliBridgeDir = rootProject.file('external/MaliBridge')
 def vkbridgeJniLibsDir = layout.buildDirectory.dir('vkbridgeJniLibs')
@@ -370,8 +404,10 @@ def buildVkBridgeServer = tasks.register('buildVkBridgeServer', Exec) {
     commandLine 'bash', new File(maliBridgeDir, 'scripts/build-server-android.sh').absolutePath,
         android.ndkDirectory.absolutePath, vkbridgeJniLibsDir.get().asFile.absolutePath
 }
-android.sourceSets.main.jniLibs.srcDir(vkbridgeJniLibsDir)
-tasks.named('preBuild').configure { dependsOn(buildVkBridgeServer) }
+if (!aiRegressionOnly) {
+    android.sourceSets.main.jniLibs.srcDir(vkbridgeJniLibsDir)
+    tasks.named('preBuild').configure { dependsOn(buildVkBridgeServer) }
+}
 
 dependencies {
     implementation project(':ai-core')
