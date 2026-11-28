@@ -1,0 +1,74 @@
+name: AI 0.7.11 Android source regression
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-0711-android-source-regression.yml'
+      - 'app/build.gradle'
+      - 'app/src/main/**'
+      - 'app/src/test/**'
+      - 'ai-core/**'
+      - 'gradle/**'
+      - 'shortcuts/src/protocol/**'
+      - 'settings.gradle'
+      - 'build.gradle'
+permissions:
+  contents: read
+jobs:
+  source-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify toolchain pins
+        run: |
+          set -euo pipefail
+          echo '2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046  gradle/wrapper/gradle-wrapper.jar' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('gradle/wrapper/gradle-wrapper.properties').read_text().splitlines()
+          assert [x for x in lines if x.startswith('distributionUrl=')] == [
+              r'distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip']
+          assert [x for x in lines if x.startswith('distributionSha256Sum=')] == [
+              'distributionSha256Sum=2ab88d6de2c23e6adae7363ae6e29cbdd2a709e992929b48b6530fd0c7133bd6']
+          PY
+      - name: Run focused Android JVM regression without APK production
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_17_X64:?JDK 17 required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test -d "$ANDROID_HOME/platforms/android-34"
+          mkdir -p app/build/reports/ai-source-regression
+          ./gradlew --no-daemon --no-configuration-cache --console=plain -PaiSourceRegressionOnly=true -PskipRust=true :app:testReleaseUnitTest \
+            --tests 'com.droiddeck.launcher.frontend.GameFilesTest' \
+            --tests 'com.droiddeck.launcher.frontend.GameFileSyncTest' \
+            --tests 'com.droiddeck.launcher.frontend.GameLaunchLinkTest' \
+            --tests 'com.droiddeck.launcher.frontend.GameLaunchIntentTest' \
+            --tests 'com.droiddeck.launcher.session.GameStorageTest' \
+            --tests 'com.droiddeck.launcher.stores.StoreInstallRootTest' \
+            --tests 'com.droiddeck.launcher.files.GameFileAnalysisTest' \
+            --tests 'com.droiddeck.launcher.files.GameSettingsApprovalTest' \
+            --tests 'com.droiddeck.launcher.compatibility.InstalledGameVersionTest' \
+            2>&1 | tee app/build/reports/ai-source-regression/gradle.log
+      - name: Confirm no app or companion APK output
+        if: always()
+        run: |
+          set -euo pipefail
+          for path in app/build/outputs shortcuts/build/outputs; do
+            if [ -d "$path" ] && [ -n "$(find "$path" -type f \( -iname '*.apk' -o -iname '*.aab' \) -print -quit)" ]; then
+              echo "::error::Unexpected application package in source regression"
+              exit 1
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-android-source-regression
+          path: |
+            app/build/reports/ai-source-regression/
+            app/build/test-results/testReleaseUnitTest/
+            app/build/reports/tests/testReleaseUnitTest/
+          if-no-files-found: warn
+          retention-days: 30
