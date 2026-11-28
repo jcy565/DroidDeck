@@ -50,13 +50,13 @@ class GameLaunchIntentTest {
         assertNull(GameLaunchIntent.readExtras(Intent(GameLaunchIntent.ACTION).putExtra("app_id", 620).putExtra("game_source", 1)))
         assertNull(GameLaunchIntent.readExtras(Intent(Intent.ACTION_MAIN).putExtra("app_id", 620)))
         assertNull(GameLaunchIntent.read(RuntimeEnvironment.getApplication(), Intent(GameLaunchIntent.ACTION,
-            android.net.Uri.parse("droiddeck://game/620"))))
+            android.net.Uri.parse("droiddeck-ai://game/620"))))
     }
 
     @Test fun deepLinksStillAcceptUnsignedShortcutIds() {
         val context = RuntimeEnvironment.getApplication()
         assertEquals("18446744073709551615", GameLaunchIntent.read(context,
-            Intent(Intent.ACTION_VIEW, android.net.Uri.parse("droiddeck://game/18446744073709551615")))?.id)
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse("droiddeck-ai://game/18446744073709551615")))?.id)
         assertFalse(GameLaunchIntent.accepts(Intent.ACTION_SEND))
         assertTrue(GameLaunchIntent.accepts(GameLaunchIntent.ACTION))
     }
