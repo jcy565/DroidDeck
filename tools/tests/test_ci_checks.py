@@ -50,11 +50,26 @@ class CiChecksTest(unittest.TestCase):
         build = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']['build']
         flag = 'ORG_GRADLE_PROJECT_experimentalImageOcr'
         self.assertEqual(build['env'][flag],
-                         "${{ contains(fromJSON('[\"ai-chatgpt-exchange-next\",\"ai-png-compose-integration-next\",\"ai-integrated-ci-diagnostic-next\"]'), github.ref_name) && 'true' || 'false' }}")
+                         "${{ contains(fromJSON('[\"ai-chatgpt-exchange-next\",\"ai-png-compose-integration-next\",\"ai-integrated-ci-diagnostic-next\",\"ai-device-validation-next\"]'), github.ref_name) && 'true' || 'false' }}")
         steps = {step.get('id'): step for step in build['steps']}
         for name in ('build', 'unit-tests', 'compose-idle-diagnostics'):
             self.assertNotIn(flag, steps[name].get('env', {}))
             self.assertNotIn('experimentalImageOcr', steps[name]['run'])
+
+    def test_independent_signing_guard_is_required(self):
+        jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
+        job = jobs['python-tests']
+        self.assertNotIn('continue-on-error', job)
+        guards = [step for step in job['steps']
+                  if step.get('name') == 'Check independent APK signing guard']
+        self.assertEqual(len(guards), 1)
+        guard = guards[0]
+        self.assertNotIn('if', guard)
+        self.assertNotIn('continue-on-error', guard)
+        self.assertIn('bash -n tools/release/sign-ai-apk.sh', guard['run'])
+        self.assertIn('python3 -m unittest discover -s tools/release -p test_sign_ai_apk.py -v',
+                      guard['run'])
+        self.assertIn('python-tests', jobs['checks']['needs'])
 
     def test_independent_jobs_wait_only_for_the_pinned_source(self):
         jobs = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']
@@ -204,11 +219,13 @@ esac
         self.assertIn('ai-recovery-review-next', triggers['push']['branches'])
         self.assertIn('ai-png-compose-integration-next', triggers['push']['branches'])
         self.assertIn('ai-integrated-ci-diagnostic-next', triggers['push']['branches'])
+        self.assertIn('ai-device-validation-next', triggers['push']['branches'])
         gate = workflow['jobs']['source']['if']
         self.assertIn('ai-compatibility-history', gate)
         self.assertIn('ai-recovery-review-next', gate)
         self.assertIn('ai-png-compose-integration-next', gate)
         self.assertIn('ai-integrated-ci-diagnostic-next', gate)
+        self.assertIn('ai-device-validation-next', gate)
         self.assertIn("contains(github.event.head_commit.message, '[build apk]')", gate)
         self.assertIn('github.ref_name', workflow['concurrency']['group'])
         self.assertIn("github.event_name == 'push'", workflow['concurrency']['group'])
@@ -217,6 +234,7 @@ esac
         self.assertIn('ai-recovery-review-next', diagnostic['if'])
         self.assertIn('ai-png-compose-integration-next', diagnostic['if'])
         self.assertIn('ai-integrated-ci-diagnostic-next', diagnostic['if'])
+        self.assertIn('ai-device-validation-next', diagnostic['if'])
         self.assertIn("steps.unit-tests.outcome == 'failure'", diagnostic['if'])
         self.assertNotIn('continue-on-error', next(s for s in steps if s.get('id') == 'unit-tests'))
         for name in ('sign', 'packs'):
