@@ -2,7 +2,10 @@ name: Independent AI APK verification
 on:
   push:
     branches: [ai-independent-apk-verification-next]
-    paths: ['.github/workflows/ai-independent-apk-verification.yml']
+    paths:
+      - '.github/workflows/ai-independent-apk-verification.yml'
+      - 'tools/ci/verify-development-apk.py'
+      - 'tools/ci/apk_signer_report.py'
 permissions:
   actions: read
   contents: read
@@ -23,24 +26,17 @@ jobs:
           gh api repos/jcy565/DroidDeck/actions/runs/46139567549 > run.json
           jq -e '.status == "completed" and .conclusion == "success" and .head_sha == "fc57f72eca36b3930177bc521b752dfeca230044"' run.json
           gh api repos/jcy565/DroidDeck/actions/artifacts/15262040627/zip > reviewed.zip
-          echo '025601fc7965048da4f658f9ecf76c58b3cb89b80a8061a400d177d127a7245f  reviewed.zip' | sha256sum -c -
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          with zipfile.ZipFile('reviewed.zip') as archive:
-              if archive.namelist() != ['app-release.apk'] or archive.testzip() is not None:
-                  raise ValueError('Unexpected APK archive')
-              Path('reviewed.apk').write_bytes(archive.read('app-release.apk'))
-          PY
-          echo '8c10d68b3a9e9e48b1caab45299ffda436f2cb18a03577f82ff6e959b10889b6  reviewed.apk' | sha256sum -c -
-      - name: Independently verify Android signature and package
+          gh api repos/jcy565/DroidDeck/actions/artifacts/15260609118/zip > inventory.zip
+      - name: Verify pinned archives, APK contents, signer and package version
         run: |
           set -euo pipefail
           tools=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1 | xargs dirname)
-          "$tools/apksigner" version
-          "$tools/apksigner" verify --verbose --print-certs reviewed.apk | tee signer.txt
-          python3 tools/ci/apk_signer_report.py signer.txt a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc
-          grep -Eq '^Verified using v3 scheme .*: true$' signer.txt
-          "$tools/aapt" dump permissions reviewed.apk | tee permissions.txt
-          grep -Fxq 'package: com.droiddeck.launcher.ai' permissions.txt
-          echo 'Reviewed development APK signature verified; no release key or installation approval.'
+          python3 tools/ci/verify-development-apk.py reviewed.zip inventory.zip \
+            fc57f72eca36b3930177bc521b752dfeca230044 \
+            --apk-zip-sha256 025601fc7965048da4f658f9ecf76c58b3cb89b80a8061a400d177d127a7245f \
+            --inventory-zip-sha256 ca97d5371b6f577c4f2f22c28c2952e3a6c8fcc8dc10c71b6a8604759c1c55c6 \
+            --apksigner "$tools/apksigner" --aapt "$tools/aapt" --expected-version-code 19 \
+            --expected-cert-sha256 a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc \
+            | tee verification.json
+          jq -e '.apk_sha256 == "8c10d68b3a9e9e48b1caab45299ffda436f2cb18a03577f82ff6e959b10889b6"' verification.json
+          cat verification.json >> "$GITHUB_STEP_SUMMARY"
