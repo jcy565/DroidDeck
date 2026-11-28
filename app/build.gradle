@@ -173,33 +173,14 @@ android {
         }
     }
 
-    signingConfigs {
-        testkey {
-            storeFile file("${rootDir}/keystore/testkey.p12")
-            storeType "PKCS12"
-            storePassword "android"
-            keyAlias "testkey"
-            keyPassword "android"
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-        }
+    buildTypes {
+        debug { minifyEnabled false }
+        release { minifyEnabled false }
     }
 
-    buildTypes {
-        debug {
-            minifyEnabled false
-            signingConfig signingConfigs.testkey
-            def localSuffix = localBuildOptions.getProperty('droiddeck.debugApplicationIdSuffix')
-            if (localSuffix) {
-                applicationIdSuffix localSuffix
-                resValue 'string', 'app_name', 'DroidDeck XR Dev'
-            }
-        }
-        release {
-            minifyEnabled false
-            signingConfig signingConfigs.testkey
-        }
+    // Keep the paired host and companion identities exact; no debug package suffix.
+    if (localBuildOptions.getProperty('droiddeck.debugApplicationIdSuffix')) {
+        throw new GradleException('AI host does not support a debug application ID suffix')
     }
 
     androidResources {
@@ -422,3 +403,5 @@ dependencies {
     testImplementation 'androidx.compose.ui:ui-test-junit4'
     testRuntimeOnly 'com.github.luben:zstd-jni:1.5.7-4@jar'
 }
+
+apply from: rootProject.file('gradle/ai-signing.gradle')
