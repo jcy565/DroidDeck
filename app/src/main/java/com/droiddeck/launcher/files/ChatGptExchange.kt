@@ -10,10 +10,23 @@ internal object ChatGptExchange {
         val id: String get() = binding.id()
     }
 
+    private fun snapshotEdits(edits: Map<String, String>): Map<String, String> {
+        require(edits.size <= TranslationLimits.MAX_ROWS)
+        val stable = edits.toMap()
+        require(stable.size <= TranslationLimits.MAX_ROWS)
+        stable.forEach { (key, value) ->
+            TranslationJson.validUnicode(key)
+            TranslationJson.validUnicode(value)
+        }
+        return java.util.Collections.unmodifiableMap(stable)
+    }
+
     fun create(target: String, request: GameAgent.Request): Pending {
         AiHostBridge.requireCompatible()
         require(target.isNotBlank())
-        val snapshot = request.copy(existing = request.existing.toMap())
+        TranslationJson.validUnicode(target)
+        TranslationJson.validUnicode(request.source)
+        val snapshot = request.copy(existing = snapshotEdits(request.existing))
         val binding = AiCore.Exchange(target, snapshot.source, snapshot.existing)
         return Pending(snapshot, GameAgent.externalPrompt(snapshot, binding.id()), binding)
     }
@@ -21,17 +34,18 @@ internal object ChatGptExchange {
     fun checkpoint(pending: Pending, currentTarget: String, currentSource: String,
         currentEdits: Map<String, String>): ExchangeCheckpoint.Saved {
         AiHostBridge.requireCompatible()
-        require(pending.binding.check(currentTarget, currentSource, currentEdits) == AiCore.ExchangeStatus.MATCH) {
+        val stable = snapshotEdits(currentEdits)
+        require(pending.binding.check(currentTarget, currentSource, stable) == AiCore.ExchangeStatus.MATCH) {
             "원본 또는 번역 초안이 변경됐습니다. 새 작업을 요청하세요."
         }
         return ExchangeCheckpoint.Saved(pending.id, pending.request.instruction, pending.request.start,
-            ExchangeCheckpoint.fingerprint(currentTarget, currentSource, currentEdits, pending.prompt))
+            ExchangeCheckpoint.fingerprint(currentTarget, currentSource, stable, pending.prompt))
     }
 
     fun restore(saved: ExchangeCheckpoint.Saved, target: String, extension: String,
         source: String, edits: Map<String, String>): Pending {
         AiHostBridge.requireCompatible()
-        val request = GameAgent.Request(saved.instruction, extension, source, edits.toMap(), saved.start)
+        val request = GameAgent.Request(saved.instruction, extension, source, snapshotEdits(edits), saved.start)
         val prompt = GameAgent.externalPrompt(request, saved.id)
         require(ExchangeCheckpoint.fingerprint(target, source, request.existing, prompt) == saved.fingerprint) {
             "다른 파일, 변경된 원본·초안 또는 AI 요청 버전입니다. 새 작업을 요청하세요."
@@ -42,7 +56,8 @@ internal object ChatGptExchange {
     fun accept(pending: Pending, currentTarget: String, currentSource: String,
         currentEdits: Map<String, String>, response: String): GameAgent.Result {
         AiHostBridge.requireCompatible()
-        when (pending.binding.check(currentTarget, currentSource, currentEdits)) {
+        val stable = snapshotEdits(currentEdits)
+        when (pending.binding.check(currentTarget, currentSource, stable)) {
             AiCore.ExchangeStatus.MATCH -> Unit
             AiCore.ExchangeStatus.SOURCE_CHANGED -> error("대상 파일 또는 원본 버전이 변경됐습니다. 새 작업을 요청하세요.")
             AiCore.ExchangeStatus.DRAFT_CHANGED -> error("번역 초안이 변경됐습니다. 새 작업을 요청하세요.")
