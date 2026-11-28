@@ -209,6 +209,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                 Text("실행 기록 다시 조회")
             }
             if (busy) Text("처리 중")
+            com.droiddeck.launcher.ui.GamePerformanceHistoryPanel(gameId, enabled = !busy && draft == null)
             SettingsExperimentPreviewPanel()
             RuntimeFexPreviewPanel(profileKey)
             SettingsRecoveryReviewPanel()

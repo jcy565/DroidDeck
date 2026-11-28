@@ -78,6 +78,21 @@ class TrialDatabaseTest {
         }
     }
 
+    @Test fun recentHistoryIsGameAndDeviceScopedAndNewestFirst() {
+        val history = TrialDatabase(context, name)
+        try {
+            history.record(values(40.0))
+            history.record(values(50.0).apply { put("game", "steam:2") })
+            history.record(values(55.0).apply { put("model", "other") })
+            history.record(values(60.0, "Turnip B"))
+            val rows = history.recent("steam:1", "device")
+            assertEquals(listOf(60.0, 40.0), rows.map { it.sample.fps })
+            assertTrue(rows.first().runtime.contains("Turnip B"))
+            assertEquals(1, history.recent("steam:1", "device", 1).size)
+            assertTrue(history.recent("steam:3", "device").isEmpty())
+        } finally { history.close() }
+    }
+
     @Test fun invalidRecordCannotBecomeComparisonBaseline() {
         val history = TrialDatabase(context, name)
         try {

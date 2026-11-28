@@ -748,3 +748,7 @@ Structured matching of known memory/device-loss signals now generates a read-onl
 
 ## Game history with user-selected log review
 New staging branch ai-history-log-review-next from active integrated 12f1ec0ba54c7635d23f65f6779da367838e6996. Compatibility panel now exposes Android document picker for explicitly associated game log; bounded UTF-8 read, gameplay budget before/after, existing report combined with log diagnosis without changing version filters or recorded outcomes. Log report cleared on history refresh; in-memory only, no network or file modification. Session/game attribution is user assertion, not verified. Added service regression case; compile/device execution pending. Active run 46103956740 confirmed in progress on unchanged integration branch. Next nonforced integration after current CI finishes.
+
+
+## Game performance history review
+Staged game/device-scoped coverage-aware TrialDatabase.recent and read-only GamePerformanceHistoryPanel in the selected game's compatibility panel. Up to 20 recent validated entries with scene, output size, FPS, P95, frame count, time and runtime labels; explicit earlier/later selection and existing comparison rules. No automatic causal inference, settings write or version attribution. Existing DB schema unchanged. Added Robolectric test for game/device scoping and order; compilation and tests not yet executed. Active integration CI 46103956740 is in progress; do not move integration ref until terminal.

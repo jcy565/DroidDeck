@@ -67,6 +67,32 @@ internal class TrialDatabase(context: Context, name: String = "game-trials.db") 
         } finally { db.endTransaction() }
     }
 
+    data class Entry(val id: Long, val sample: OptimizationComparison.Sample,
+        val recordedAt: Long, val frames: Int, val runtime: String)
+
+    /** Read only validated, coverage-aware observations of the selected game on this device. */
+    fun recent(game: String, model: String, limit: Int = 20): List<Entry> {
+        require(game.isNotBlank() && model.isNotBlank() && limit in 1..20)
+        return readableDatabase.rawQuery(
+            "SELECT id, scene, width, height, fps, p95, recorded, frames, gpu, driver, proton " +
+                "FROM trial WHERE game=? AND model=? AND coverage_version=1 ORDER BY id DESC LIMIT ?",
+            arrayOf(game, model, limit.toString())).use { cursor ->
+            val entries = mutableListOf<Entry>()
+            while (cursor.moveToNext()) {
+                val sample = OptimizationComparison.Sample(game, model, cursor.getString(1).orEmpty(),
+                    cursor.getInt(2), cursor.getInt(3), cursor.getDouble(4), cursor.getDouble(5))
+                val recorded = cursor.getLong(6)
+                val frames = cursor.getInt(7)
+                if (recorded > 0 && frames in 2..20_000 &&
+                    OptimizationComparison.compare(sample, sample).verdict == OptimizationComparison.Verdict.INCONCLUSIVE) {
+                    entries.add(Entry(cursor.getLong(0), sample, recorded, frames,
+                        runtimeLabel(cursor.getString(8), cursor.getString(9), cursor.getString(10))))
+                }
+            }
+            entries.toList()
+        }
+    }
+
     private fun runtimeLabel(gpu: String?, driver: String?, proton: String?): String {
         fun label(value: String?) = value?.takeIf { it.isNotBlank() } ?: "미확인"
         return "GPU: ${label(gpu)} · 드라이버: ${label(driver)} · Proton: ${label(proton)}"
