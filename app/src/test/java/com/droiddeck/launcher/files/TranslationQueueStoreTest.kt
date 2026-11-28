@@ -87,6 +87,32 @@ class TranslationQueueStoreTest {
         assertEquals(1, storage.listFiles()!!.size)
     }
 
+    @Test fun reviewedReplacementPreservesCompetingSaveAndOriginals() {
+        val root = temp.newFolder().canonicalFile
+        val storage = temp.newFolder().canonicalFile
+        val a = File(root, "a.tsv").apply { writeText("id\ttext\na\tStart\n") }
+        val b = File(root, "b.tsv").apply { writeText("id\ttext\nb\tExit\n") }
+        val all = TranslationWorklist.Queue(root, TranslationDiscovery.inspect(root).candidates)
+        val first = all.copy(files = all.files.take(1))
+        val second = all.copy(files = all.files.takeLast(1))
+        assertTrue(TranslationQueueStore.saveIfUnchanged(storage, first, null))
+        assertFalse(TranslationQueueStore.saveIfUnchanged(storage, second, null))
+        val reviewed = TranslationQueueStore.load(storage, root)
+        assertTrue(TranslationQueueStore.saveIfUnchanged(storage, second, reviewed))
+        assertFalse(TranslationQueueStore.saveIfUnchanged(storage, all, reviewed))
+        assertEquals(second, TranslationQueueStore.load(storage, root))
+        // Reentrant competing write at the final checkpoint models a stale confirmation.
+        var checks = 0
+        val saved = TranslationQueueStore.saveIfUnchanged(storage, all, second) {
+            if (++checks == all.files.size + 2) TranslationQueueStore.save(storage, first)
+        }
+        assertFalse(saved)
+        assertEquals(first, TranslationQueueStore.load(storage, root))
+        assertEquals(1, storage.listFiles()!!.size)
+        assertEquals("id\ttext\na\tStart\n", a.readText())
+        assertEquals("id\ttext\nb\tExit\n", b.readText())
+    }
+
     @Test fun refusesDamagedRecordAndOverlappingStorage() {
         val root = temp.newFolder().canonicalFile
         val storage = temp.newFolder().canonicalFile
