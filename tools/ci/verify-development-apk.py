@@ -23,9 +23,19 @@ def digest(stream):
     return sha.hexdigest()
 
 
-def verify(apk_zip, inventory_zip, expected_commit):
+def verify(apk_zip, inventory_zip, expected_commit, *, apk_zip_sha256=None,
+           inventory_zip_sha256=None):
     if not re.fullmatch(r'[a-f0-9]{40}', expected_commit):
         raise ValueError('Expected full source commit SHA')
+    pinned = apk_zip_sha256 is not None or inventory_zip_sha256 is not None
+    if pinned:
+        for path, expected, label in ((apk_zip, apk_zip_sha256, 'APK artifact'),
+                                      (inventory_zip, inventory_zip_sha256, 'Inventory artifact')):
+            if not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected):
+                raise ValueError('Both expected archive SHA-256 values are required')
+            with open(path, 'rb') as stream:
+                if digest(stream) != expected:
+                    raise ValueError(f'{label} SHA-256 mismatch')
     with zipfile.ZipFile(inventory_zip) as inv:
         unique_files(inv)
         if inv.read('source-commit.txt').decode().strip() != expected_commit:
@@ -59,7 +69,7 @@ def verify(apk_zip, inventory_zip, expected_commit):
     return {'source_commit': expected_commit, 'apk_sha256': expected_hash,
             'verified_entries': len(entries), 'native_abis': abis,
             'package_from_ci_inventory': comparison['assistant']['package'],
-            'signature_verified_here': False}
+            'archive_hashes_matched': pinned, 'signature_verified_here': False}
 
 
 def main():
@@ -67,8 +77,12 @@ def main():
     parser.add_argument('apk_zip', type=Path)
     parser.add_argument('inventory_zip', type=Path)
     parser.add_argument('expected_commit')
+    parser.add_argument('--apk-zip-sha256', help='Trusted CI artifact ZIP SHA-256')
+    parser.add_argument('--inventory-zip-sha256', help='Trusted CI inventory ZIP SHA-256')
     args = parser.parse_args()
-    print(json.dumps(verify(args.apk_zip, args.inventory_zip, args.expected_commit), indent=2))
+    print(json.dumps(verify(args.apk_zip, args.inventory_zip, args.expected_commit,
+                            apk_zip_sha256=args.apk_zip_sha256,
+                            inventory_zip_sha256=args.inventory_zip_sha256), indent=2))
 
 
 if __name__ == '__main__':
