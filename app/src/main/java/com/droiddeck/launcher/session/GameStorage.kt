@@ -34,13 +34,29 @@ object GameStorage {
     fun prepare(context: Context, path: String): String? {
         val root = File(path)
         val steamapps = File(root, "steamapps")
+        if (touchesOfficialPackage(root) || touchesOfficialPackage(steamapps) ||
+            java.nio.file.Files.isSymbolicLink(steamapps.toPath())) {
+            return context.getString(R.string.gstore_cannot_write, path)
+        }
         if (!steamapps.isDirectory && !steamapps.mkdirs()) return context.getString(R.string.gstore_cannot_create, path)
-        val probe = File(steamapps, ".writable")
         return try {
-            if (!probe.createNewFile() && !probe.isFile) context.getString(R.string.gstore_cannot_write, path) else { probe.delete(); null }
+            // Never reuse or remove a file that another app already owns.
+            val probe = java.nio.file.Files.createTempFile(steamapps.toPath(), ".droiddeck-ai-probe-", ".tmp")
+            java.nio.file.Files.delete(probe)
+            null
         } catch (e: Exception) {
             context.getString(R.string.gstore_cannot_write_detail, path, e.message)
         }
+    }
+
+    /** Reject explicit official package directories and aliases, not arbitrary shared libraries. */
+    internal fun touchesOfficialPackage(file: File): Boolean {
+        val official = setOf("com.droiddeck.launcher", "com.droiddeck.shortcuts")
+        return runCatching {
+            listOf(file.absoluteFile.toPath().normalize(), file.canonicalFile.toPath()).any { path ->
+                path.any { segment -> segment.toString().lowercase(java.util.Locale.ROOT) in official }
+            }
+        }.getOrDefault(true)
     }
 
     fun isFat32(path: String): Boolean = runCatching { isFat32(path, File("/proc/mounts").readText()) }.getOrDefault(false)
@@ -59,7 +75,7 @@ object GameStorage {
         return when {
             pref == SessionPrefs.GAME_STORAGE_OFF -> null
             pref.isEmpty() -> options(context).firstOrNull()?.let { Option(it.name, it.path) }
-            else -> Option(SessionPrefs.gameStorageLabel(context), pref).takeIf { attached(File(pref)) }
+            else -> Option(SessionPrefs.gameStorageLabel(context), pref).takeIf { !touchesOfficialPackage(File(pref)) && !touchesOfficialPackage(File(pref, "steamapps")) && attached(File(pref)) }
         }
     }
 
