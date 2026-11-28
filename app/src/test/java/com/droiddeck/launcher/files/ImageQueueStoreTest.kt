@@ -86,6 +86,56 @@ class ImageQueueStoreTest {
         assertTrue(java.nio.file.Files.isSymbolicLink(record.toPath()))
     }
 
+    @Test fun checksummedRecordsRejectDamageAndMergePreservesCorruptedBytes() {
+        val root = temp.newFolder("game").canonicalFile
+        val storage = temp.newFolder("storage")
+        val candidate = ImageAssetDiscovery.Candidate("menu.png", 32, 16, 3, "a".repeat(64))
+        val queue = ImageAssetDiscovery.Queue(root, listOf(candidate))
+        ImageQueueStore.save(storage, queue)
+        val record = storage.listFiles()!!.single()
+        val original = record.readBytes()
+        assertEquals("DDIMAGEQUEUE2", java.io.DataInputStream(original.inputStream()).use { it.readUTF() })
+        assertEquals(queue, ImageQueueStore.load(storage, root))
+        for (index in original.indices) {
+            val damaged = original.clone().also { it[index] = (it[index].toInt() xor 1).toByte() }
+            record.writeBytes(damaged)
+            assertTrue("corruption at $index", runCatching { ImageQueueStore.load(storage, root) }.isFailure)
+            record.writeBytes(original.copyOf(index))
+            assertTrue("truncation at $index", runCatching { ImageQueueStore.load(storage, root) }.isFailure)
+        }
+        record.writeBytes(original + byteArrayOf(0))
+        assertTrue(runCatching { ImageQueueStore.load(storage, root) }.isFailure)
+        val damaged = original.clone().also { it[it.lastIndex] = (it.last().toInt() xor 1).toByte() }
+        record.writeBytes(damaged)
+        assertTrue(runCatching { ImageQueueStore.merge(storage, queue) }.isFailure)
+        assertArrayEquals(damaged, record.readBytes())
+    }
+
+    @Test fun legacyQueueRemainsReadableAndUpgradesOnlyOnExplicitSave() {
+        val root = temp.newFolder("game").canonicalFile
+        val storage = temp.newFolder("storage")
+        val candidate = ImageAssetDiscovery.Candidate("menu.png", 32, 16, 3, "a".repeat(64))
+        val queue = ImageAssetDiscovery.Queue(root, listOf(candidate))
+        ImageQueueStore.save(storage, queue)
+        val record = storage.listFiles()!!.single()
+        val legacy = java.io.ByteArrayOutputStream().also { buffer ->
+            java.io.DataOutputStream(buffer).use { out ->
+                out.writeUTF("DDIMAGEQUEUE1"); out.writeUTF(root.path); out.writeInt(1)
+                out.writeUTF(candidate.relative); out.writeInt(candidate.width); out.writeInt(candidate.height)
+                out.writeLong(candidate.bytes); out.writeUTF(candidate.digest)
+            }
+        }.toByteArray()
+        record.writeBytes(legacy)
+        assertEquals(queue, ImageQueueStore.load(storage, root))
+        assertArrayEquals(legacy, record.readBytes())
+        val expanded = queue.copy(candidates = listOf(candidate, candidate.copy(relative = "other.dds")))
+        assertEquals(expanded, ImageQueueStore.merge(storage, expanded))
+        assertEquals(expanded, ImageQueueStore.load(storage, root))
+        assertEquals("DDIMAGEQUEUE2", java.io.DataInputStream(record.inputStream()).use { it.readUTF() })
+        assertEquals(1, storage.listFiles()!!.size)
+        assertTrue(root.listFiles()!!.isEmpty())
+    }
+
     @Test fun continuesWithoutReprobingExaminedFiles() {
         val root = temp.newFolder()
         repeat(13) { File(root, "$it.png").writeBytes(byteArrayOf(1)) }
