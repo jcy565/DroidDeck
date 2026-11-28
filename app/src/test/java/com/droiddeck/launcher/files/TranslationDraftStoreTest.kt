@@ -21,6 +21,50 @@ class TranslationDraftStoreTest {
         assertEquals(1, dir.listFiles()!!.size)
     }
 
+    @Test fun savedCursorAndEditsResumeTogetherAndRejectStaleWrites() {
+        val dir = temporary.newFolder()
+        val target = "/game/strings.tsv"
+        val edits = mapOf("hello" to "안녕 {name}")
+        val first = TranslationDraftStore.saveProgressIfUnchanged(dir, target, source, null, edits, "bye")
+        assertEquals("bye", first.cursorId)
+        assertEquals(first, TranslationDraftStore.loadState(dir, target, source))
+        TranslationDraftStore.save(dir, target, source, edits + ("bye" to "잘 가"))
+        assertEquals("bye", TranslationDraftStore.loadState(dir, target, source)?.cursorId)
+        assertTrue(runCatching {
+            TranslationDraftStore.saveProgressIfUnchanged(dir, target, source, first, edits, "hello")
+        }.isFailure)
+        val latest = TranslationDraftStore.loadState(dir, target, source)
+        assertTrue(runCatching {
+            TranslationDraftStore.saveProgressIfUnchanged(dir, target, source, latest, edits, "missing")
+        }.isFailure)
+        assertEquals(latest, TranslationDraftStore.loadState(dir, target, source))
+        assertNull(TranslationDraftStore.loadState(dir, target, source + "!"))
+    }
+
+    @Test fun legacyDraftRemainsReadable() {
+        val dir = temporary.newFolder()
+        val target = "/game/strings.tsv"
+        fun hash(text: String) = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(text.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 255) }
+        val identity = hash(target) + "-" + hash(source)
+        val body = java.io.ByteArrayOutputStream().also { bytes ->
+            java.io.DataOutputStream(bytes).use {
+                it.writeUTF("DDTRANSLATION1")
+                it.writeUTF(identity)
+                it.writeInt(1)
+                it.writeUTF("hello")
+                it.writeUTF("안녕 {name}")
+            }
+        }.toByteArray()
+        java.io.File(dir, identity + ".draft").writeBytes(
+            java.security.MessageDigest.getInstance("SHA-256").digest(body) + body)
+        val legacy = TranslationDraftStore.loadState(dir, target, source)
+        assertEquals(mapOf("hello" to "안녕 {name}"), legacy?.edits)
+        assertNull(legacy?.cursorId)
+        assertEquals("bye", TranslationDraftStore.saveProgressIfUnchanged(
+            dir, target, source, legacy, requireNotNull(legacy).edits, "bye").cursorId)
+    }
+
     @Test fun draftsCannotBeReusedForAnotherFileOrRevision() {
         val dir = temporary.newFolder()
         TranslationDraftStore.save(dir, "/game/strings.tsv", source, mapOf("bye" to "안녕"))

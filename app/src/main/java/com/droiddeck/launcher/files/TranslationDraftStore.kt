@@ -14,7 +14,9 @@ import java.security.MessageDigest
 /** Explicitly saved drafts are private to the app and bound to an exact source revision. */
 internal object TranslationDraftStore {
     private const val LIMIT = TranslationLimits.MAX_DRAFT_BYTES
-    private const val MAGIC = "DDTRANSLATION1"
+    private const val LEGACY_MAGIC = "DDTRANSLATION1"
+    private const val MAGIC = "DDTRANSLATION2"
+    data class Draft(val edits: Map<String, String>, val cursorId: String?)
 
     private fun digest(bytes: ByteArray): ByteArray =
         MessageDigest.getInstance("SHA-256").digest(bytes)
@@ -42,14 +44,21 @@ internal object TranslationDraftStore {
 
     @Synchronized
     fun save(directory: File, target: String, source: String, edits: Map<String, String>) {
+        val previous = loadState(directory, target, source)
+        write(directory, target, source, edits, previous?.cursorId)
+    }
+
+    private fun write(directory: File, target: String, source: String, edits: Map<String, String>, cursorId: String?) {
         require(edits.size in 1..TranslationLimits.MAX_ROWS)
         val stable = edits.toMap()
         validate(source, stable)
+        require(cursorId == null || GamePatchAuthor.extract(source).any { it.id == cursorId })
         val file = location(directory, target, source)
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use {
             it.writeUTF(MAGIC)
             it.writeUTF(identity(target, source))
+            it.writeUTF(cursorId.orEmpty())
             it.writeInt(stable.size)
             for ((id, value) in stable.toSortedMap()) {
                 it.writeUTF(id)
@@ -86,7 +95,22 @@ internal object TranslationDraftStore {
     }
 
     @Synchronized
-    fun load(directory: File, target: String, source: String): Map<String, String>? {
+    fun saveProgressIfUnchanged(directory: File, target: String, source: String,
+        expected: Draft?, edits: Map<String, String>, cursorId: String): Draft {
+        require(loadState(directory, target, source) == expected) {
+            "저장된 초안이 변경됐습니다. 기존 초안을 다시 확인하세요."
+        }
+        val stable = edits.toMap()
+        write(directory, target, source, stable, cursorId)
+        return Draft(stable, cursorId)
+    }
+
+    @Synchronized
+    fun load(directory: File, target: String, source: String): Map<String, String>? =
+        loadState(directory, target, source)?.edits
+
+    @Synchronized
+    fun loadState(directory: File, target: String, source: String): Draft? {
         val file = location(directory, target, source)
         if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
@@ -105,8 +129,10 @@ internal object TranslationDraftStore {
         require(bytes.size > 32)
         val body = bytes.copyOfRange(32, bytes.size)
         require(MessageDigest.isEqual(bytes.copyOfRange(0, 32), digest(body))) { "번역 초안이 손상되었습니다." }
-        val edits = DataInputStream(ByteArrayInputStream(body)).use { input ->
-            require(input.readUTF() == MAGIC && input.readUTF() == identity(target, source))
+        val draft = DataInputStream(ByteArrayInputStream(body)).use { input ->
+            val magic = input.readUTF()
+            require((magic == MAGIC || magic == LEGACY_MAGIC) && input.readUTF() == identity(target, source))
+            val cursorId = if (magic == MAGIC) input.readUTF().ifEmpty { null } else null
             val count = input.readInt()
             require(count in 1..TranslationLimits.MAX_ROWS)
             val result = linkedMapOf<String, String>()
@@ -116,9 +142,10 @@ internal object TranslationDraftStore {
                 result[id] = input.readUTF()
             }
             require(input.read() == -1)
-            result
+            Draft(result, cursorId)
         }
-        validate(source, edits)
-        return edits
+        validate(source, draft.edits)
+        require(draft.cursorId == null || GamePatchAuthor.extract(source).any { it.id == draft.cursorId })
+        return draft
     }
 }

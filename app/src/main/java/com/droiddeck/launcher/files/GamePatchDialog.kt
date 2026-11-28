@@ -50,6 +50,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var translationIndex by remember(file) { mutableIntStateOf(0) }
     var menuCursor by remember(file) { mutableIntStateOf(0) }
     var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
+    var savedDraft by remember(file) { mutableStateOf<TranslationDraftStore.Draft?>(null) }
+    var confirmDiscard by remember(file) { mutableStateOf(false) }
     var pendingExport by remember(file) { mutableStateOf<ByteArray?>(null) }
     var agentInstruction by remember(file) { mutableStateOf("") }
     var exchangeInstruction by remember(file) { mutableStateOf("") }
@@ -78,6 +80,11 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             catch (e: Exception) { message = e.message ?: "작업 실패" }
             finally { busy = false }
         }
+    }
+    fun requestClose() {
+        if (busy || pendingExport != null) return
+        if (translationSource != null && translations != savedDraft?.edits.orEmpty()) confirmDiscard = true
+        else onDismiss()
     }
     suspend fun original() = withContext(Dispatchers.IO) { LocalGameAdvisor.decode(GamePatchStore.readTarget(file)) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -211,7 +218,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             message = history?.status.orEmpty()
         }
     }
-    AlertDialog(onDismissRequest = { if (!busy && pendingExport == null) onDismiss() }, title = { Text(file.name) }, text = {
+    AlertDialog(onDismissRequest = { requestClose() }, title = { Text(file.name) }, text = {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
             Text("오프라인 규칙 기반 도우미")
             if (config || log || translationTable) {
@@ -522,6 +529,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 TextButton(enabled = !busy && translations.isEmpty(), onClick = { runAction {
                     preview = null
                     translationSource = null
+                    savedDraft = null
                     translationRows = emptyList()
                     translations = emptyMap()
                     translationIndex = 0
@@ -534,13 +542,18 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         check(GameplayBudget.allowsOptionalAnalysis(context))
                         require(GamePatchAuthor.matchesTranslationExtension(source, file.extension)) { "파일 확장자와 실제 번역 형식이 다릅니다." }
                         val rows = GamePatchAuthor.extract(source)
-                        rows to TranslationDraftStore.load(draftDirectory, file.canonicalPath, source)
+                        rows to TranslationDraftStore.loadState(draftDirectory, file.canonicalPath, source)
                     }
                     translationSource = source
                     translationRows = rows
-                    translations = saved.orEmpty()
+                    savedDraft = saved
+                    translations = saved?.edits.orEmpty()
+                    val review = TranslationReuse.review(source, translations)
+                    translationIndex = saved?.cursorId?.let { id -> rows.indexOfFirst { it.id == id } }
+                        ?.takeIf { it >= 0 }
+                        ?: rows.indexOfFirst { review.statuses[it.id] != TranslationReuse.Status.READY }.coerceAtLeast(0)
                     message = if (saved == null) "번역 대상 ${rows.size}개를 읽었습니다."
-                        else "저장한 번역 초안 ${saved.size}개를 불러왔습니다."
+                        else "저장한 번역 초안 ${saved.edits.size}개와 작업 위치를 불러왔습니다."
                 } }) { Text("번역 대상 추출") }
                 translationRows.getOrNull(translationIndex)?.let { row ->
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
@@ -633,12 +646,15 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
                         val source = requireNotNull(translationSource)
                         val edits = translations.toMap()
-                        withContext(Dispatchers.IO) {
+                        val cursorId = row.id
+                        val expected = savedDraft
+                        savedDraft = withContext(Dispatchers.IO) {
                             check(GameplayBudget.allowsOptionalAnalysis(context))
                             require(original() == source) { "원본이 변경되어 초안 저장을 중단했습니다." }
-                            TranslationDraftStore.save(draftDirectory, file.canonicalPath, source, edits)
+                            TranslationDraftStore.saveProgressIfUnchanged(draftDirectory, file.canonicalPath, source,
+                                expected, edits, cursorId)
                         }
-                        message = "번역 초안을 저장했습니다. 게임 파일은 변경되지 않았습니다."
+                        message = "번역 초안과 현재 문장 위치를 저장했습니다. 게임 파일은 변경되지 않았습니다."
                     } }) { Text("번역 초안 저장") }
                     TextButton(enabled = !busy && translations.isNotEmpty(), onClick = { runAction {
                         preview = null
@@ -706,5 +722,12 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 message = "백업 후 적용했습니다."
             }
         }) { Text("백업 후 적용") }
-    }, dismissButton = { TextButton(enabled = !busy && pendingExport == null, onClick = onDismiss) { Text("닫기") } })
+    }, dismissButton = { TextButton(enabled = !busy && pendingExport == null, onClick = { requestClose() }) { Text("닫기") } })
+    if (confirmDiscard) AlertDialog(
+        onDismissRequest = { confirmDiscard = false },
+        title = { Text("저장하지 않은 번역이 있습니다") },
+        text = { Text("닫으면 마지막 저장 이후 입력한 번역을 잃을 수 있습니다.") },
+        confirmButton = { TextButton(onClick = { confirmDiscard = false; onDismiss() }) { Text("저장하지 않고 닫기") } },
+        dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("계속 편집") } }
+    )
 }
