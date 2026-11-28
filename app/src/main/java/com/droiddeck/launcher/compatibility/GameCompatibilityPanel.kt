@@ -36,6 +36,7 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         var draft by remember { mutableStateOf<GameObservationDraft.Draft?>(null) }
         var error by remember { mutableStateOf<String?>(null) }
         var showTimeline by remember { mutableStateOf(false) }
+        var focusStatus by remember { mutableStateOf<String?>(null) }
         var logReport by remember { mutableStateOf<GameCompatibilityService.LogReport?>(null) }
         var pickerHistory by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
 
@@ -138,6 +139,12 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
 
         Column(modifier = modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("게임 집중 보호 · 실행·설치 중 선택적 AI 분석 제한")
+            TextButton(enabled = !busy && draft == null, onClick = {
+                focusStatus = GameplayBudget.admission(context).guidance
+            }) { Text("현재 집중 보호 상태 확인") }
+            focusStatus?.let { Text("조회 시점: " + it) }
+            Text("게임 성능의 명시적 측정은 별도로 사용할 수 있습니다. 시스템 앱 강제 종료나 게임 설정 변경은 하지 않습니다.")
             Text("게임 호환성 기록")
             Text("최근 20건의 관측 기록입니다. 실행 성공은 플레이 가능을 의미하지 않습니다.")
             Text(if (observedVersion == null) "설치 버전: 확인되지 않음" else "설치 버전 (최근 조회): $observedVersion")

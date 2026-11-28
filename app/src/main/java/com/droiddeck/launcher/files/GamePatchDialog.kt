@@ -68,9 +68,8 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
     fun allowsAgentWork(): Boolean {
-        val memory = GameplayBudget.memory(context)
-        return AiHostBridge.availability().enabled && GameplayBudget.allowsOptionalAnalysis(context) &&
-            memory != null && memory.availableBytes >= 2L * 1024 * 1024 * 1024
+        return AiHostBridge.availability().enabled &&
+            GameplayBudget.admission(context, localModel = true) == GameplayBudget.Admission.READY
     }
 
     fun runAction(action: suspend () -> Unit) {
@@ -360,6 +359,11 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             }
             if (aiAvailability.enabled && LocalAgentRuntime.enabled && (config || log || translationTable)) {
                 Text("실험용 온디바이스 AI · 검증되지 않은 모델 실행 기능")
+                TextButton(enabled = !busy, onClick = { runAction {
+                    message = withContext(Dispatchers.IO) {
+                        GameplayBudget.admission(context, localModel = true).guidance
+                    }
+                } }) { Text("로컬 AI 실행 가능 상태 확인") }
                 Text("신뢰할 수 있는 배포처의 호환 .task 모델과 SHA-256이 필요합니다. SDK 진단 정보 수집 여부는 아직 검증되지 않았습니다.")
                 if (managedModels) {
                     Text("서명된 독립 모델 · 활성 버전: ${managedRevision ?: "없음 또는 비호환"}")
@@ -442,7 +446,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             agentJob = scope.launch {
                                 try {
                                     val result = withContext(Dispatchers.IO) {
-                                        check(allowsAgentWork())
+                                        check(allowsAgentWork()) { GameplayBudget.admission(context, localModel = true).guidance }
                                         val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                                         if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)

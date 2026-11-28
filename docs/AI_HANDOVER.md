@@ -764,3 +764,7 @@ Add one explicit saved output-resolution/DXVK preview candidate per game, via pr
 
 ## Pressure-aware memory diagnostics
 Skip the advanced HUD process-tree/GPU breakdown on low or unknown Android memory, retain basic totals, resume detailed sampling when normal. The context-free periodic logger retains basic totals but skips process-tree scanning at <=256 MiB available (conservative fallback, not Android LMK threshold). Existing game execution, processes, caches and memory settings unchanged. Added pure policy test; compile/test/device validation pending. No guaranteed memory savings or crash prevention. Stage on ai-history-log-review-next while integrated build runs.
+
+
+## Game focus admission and local AI resource gate
+Expose current session/memory admission reason on demand in compatibility and experimental model UI. Use one memory snapshot for local inference admission and preserve existing 2 GiB available threshold; session checked before/after reading. Check budget after native engine and session creation and before returning generated response; close partially initialized session before engine and retain lease on close failure. Explicit performance sampling remains allowed. No forced app termination, guaranteed resource savings, or hard native interruption. Added pure policy test, not compiled/executed. Experimental localAi flavor remains unverified. Stage separately while integration run 46103956740 continues.

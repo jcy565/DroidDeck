@@ -28,6 +28,7 @@ internal object LocalAgentRuntime {
         check(allowed()) { "AI 작업을 시작하기 위한 메모리가 부족하거나 게임이 실행 중입니다." }
         check(occupied.compareAndSet(false, true)) { "이전 AI 모델이 아직 종료되지 않았습니다." }
         var engine: LlmInference? = null
+        var openedSession: LlmInferenceSession? = null
         try {
             val file = select()
             check(allowed())
@@ -38,11 +39,15 @@ internal object LocalAgentRuntime {
                 .build()
             val created = LlmInference.createFromOptions(context.applicationContext, options)
             engine = created
+            check(allowed()) { "모델 로드 중 게임 또는 메모리 상태가 변경됐습니다." }
             val session = LlmInferenceSession.createFromOptions(created,
                 LlmInferenceSession.LlmInferenceSessionOptions.builder().setTopK(1).build())
+            openedSession = session
+            check(allowed()) { "모델 준비 중 게임 또는 메모리 상태가 변경됐습니다." }
             return Model(created, session, allowed)
         } catch (failure: Throwable) {
-            val closed = runCatching { engine?.close() }.isSuccess
+            val sessionClosed = runCatching { openedSession?.close() }.isSuccess
+            val closed = sessionClosed && runCatching { engine?.close() }.isSuccess
             if (closed) occupied.set(false)
             if (failure is LinkageError) throw IllegalStateException("실험용 추론 라이브러리를 불러오지 못했습니다.", failure)
             throw failure
@@ -67,6 +72,7 @@ internal object LocalAgentRuntime {
                 check(allowed()) { "게임 실행 또는 메모리 상태가 변경되어 AI 작업을 중단합니다." }
                 delay(200)
             }
+            check(allowed()) { "AI 결과 수신 전 게임 또는 메모리 상태가 변경됐습니다." }
             return active.get()
         }
 
