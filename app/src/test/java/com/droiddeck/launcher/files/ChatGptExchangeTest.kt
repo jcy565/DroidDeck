@@ -41,6 +41,30 @@ class ChatGptExchangeTest {
         assertTrue(runCatching { ChatGptExchange.accept(p, target, rows, edits, valid) }.isFailure)
     }
 
+    @Test fun pendingAndRestoredDraftsAreImmutableAndCheckOneSnapshot() {
+        val rows = "id\ttext\na\tHello {name}\nb\tBye\nc\tMenu"
+        val reviewed = linkedMapOf("b" to "잘 가", "c" to "메뉴")
+        val caller = reviewed.toMutableMap()
+        val p = ChatGptExchange.create(target, GameAgent.Request("번역", "tsv", rows, caller))
+        caller["b"] = "changed"
+        assertEquals(reviewed, p.request.existing)
+        assertTrue(runCatching { (p.request.existing as MutableMap)["b"] = "unchecked" }.isFailure)
+        val response = """{"exchange_id":"${p.id}","action":"translate","explanation":"번역","row.a":"안녕 {name}"}"""
+        assertTrue(runCatching { ChatGptExchange.accept(p, target, rows, caller, response) }.isFailure)
+        val inconsistent = object : Map<String, String> by reviewed {
+            override fun get(key: String): String? = "unchecked"
+        }
+        val saved = ChatGptExchange.checkpoint(p, target, rows, reviewed)
+        assertEquals(saved, ChatGptExchange.checkpoint(p, target, rows, inconsistent))
+        val restored = ChatGptExchange.restore(saved, target, "tsv", rows, reviewed)
+        assertTrue(runCatching { (restored.request.existing as MutableMap).clear() }.isFailure)
+        val result = ChatGptExchange.accept(restored, target, rows, inconsistent, response) as GameAgent.Result.Translation
+        assertEquals(reviewed + ("a" to "안녕 {name}"), result.edits)
+        assertTrue(runCatching { ChatGptExchange.accept(restored, target, rows, result.edits, response) }.isFailure)
+        assertTrue(runCatching { ChatGptExchange.create(target, GameAgent.Request("번역", "tsv", rows,
+            reviewed + ("b" to "bad\uD800"))) }.isFailure)
+    }
+
     @Test fun savedRequestRestoresExactIdAndRejectsChangedSource() {
         val p = ChatGptExchange.create(target, request)
         val saved = ChatGptExchange.checkpoint(p, target, source, emptyMap())
