@@ -55,17 +55,28 @@ def compare(baseline, current):
     }
 
 
+def identical_passes(result):
+    """Require a nonempty identical test set with every case passing in both runs."""
+    return (not result['missing'] and not result['added']
+            and all(counts['total'] > 0 and counts['passed'] == counts['total']
+                    for counts in (result['baseline_counts'], result['current_counts'])))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('current', type=Path)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--require-identical-passes', action='store_true',
+                        help='Fail unless both runs contain the same entirely passing test set')
     args = parser.parse_args()
     try:
         result = compare(read_reports(args.baseline), read_reports(args.current))
         args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     except (OSError, ValueError, KeyError, ET.ParseError) as exc:
         parser.exit(2, f'Comparison unavailable: {exc}\n')
+    if args.require_identical_passes and not identical_passes(result):
+        parser.exit(1, 'Test set or passing status differs from acceptance criteria\n')
 
 
 if __name__ == '__main__':
