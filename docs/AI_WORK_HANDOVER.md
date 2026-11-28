@@ -255,3 +255,8 @@
 ### 신규 APK 빌드 중간 검증
 - 실행 46121382760, 소스 c9742460981a42411334c3d1db7a57140dacd17f, 현재 in_progress/미정. 소스 고정 job 140906473667 실제 checkout 로그에서 c9742460981a42411334c3d1db7a57140dacd17f 일치 확인. Xbox ARM64 job 140906518448 성공, backend/source 아티팩트 메타데이터 조회: 15253208328 (xbox-arm64), 15253123681 (xbox-corresponding-source). 실제 다운로드/내용 검증은 아직 하지 않았다.
 - 조회된 작업: Pin source tree=completed/success; Python and native regression tests=in_progress/미정; Xbox ARM64 backend=completed/success; Store engines host tests=in_progress/미정; components-runner / Pick runner=completed/success; Prepare verified components=in_progress/미정. 아직 새 APK 및 전체 테스트 결과를 성공으로 판정하지 않는다. 빌드 브랜치 변경 금지 유지. 공식 할당량 조회 불가로 비빌드 브랜치에 단계 기록. 다음: 동일 run의 종료/로그/아티팩트 확인 후 성공하면 독립 검증, 실패하면 실제 원인 분석. 소유자 서명/실기 0/8 유지.
+
+### 최신 사용자 지시 — 개발용 APK 빌드 사전 승인 상시 부여
+- 2026-11-28 사용자: “앞으로는 승인없어도 알아서 빌드시작해”. 이 규칙은 이전 인계서의 개발용 APK 빌드 개별 승인 요구 및 승인 대기 지시보다 우선한다. 후속 작업 세션에서 필요한 경우 별도 질문 없이 개발 전용 APK 빌드를 시작한다. 단순 문서 변경이나 동일 소스의 중복 빌드는 피하고, 소스 통합·회귀 확인·CI 상태 확인 이후 기존 개발용 빌드 브랜치의 [build apk] 경로를 사용한다. 실행 중인 빌드 브랜치는 변경하지 않고 종료 후 로그 및 결과를 확인한다. 테스트 실패, 키 검사, 배포 보호 등 기존 가드를 우회하지 않는다.
+- 허용 범위는 개발용 APK 생성 및 해당 CI 검증에 한정된다. 공식 main/릴리스 변경, 정식 배포, 개인 서명 키 생성·접근·전송, 실제 기기 설치·원본 파일 및 세이브 변경, 유료 서비스는 기존 승인 및 보호 규칙 유지. 할당량 조회 불가 시 선제 인계 유지.
+- 현재 승인된 빌드 46121382760 / c9742460981a42411334c3d1db7a57140dacd17f 는 조회 시 in_progress. 중복 빌드나 빌드 브랜치 변경 없음. 이 규칙은 비빌드 브랜치 양쪽에만 저장. 다음: 동일 실행 결과 검증, 필요할 때 자동으로 후속 개발 빌드 진행.
