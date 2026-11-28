@@ -30,11 +30,17 @@ jobs:
           cargo +stable update -p rustls-webpki --precise 0.103.16
           cargo +stable update -p webpki-roots --precise 1.0.10
           cargo +stable update -p tokio --precise 1.53.3
+          cargo +stable update -p quinn-proto --precise 0.11.19
+          cargo +stable update -p quinn-udp --precise 0.5.16
+          cargo +stable update -p url --precise 2.5.9
           python3 - <<'PY'
           import tomllib
           from pathlib import Path
           packages = tomllib.loads(Path('Cargo.lock').read_text())['package']
-          expected = {'rustls':'0.23.46','rustls-webpki':'0.103.16','webpki-roots':'1.0.10','tokio':'1.53.3'}
+          expected = {
+              'rustls': '0.23.46', 'rustls-webpki': '0.103.16', 'webpki-roots': '1.0.10',
+              'tokio': '1.53.3', 'quinn-proto': '0.11.19', 'quinn-udp': '0.5.16', 'url': '2.5.9',
+          }
           for name, version in expected.items():
               selected = [p['version'] for p in packages if p['name'] == name]
               if selected != [version]:
