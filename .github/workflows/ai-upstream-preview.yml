@@ -7,6 +7,8 @@ on:
       - 'tools/ci/ai_upstream_preview.py'
       - 'tools/ci/ai_upstream_candidate.py'
       - 'tools/ci/test_ai_upstream_candidate.py'
+      - 'tools/ci/ai_upstream_repair.py'
+      - 'tools/ci/test_ai_upstream_repair.py'
 permissions:
   contents: read
 jobs:
@@ -19,7 +21,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Test conservative merge candidate generation
-        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p test_ai_upstream_candidate.py -v
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p 'test_ai_upstream_*.py' -v
       - name: Preview pinned integration inputs
         run: |
           set -euo pipefail
@@ -33,12 +35,17 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_candidate.py --ai "$ai" --upstream "$upstream" > "$RUNNER_TEMP/upstream-preview/report.json" || status=$?
           jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .release_approved == false' "$RUNNER_TEMP/upstream-preview/report.json"
           jq '{merge_status,next,candidate_status,candidate_tree,ai_count:(.ai_changed|length),upstream_count:(.upstream_changed|length),conflict_count:(.conflicts|length),review_count:(.sensitive_review|length)}' "$RUNNER_TEMP/upstream-preview/report.json"
+          repair_status=0
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_repair.py --ai "$ai" --upstream "$upstream" > "$RUNNER_TEMP/upstream-preview/repairs.json" || repair_status=$?
+          jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .repair_applied == false and .release_approved == false' "$RUNNER_TEMP/upstream-preview/repairs.json"
+          jq '{suggestions:(.repair_suggestions|length),unresolved:(.unresolved_conflicts|length)}' "$RUNNER_TEMP/upstream-preview/repairs.json"
           test -z "$(git status --porcelain)"
+          test "$repair_status" -eq 0 || exit "$repair_status"
           exit "$status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ai-upstream-preview
-          path: ${{ runner.temp }}/upstream-preview/report.json
+          path: ${{ runner.temp }}/upstream-preview/*.json
           if-no-files-found: error
           retention-days: 30
