@@ -24,6 +24,7 @@ object SteamLibraries {
     }
 
     fun list(context: Context): List<Entry> = parse(SessionPrefs.steamLibraries(context))
+        .filterNot { GameStorage.touchesOfficialPackage(it.host) || GameStorage.touchesOfficialPackage(File(it.host, "steamapps")) }
 
     internal fun parse(json: String): List<Entry> {
         if (json.isBlank()) return emptyList()
@@ -53,7 +54,9 @@ object SteamLibraries {
     fun add(context: Context, picked: String, label: String? = null): AddResult {
         val entries = list(context)
         if (entries.size >= MAX) return AddResult.Refused(context.getString(R.string.libraries_full, MAX))
+        if (GameStorage.touchesOfficialPackage(File(picked))) return AddResult.Refused(context.getString(R.string.gstore_cannot_write, picked))
         val path = innerLibrary(File(picked))?.path ?: picked
+        if (GameStorage.touchesOfficialPackage(File(path)) || GameStorage.touchesOfficialPackage(File(path, "steamapps"))) return AddResult.Refused(context.getString(R.string.gstore_cannot_write, path))
         val host = canonical(File(path))
         if (taken(context, entries).any { overlaps(it, host) }) return AddResult.Refused(context.getString(R.string.libraries_overlap))
         // Adding a Games folder itself is fine; a child of one would make it overlap and hide the rest of that folder.
@@ -88,6 +91,7 @@ object SteamLibraries {
         for (root in StorageRoots.list(context)) {
             if (!root.readable) continue
             for (dir in candidates(rawView(root.dir), SCAN_DEPTH)) {
+                if (GameStorage.touchesOfficialPackage(dir) || GameStorage.touchesOfficialPackage(File(dir, "steamapps"))) continue
                 val games = gameCount(dir)
                 if (games > 0 && File(dir, "steamapps").canWrite() && offered(taken, gamesFolders, canonical(dir))) hits += dir to games
             }
