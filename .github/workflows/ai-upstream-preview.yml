@@ -9,6 +9,8 @@ on:
       - 'tools/ci/test_ai_upstream_candidate.py'
       - 'tools/ci/ai_upstream_repair.py'
       - 'tools/ci/test_ai_upstream_repair.py'
+      - 'tools/ci/ai_upstream_apply.py'
+      - 'tools/ci/test_ai_upstream_apply.py'
 permissions:
   contents: read
 jobs:
@@ -39,9 +41,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_repair.py --ai "$ai" --upstream "$upstream" > "$RUNNER_TEMP/upstream-preview/repairs.json" || repair_status=$?
           jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .repair_applied == false and .release_approved == false' "$RUNNER_TEMP/upstream-preview/repairs.json"
           jq '{suggestions:(.repair_suggestions|length),unresolved:(.unresolved_conflicts|length)}' "$RUNNER_TEMP/upstream-preview/repairs.json"
+          apply_status=0
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_apply.py --ai "$ai" --upstream "$upstream" > "$RUNNER_TEMP/upstream-preview/candidate.json" || apply_status=$?
+          jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .release_approved == false' "$RUNNER_TEMP/upstream-preview/candidate.json"
+          jq '{candidate_status,candidate_tree,repair_applied_to_candidate}' "$RUNNER_TEMP/upstream-preview/candidate.json"
           test -z "$(git status --porcelain)"
-          test "$repair_status" -eq 0 || exit "$repair_status"
-          exit "$status"
+          test "$status" -eq "$(jq 'if .candidate_status == "blocked" then 1 else 0 end' "$RUNNER_TEMP/upstream-preview/report.json")"
+          test "$repair_status" -eq "$(jq 'if (.conflicts|length)>0 then 1 else 0 end' "$RUNNER_TEMP/upstream-preview/repairs.json")"
+          exit "$apply_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
