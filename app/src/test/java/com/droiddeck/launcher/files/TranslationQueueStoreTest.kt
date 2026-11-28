@@ -87,6 +87,21 @@ class TranslationQueueStoreTest {
         assertEquals(1, storage.listFiles()!!.size)
     }
 
+    @Test fun callerListMutationCannotSerializeAnUncheckedRevision() {
+        val root = temp.newFolder().canonicalFile
+        val storage = temp.newFolder().canonicalFile
+        File(root, "menu.tsv").writeText("id\ttext\nmenu\tStart\n")
+        val verified = TranslationDiscovery.inspect(root).candidates.single()
+        val mutable = mutableListOf(verified)
+        val queue = TranslationWorklist.Queue(root, mutable)
+        var checks = 0
+        TranslationQueueStore.save(storage, queue) {
+            if (++checks == 1) mutable[0] = verified.copy(digest = "0".repeat(64))
+        }
+        assertEquals("0".repeat(64), mutable.single().digest)
+        assertEquals(listOf(verified), requireNotNull(TranslationQueueStore.load(storage, root)).files)
+    }
+
     @Test fun refusesDamagedRecordAndOverlappingStorage() {
         val root = temp.newFolder().canonicalFile
         val storage = temp.newFolder().canonicalFile
