@@ -7,7 +7,7 @@ internal object TranslationJson {
     fun isCandidate(source: String): Boolean =
         source.firstOrNull { it !in " \t\r\n" } == '{'
 
-    private fun validUnicode(text: String) {
+    internal fun validUnicode(text: String) {
         var i = 0
         while (i < text.length) {
             val c = text[i++]
