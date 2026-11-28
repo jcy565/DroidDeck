@@ -79,16 +79,18 @@ internal fun GamePerformanceHistoryPanel(gameId: String, enabled: Boolean = true
                     }, a.id)
                 }
                 Text("선택한 기준 측정 대비 재시험 후보")
-                Text("같은 게임·기기·장면 이름·출력 해상도에서 FPS 또는 P95가 개선되고 다른 지표가 악화되지 않은 최근 기록입니다.")
+                Text("같은 게임·기기·장면 이름·출력 해상도에서 기준보다 FPS 또는 P95가 우수하고 다른 지표가 악화되지 않은 기록입니다. 이전 기록도 재시험 후보가 될 수 있습니다.")
                 if (candidates.isEmpty()) Text("조건을 충족하는 개선 기록이 없습니다. 같은 장면에서 다시 측정하세요.")
                 candidates.forEach { candidate ->
                     val item = rows.single { it.id == candidate.observed.id }
                     Text(formatter.format(Date(item.recordedAt)) + " · " + item.sample.scene)
                     Text(item.runtime)
-                    Text(OptimizationComparison.describe(candidate.comparison))
+                    Text("선택 기준 대비 후보: " + OptimizationComparison.describe(candidate.comparison))
+                    if (item.id < a.id) Text("기준보다 과거 기록입니다. 아래 시간순 비교에서는 변화 방향이 반대로 표시됩니다.")
                     TextButton(enabled = enabled, onClick = {
-                        if (item.id > a.id) after = item
-                        else { before = item; after = a }
+                        val (earlier, later) = candidate.chronologicalIds()
+                        before = rows.single { it.id == earlier }
+                        after = rows.single { it.id == later }
                     }) { Text("이 기록과 기준 측정 비교") }
                 }
                 Text("표시된 실행 환경은 재시험 참고용입니다. 이전 게임 설정 전체가 저장된 것은 아니며 자동 적용하지 않습니다.")

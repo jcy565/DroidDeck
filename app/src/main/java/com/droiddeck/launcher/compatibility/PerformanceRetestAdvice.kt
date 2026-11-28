@@ -4,7 +4,9 @@ package com.droiddeck.launcher.compatibility
 internal object PerformanceRetestAdvice {
     data class Observation(val id: Long, val sample: OptimizationComparison.Sample, val runtime: String)
     data class Candidate(val baseline: Observation, val observed: Observation,
-        val comparison: OptimizationComparison.Result)
+        val comparison: OptimizationComparison.Result) {
+        fun chronologicalIds(): Pair<Long, Long> = minOf(baseline.id, observed.id) to maxOf(baseline.id, observed.id)
+    }
 
     fun candidates(observations: List<Observation>, baselineId: Long): List<Candidate> {
         require(observations.size <= 20 && observations.map { it.id }.distinct().size == observations.size)

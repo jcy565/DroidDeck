@@ -792,3 +792,7 @@ Reopen the same original file and use saved request and shared response resume e
 
 ## Integration build candidate
 Compared integration 12f1ec0ba54c7635d23f65f6779da367838e6996 to staging 7f0fac2e20d177bb2027156133a2a0a26fa34293: 12 commits ahead, none behind, 31 changed files. Run 46103956740 confirmed Build, test-key signing, signature verification, inventory and official APK comparison steps successful; unit tests still running. Fix CRLF JSON fences, clear stale shared response on explicit checkpoint replacement, recheck log source before accepting reply. No paid API. This commit includes [build apk] so a nonforced fast-forward to ai-integrated-ci-diagnostic-next triggers CI once the active run is terminal. Staging code remains uncompiled; device share and experimental model runtime remain unverified. Do not treat prior APK as containing these changes.
+
+
+## Integration candidate comparison direction fix
+Retest suggestions may contain earlier observations. Clearly distinguish baseline-relative superiority from chronological before/after change; derive chronological pair IDs in the pure candidate type and assert both directions. Existing run 46103956740 still executing unit tests; staging remains separate and HEAD includes [build apk] for future fast-forward. No paid AI API. No new APK/test run claimed.

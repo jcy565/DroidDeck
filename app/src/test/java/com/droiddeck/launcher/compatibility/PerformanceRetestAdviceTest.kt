@@ -22,6 +22,8 @@ class PerformanceRetestAdviceTest {
             wrongScene, wrongSize, wrongGame, unchanged), baseline.id)
         assertEquals(listOf(9L, 1L), result.map { it.observed.id })
         assertTrue(result.all { it.comparison.verdict == OptimizationComparison.Verdict.IMPROVED })
+        assertEquals(4L to 9L, result[0].chronologicalIds())
+        assertEquals(1L to 4L, result[1].chronologicalIds())
     }
 
     @Test fun boundsRecommendationsAndRequiresSelectedBaseline() {
