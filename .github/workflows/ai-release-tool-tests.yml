@@ -1,7 +1,7 @@
 name: AI release tool tests
 on:
   push:
-    branches: [ai-independent-apk-verification-next]
+    branches: [ai-independent-apk-verification-next, ai-image-cancellation-staging-next]
     paths:
       - '.github/workflows/ai-release-tool-tests.yml'
       - 'tools/ci/apk_signer_report.py'
