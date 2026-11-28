@@ -43,7 +43,7 @@ class GameFilesTest {
     }
 
     @Test fun readsIdsFromEveryFrontendFileFormat() {
-        listOf("8400\n", "steam://rungameid/8400", "droiddeck://game/8400",
+        listOf("8400\n", "steam://rungameid/8400", "droiddeck-ai://game/8400",
             "# Daijishou Player Template\n[steamappid] 8400\n", "# DST\n[steamappid] 8400\n",
             "[InternetShortcut]\r\nIconIndex=0\r\nURL=steam://rungameid/8400\r\nIconFile=C:\\steam.ico\r\n").forEach { value ->
             assertEquals(value, "8400", GameFiles.read(ByteArrayInputStream(value.toByteArray())))
@@ -52,17 +52,17 @@ class GameFilesTest {
 
     @Test fun rejectsCommandsMalformedIdsLargeFilesAndUnsupportedIntents() {
         listOf("", "0", "01", "-1", "18446744073709551616", "steam://rungameid/8400?x=1", "steam://run/8400",
-            "8400\n8401", "droiddeck://game/8400?command=quit", "x".repeat(4097),
+            "8400\n8401", "droiddeck-ai://game/8400?command=quit", "x".repeat(4097),
             "[InternetShortcut]\nURL=https://example.com/8400", "[InternetShortcut]\nURL=8400",
             "# Daijishou Player Template\n[epicappid] 8400").forEach { value ->
             assertNull(value, GameFiles.read(ByteArrayInputStream(value.toByteArray())))
         }
         val context = RuntimeEnvironment.getApplication()
-        assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_SEND, Uri.parse("droiddeck://game/8400"))))
+        assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_SEND, Uri.parse("droiddeck-ai://game/8400"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/8400.steam"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("file://remote/game.steam"))))
         assertNull(GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.fromFile(File(tmp.root, "missing.steam")))))
-        assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("droiddeck://game/8400")))?.id)
+        assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("droiddeck-ai://game/8400")))?.id)
         assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("8400")))?.id)
         assertEquals("8400", GameFiles.readIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse("steam://rungameid/8400")))?.id)
     }
