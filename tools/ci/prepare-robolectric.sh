@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Explicit retries also cover curl builds that exit immediately on HTTP 429.
 download() {
-  local relative="$1" dest="$2" delay host
+  local relative="$1" dest="$2" checksum="${3:-}" delay host
   local hosts=(repo.maven.apache.org repo1.maven.org)
   # Use the Google Cloud hosted Maven Central mirror for payloads only.
   # Expected SHA-512 must still come from Maven Central, not the fallback mirror.
@@ -17,7 +17,13 @@ download() {
       if curl --fail --silent --show-error --location --proto '=https' \
           --proto-redir '=https' --connect-timeout 30 --max-time 300 \
           "https://$host/maven2/$relative" -o "$dest" && test -s "$dest"; then
-        return 0
+        if [[ "$relative" == *.sha512 ]]; then
+          if checksum_valid "$dest"; then return 0; fi
+          echo "Invalid SHA-512 response: $relative from $host" >&2
+        else
+          if verified "$dest" "$checksum"; then return 0; fi
+          echo "SHA-512 verification failed: $relative from $host" >&2
+        fi
       fi
     done
   done
@@ -25,12 +31,21 @@ download() {
   return 1
 }
 
+checksum_valid() {
+  local file="$1" digest
+  [[ ! -L "$file" && -f "$file" ]] || return 1
+  # Limit the read even if a server returns an error page with HTTP 200.
+  [[ $(wc -c < "$file") -le 130 ]] || return 1
+  digest="$(cat "$file")"
+  [[ "$digest" =~ ^[[:xdigit:]]{128}$ ]]
+}
+
 verified() {
   local file="$1" checksum="$2" digest
   [[ ! -L "$file" && ! -L "$checksum" && -f "$file" && -f "$checksum" &&
      -s "$file" && -s "$checksum" ]] || return 1
+  checksum_valid "$checksum" || return 1
   digest="$(cat "$checksum")"
-  [[ "$digest" =~ ^[[:xdigit:]]{128}$ ]] || return 1
   printf '%s  %s\n' "$digest" "$file" | sha512sum -c --status
 }
 
@@ -54,7 +69,7 @@ prepare() (
   trap 'rm -rf -- "$tmp"' EXIT
   echo "Preparing $artifact:$version ($ext)"
   download "$relative.sha512" "$tmp/checksum"
-  download "$relative" "$tmp/payload"
+  download "$relative" "$tmp/payload" "$tmp/checksum"
   if ! verified "$tmp/payload" "$tmp/checksum"; then
     echo "SHA-512 verification failed: $relative" >&2
     return 1
