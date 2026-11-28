@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import tempfile
 import zipfile
 from contextlib import ExitStack, contextmanager
@@ -25,7 +26,7 @@ def digest(stream):
 
 
 def verify(apk_zip, inventory_zip, expected_commit, *, apk_zip_sha256=None,
-           inventory_zip_sha256=None):
+           inventory_zip_sha256=None, apksigner=None, expected_cert_sha256=None):
     if not re.fullmatch(r'[a-f0-9]{40}', expected_commit):
         raise ValueError('Expected full source commit SHA')
     pinned = apk_zip_sha256 is not None or inventory_zip_sha256 is not None
@@ -33,12 +34,18 @@ def verify(apk_zip, inventory_zip, expected_commit, *, apk_zip_sha256=None,
         for expected in (apk_zip_sha256, inventory_zip_sha256):
             if not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected):
                 raise ValueError('Both expected archive SHA-256 values are required')
+    check_signature = apksigner is not None or expected_cert_sha256 is not None
+    if check_signature and (not pinned or apksigner is None
+                            or not isinstance(expected_cert_sha256, str)
+                            or not re.fullmatch(r'[a-f0-9]{64}', expected_cert_sha256)):
+        raise ValueError('Signature verification requires both archive pins, apksigner and expected certificate SHA-256')
     with ExitStack() as stack:
         if pinned:
             apk_zip = stack.enter_context(snapshot_archive(apk_zip, apk_zip_sha256, 'APK artifact'))
             inventory_zip = stack.enter_context(snapshot_archive(
                 inventory_zip, inventory_zip_sha256, 'Inventory artifact'))
-        return verify_payload(apk_zip, inventory_zip, expected_commit, pinned)
+        return verify_payload(apk_zip, inventory_zip, expected_commit, pinned,
+                              apksigner, expected_cert_sha256)
 
 
 @contextmanager
@@ -78,7 +85,137 @@ def inventory_entries(raw):
     return entries
 
 
-def verify_payload(apk_zip, inventory_zip, expected_commit, pinned):
+def verify_signer(apksigner, apk_path, expected_cert_sha256):
+    report = subprocess.run([str(apksigner), 'verify', '--verbose', '--print-certs', str(apk_path)],
+                            check=True, capture_output=True, text=True, timeout=60).stdout
+    signers = re.findall(r'^Signer #([0-9]+) certificate SHA-256 digest: ([a-fA-F0-9]+)
+    with zipfile.ZipFile(inventory_zip) as inv:
+        unique_files(inv)
+        if inv.read('source-commit.txt').decode().strip() != expected_commit:
+            raise ValueError('Source commit mismatch')
+        hash_fields = inv.read('apk-sha256.txt').decode().split()
+        expected_hash = hash_fields[0] if hash_fields else ''
+        if not re.fullmatch(r'[a-f0-9]{64}', expected_hash):
+            raise ValueError('Invalid APK SHA-256')
+        entries = inventory_entries(inv.read('app-release.apk.json'))
+        comparison = json.loads(inv.read('official-comparison.json'),
+                                object_pairs_hook=reject_duplicate_keys)
+        if comparison['assistant']['package'] != 'com.droiddeck.launcher.ai':
+            raise ValueError('Unexpected inventory package')
+    with zipfile.ZipFile(apk_zip) as outer, tempfile.TemporaryDirectory() as directory:
+        apk_path = Path(directory) / 'app-release.apk'
+        with apk_path.open('w+b') as apk:
+            members = unique_files(outer)
+            if set(members) != {'app-release.apk'}:
+                raise ValueError('Unexpected APK artifact contents')
+            with outer.open(members['app-release.apk']) as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    apk.write(block)
+            apk.seek(0)
+            if digest(apk) != expected_hash:
+                raise ValueError('APK SHA-256 mismatch')
+            with zipfile.ZipFile(apk) as inner:
+                files = unique_files(inner)
+                if set(files) != set(entries):
+                    raise ValueError('APK inventory entry set mismatch')
+                for name, entry in files.items():
+                    with inner.open(entry) as stream:
+                        if entry.file_size != entries[name]['size'] or digest(stream) != entries[name]['sha256']:
+                            raise ValueError(f'APK inventory mismatch: {name}')
+                abis = sorted({name.split('/')[1] for name in files if name.startswith('lib/') and name.count('/') >= 2})
+        if apksigner is not None:
+            verify_signer(apksigner, apk_path, expected_cert_sha256)
+    return {'source_commit': expected_commit, 'apk_sha256': expected_hash,
+            'verified_entries': len(entries), 'native_abis': abis,
+            'package_from_ci_inventory': comparison['assistant']['package'],
+            'archive_hashes_matched': pinned, 'signature_verified_here': apksigner is not None,
+            'verified_certificate_sha256': expected_cert_sha256 if apksigner is not None else None}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('apk_zip', type=Path)
+    parser.add_argument('inventory_zip', type=Path)
+    parser.add_argument('expected_commit')
+    parser.add_argument('--apk-zip-sha256', help='Trusted CI artifact ZIP SHA-256')
+    parser.add_argument('--inventory-zip-sha256', help='Trusted CI inventory ZIP SHA-256')
+    parser.add_argument('--apksigner', type=Path, help='Trusted Android SDK apksigner executable')
+    parser.add_argument('--expected-cert-sha256', help='Independently trusted signer SHA-256')
+    args = parser.parse_args()
+    print(json.dumps(verify(args.apk_zip, args.inventory_zip, args.expected_commit,
+                            apk_zip_sha256=args.apk_zip_sha256,
+                            inventory_zip_sha256=args.inventory_zip_sha256,
+                            apksigner=args.apksigner,
+                            expected_cert_sha256=args.expected_cert_sha256), indent=2))
+
+
+if __name__ == '__main__':
+    main()
+,
+                         report, re.MULTILINE)
+    if (len(signers) != 1 or signers[0][0] != '1'
+            or signers[0][1].lower() != expected_cert_sha256):
+        raise ValueError('Unexpected signing certificate or signer count')
+    if not re.search(r'^Verified using v2 scheme .*: true
+    with zipfile.ZipFile(inventory_zip) as inv:
+        unique_files(inv)
+        if inv.read('source-commit.txt').decode().strip() != expected_commit:
+            raise ValueError('Source commit mismatch')
+        hash_fields = inv.read('apk-sha256.txt').decode().split()
+        expected_hash = hash_fields[0] if hash_fields else ''
+        if not re.fullmatch(r'[a-f0-9]{64}', expected_hash):
+            raise ValueError('Invalid APK SHA-256')
+        entries = inventory_entries(inv.read('app-release.apk.json'))
+        comparison = json.loads(inv.read('official-comparison.json'),
+                                object_pairs_hook=reject_duplicate_keys)
+        if comparison['assistant']['package'] != 'com.droiddeck.launcher.ai':
+            raise ValueError('Unexpected inventory package')
+    with zipfile.ZipFile(apk_zip) as outer, tempfile.TemporaryFile() as apk:
+        members = unique_files(outer)
+        if set(members) != {'app-release.apk'}:
+            raise ValueError('Unexpected APK artifact contents')
+        with outer.open(members['app-release.apk']) as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                apk.write(block)
+        apk.seek(0)
+        if digest(apk) != expected_hash:
+            raise ValueError('APK SHA-256 mismatch')
+        with zipfile.ZipFile(apk) as inner:
+            files = unique_files(inner)
+            if set(files) != set(entries):
+                raise ValueError('APK inventory entry set mismatch')
+            for name, entry in files.items():
+                with inner.open(entry) as stream:
+                    if entry.file_size != entries[name]['size'] or digest(stream) != entries[name]['sha256']:
+                        raise ValueError(f'APK inventory mismatch: {name}')
+            abis = sorted({name.split('/')[1] for name in files if name.startswith('lib/') and name.count('/') >= 2})
+    return {'source_commit': expected_commit, 'apk_sha256': expected_hash,
+            'verified_entries': len(entries), 'native_abis': abis,
+            'package_from_ci_inventory': comparison['assistant']['package'],
+            'archive_hashes_matched': pinned, 'signature_verified_here': False}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('apk_zip', type=Path)
+    parser.add_argument('inventory_zip', type=Path)
+    parser.add_argument('expected_commit')
+    parser.add_argument('--apk-zip-sha256', help='Trusted CI artifact ZIP SHA-256')
+    parser.add_argument('--inventory-zip-sha256', help='Trusted CI inventory ZIP SHA-256')
+    args = parser.parse_args()
+    print(json.dumps(verify(args.apk_zip, args.inventory_zip, args.expected_commit,
+                            apk_zip_sha256=args.apk_zip_sha256,
+                            inventory_zip_sha256=args.inventory_zip_sha256), indent=2))
+
+
+if __name__ == '__main__':
+    main()
+, report, re.MULTILINE):
+        raise ValueError('APK v2 signature verification required')
+
+
+def verify_payload(apk_zip, inventory_zip, expected_commit, pinned,
+                   apksigner, expected_cert_sha256):
     with zipfile.ZipFile(inventory_zip) as inv:
         unique_files(inv)
         if inv.read('source-commit.txt').decode().strip() != expected_commit:

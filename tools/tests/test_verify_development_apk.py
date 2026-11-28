@@ -109,6 +109,51 @@ class DevelopmentApkAuditTest(unittest.TestCase):
             with self.subTest(pins=pins), self.assertRaises(ValueError):
                 AUDIT.verify(self.apk, self.inv, COMMIT, **pins)
 
+    def test_optional_signature_uses_verified_private_apk(self):
+        self.fixture()
+        cert = 'c' * 64
+        pins = dict(apk_zip_sha256=hashlib.sha256(self.apk.read_bytes()).hexdigest(),
+                    inventory_zip_sha256=hashlib.sha256(self.inv.read_bytes()).hexdigest())
+        with zipfile.ZipFile(self.apk) as archive:
+            payload = archive.read('app-release.apk')
+        report = f'Verified using v2 scheme (APK Signature Scheme v2): true\nSigner #1 certificate SHA-256 digest: {cert}\n'
+
+        def run(args, **kwargs):
+            self.assertEqual(['/trusted/apksigner', 'verify', '--verbose', '--print-certs'], args[:-1])
+            self.assertEqual(payload, Path(args[-1]).read_bytes())
+            self.assertTrue(kwargs['check'])
+            self.assertEqual(60, kwargs['timeout'])
+            return mock.Mock(stdout=report)
+
+        with mock.patch.object(AUDIT.subprocess, 'run', side_effect=run) as tool:
+            result = AUDIT.verify(self.apk, self.inv, COMMIT, **pins,
+                                  apksigner='/trusted/apksigner', expected_cert_sha256=cert)
+        tool.assert_called_once()
+        self.assertTrue(result['signature_verified_here'])
+        self.assertEqual(cert, result['verified_certificate_sha256'])
+        self.assertFalse(Path(tool.call_args.args[0][-1]).exists())
+        for wrong in (report.replace(cert, 'b' * 64), report.replace('true', 'false'),
+                      report + f'Signer #2 certificate SHA-256 digest: {cert}\n', ''):
+            with self.subTest(report=wrong), mock.patch.object(AUDIT.subprocess, 'run',
+                    return_value=mock.Mock(stdout=wrong)), self.assertRaises(ValueError):
+                AUDIT.verify(self.apk, self.inv, COMMIT, **pins,
+                             apksigner='/trusted/apksigner', expected_cert_sha256=cert)
+        with mock.patch.object(AUDIT.subprocess, 'run', side_effect=AUDIT.subprocess.CalledProcessError(1, 'apksigner')):
+            with self.assertRaises(AUDIT.subprocess.CalledProcessError):
+                AUDIT.verify(self.apk, self.inv, COMMIT, **pins,
+                             apksigner='/trusted/apksigner', expected_cert_sha256=cert)
+
+    def test_signature_requires_all_trust_inputs(self):
+        self.fixture()
+        pins = dict(apk_zip_sha256=hashlib.sha256(self.apk.read_bytes()).hexdigest(),
+                    inventory_zip_sha256=hashlib.sha256(self.inv.read_bytes()).hexdigest())
+        for options in (dict(apksigner='tool'), dict(expected_cert_sha256='c' * 64),
+                        dict(apksigner='tool', expected_cert_sha256='bad', **pins),
+                        dict(apksigner='tool', expected_cert_sha256='c' * 64),
+                        dict(apksigner='tool', **pins)):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                AUDIT.verify(self.apk, self.inv, COMMIT, **options)
+
     def test_rejects_wrong_source_hash_and_package(self):
         self.fixture()
         for commit in ('a', 'b' * 40, 'A' * 40):
