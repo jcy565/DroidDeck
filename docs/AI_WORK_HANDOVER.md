@@ -276,3 +276,7 @@
 ### 수정판 통합 CI 성공 — 기존 Android 빌드 종료 대기
 - 통합 CI 46121778821 / job 140907664109 실제 로그 42/42 성공. 기존 실패 Python 실행 838+723+651=2212개 회귀 시험 중 2161 통과, 1 실패, 50 skip; 별도 서명 5/5 통과. 전체 실패 원인은 앞서 수정한 OCR 기대값 불일치. 컴포넌트 artifact 15253643907 (prepared-components) 존재 확인. 신규 APK artifact 미확인.
 - 기존 APK 실행 46121382760 조회 시 in_progress/미정. Android job 140907126730 Build 진행 중 관측. 기존 실행 종료 및 로그 확인 후 자동 재빌드; 새 코드 변경 없이 이미 통과한 수정판 사용. 할당량 조회 불가로 비빌드 브랜치에 체크포인트 기록. D01~D08 미검증.
+
+### 전체 APK 실행 종료 및 오류 수정판 자동 재빌드
+- 46121382760 전체 failure: Python 기존 OCR 기대값 오류 1건. Android job 140907126730 성공: APK build 7m21s, Android unit tests 12m8s, 실제 XML summary passed=4303 skipped=0, known/other failures 없음. 공개 테스트 인증서 a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc, v2/v3 true, OCR inventory matches requested profile. APK artifact 15255210432 ZIP sha256 711f68fba15bc9cc952b642a6486e6a9c916c5d111b160476112fb774ecb88d6; inventory 15253443924 ZIP sha256 37dcec2a21252f96e6708c57c5271d4bade40a1a39162bf2bf94222e336019a8; unit XML 15255120612. 실패한 실행은 최종 후보가 아니다. 공식 sign/packs/announce/catalog skipped.
+- 수정판 42/42 staging 및 통합 CI 성공 확인, 기존 빌드 브랜치와 ahead 7/behind 0. 사용자 상시 승인에 따라 최신 수정판으로 [build apk] 비강제 fast-forward 실행. 변경은 Python 테스트 기대값/사전 CI/문서뿐이며 앱 소스 및 보호 가드 동일. 새 실행 ID 확인 전 성공 판정 금지. D01~D08 0/8, 소유자 서명/배포 없음. 할당량 조회 불가로 인계 동시 저장.
