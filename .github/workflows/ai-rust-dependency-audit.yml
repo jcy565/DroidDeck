@@ -4,6 +4,7 @@ on:
     branches: [ai-independent-apk-verification-next]
     paths:
       - '.github/workflows/ai-rust-dependency-audit.yml'
+      - 'app/src/main/rust/stores/Cargo.lock'
 permissions:
   contents: read
 jobs:
@@ -19,12 +20,11 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
           lock=app/src/main/rust/stores/Cargo.lock
-          test "$(git hash-object "$lock")" = 2fac37c5aa822698617c14fa23f2370249092258
           mkdir -p "$RUNNER_TEMP/rust-audit/input" "$RUNNER_TEMP/rust-audit/report"
-          cp "$lock" "$RUNNER_TEMP/rust-audit/input/Cargo.lock"
+          git show "$GITHUB_SHA:$lock" > "$RUNNER_TEMP/rust-audit/input/Cargo.lock"
           cd "$RUNNER_TEMP/rust-audit/input"
           sha256sum Cargo.lock > ../report/lock-sha256.txt
-          printf '%s\n' 'd8c84a5faec188c4c3d2cbf61df8b234495a1668' > ../report/reviewed-source.txt
+          printf '%s\n' "$GITHUB_SHA" > ../report/reviewed-source.txt
       - name: Install pinned scanner outside the project
         run: |
           set -euo pipefail
