@@ -1,5 +1,7 @@
 package com.droiddeck.launcher.compatibility
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.droiddeck.launcher.files.GamePatchStore
+import com.droiddeck.launcher.files.LocalGameAdvisor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -30,9 +36,12 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
         var draft by remember { mutableStateOf<GameObservationDraft.Draft?>(null) }
         var error by remember { mutableStateOf<String?>(null) }
         var showTimeline by remember { mutableStateOf(false) }
+        var logReport by remember { mutableStateOf<GameCompatibilityService.LogReport?>(null) }
+        var pickerHistory by remember { mutableStateOf<GameCompatibilityService.Report?>(null) }
 
         suspend fun refresh(saved: Boolean = false) {
             report = null
+            logReport = null
             try {
                 report = service.report(gameId, gameVersion = observedVersion.takeIf { currentVersionOnly })
             } catch (e: CancellationException) {
@@ -90,6 +99,35 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
             }
         }
 
+        val logPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            val selectedHistory = pickerHistory
+            pickerHistory = null
+            if (selectedHistory == null || uri == null || report !== selectedHistory) {
+                busy = false
+            } else {
+                scope.launch {
+                    try {
+                        require(uri.scheme == "content")
+                        logReport = withContext(Dispatchers.IO) {
+                            if (!GameplayBudget.allowsOptionalAnalysis(context)) throw HistoryReadDeferred()
+                            val bytes = context.contentResolver.openInputStream(uri)?.use(GamePatchStore::readLimited)
+                                ?: error("로그 파일을 읽을 수 없습니다.")
+                            val log = LocalGameAdvisor.decode(bytes)
+                            if (!GameplayBudget.allowsOptionalAnalysis(context)) throw HistoryReadDeferred()
+                            GameCompatibilityService.combine(selectedHistory, log)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        error = if (e is HistoryReadDeferred) "게임 실행 또는 메모리 상태 때문에 로그 분석을 보류했습니다."
+                            else "로그 분석 실패: " + (e.message ?: "지원하는 UTF-8 텍스트 로그를 선택하세요.")
+                    } finally {
+                        busy = false
+                    }
+                }
+            }
+        }
+
         LaunchedEffect(service) {
             try {
                 refresh()
@@ -128,6 +166,28 @@ internal fun GameCompatibilityPanel(gameId: String, gameVersion: String?, modifi
                     Text("이전 버전의 결과로 현재 버전의 호환성을 판단할 수 없습니다.")
                 }
                 current.advice.forEach { Text("• " + it) }
+                Text("현재 게임의 실행 로그와 위 기록을 함께 검토할 수 있습니다. 같은 게임의 UTF-8 텍스트 로그만 직접 선택하세요. 버전이나 실행 세션의 일치는 자동 확인하지 않습니다.")
+                TextButton(enabled = !busy && draft == null, onClick = {
+                    if (!busy && report === current) {
+                        busy = true
+                        error = null
+                        logReport = null
+                        pickerHistory = current
+                        try { logPicker.launch(arrayOf("text/plain", "application/octet-stream", "*/*")) }
+                        catch (_: Exception) {
+                            pickerHistory = null
+                            busy = false
+                            error = "문서 선택기를 열지 못했습니다."
+                        }
+                    }
+                }) { Text("이 게임의 로그 선택 · 실행 기록과 함께 분석") }
+                logReport?.takeIf { it.history === current }?.let { combined ->
+                    Text("선택한 로그 분석 · 기록과 별개 증거")
+                    Text(combined.logDiagnosis)
+                    Text(combined.limitation)
+                    Text("로그는 이 화면에서만 분석하며 저장하거나 전송하지 않습니다.")
+                    TextButton(enabled = !busy, onClick = { logReport = null }) { Text("로그 분석 닫기") }
+                }
                 if (current.observations.isNotEmpty()) {
                     TextButton(onClick = { showTimeline = !showTimeline }) {
                         Text(if (showTimeline) "실행 기록 상세 닫기" else "실행 기록 상세 보기")
