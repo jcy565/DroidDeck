@@ -7,6 +7,7 @@ internal class FrameStats {
     private val graph = FloatArray(GRAPH_FRAMES)
     private var graphHead = 0
     private var graphFrames = 0L
+    private var graphGeneration = 0L
     private var lastPresentNs = 0L
     private var lastFpsUpdateNs = 0L
     private var framesSinceUpdate = 0
@@ -71,6 +72,7 @@ internal class FrameStats {
         graph.fill(0f)
         graphHead = 0
         graphFrames = 0L
+        graphGeneration++
         lastPresentNs = 0L
         lastFpsUpdateNs = 0L
         framesSinceUpdate = 0
@@ -93,6 +95,18 @@ internal class FrameStats {
         for (i in 0 until GRAPH_FRAMES) out[i] = graph[(graphHead + i) % GRAPH_FRAMES]
         return graphFrames
     }
+
+    data class GraphCursor(val generation: Long, val frames: Long) {
+        fun newFramesSince(previous: GraphCursor): Int {
+            require(generation == previous.generation) { "프레임 측정이 초기화됐습니다. 다시 측정하세요." }
+            val count = frames - previous.frames
+            require(count in 0L..GRAPH_FRAMES.toLong()) { "프레임 표본이 누락됐습니다." }
+            return count.toInt()
+        }
+    }
+
+    @Synchronized
+    fun graphSnapshot(out: FloatArray): GraphCursor = GraphCursor(graphGeneration, graph(out))
 
     @Synchronized
     fun graphMinMs(): Float = graph.min()
