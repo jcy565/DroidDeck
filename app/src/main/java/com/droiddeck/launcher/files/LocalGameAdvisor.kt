@@ -39,7 +39,7 @@ internal object LocalGameAdvisor {
     private const val UNREAL = "/Script/Engine.GameUserSettings"
 
     fun optimize(original: String, command: String = ""): GameConfigPreview.Preview {
-        val unreal = original.lineSequence().any { it.trim() == "[$UNREAL]" }
+        val unreal = original.removePrefix("\uFEFF").lineSequence().any { GameConfigPreview.sectionName(it) == UNREAL }
         if (command.contains("30") || command.contains("배터리")) {
             require(unreal) { "이 파일에서 지원하는 프레임 제한 설정을 찾지 못했습니다." }
             val plan = GameConfigPreview.preview(original, UNREAL, mapOf("FrameRateLimit" to "30.000000"))

@@ -23,6 +23,33 @@ class GamePatchTest {
         }
     }
 
+    @Test fun recognizesCommentedHeadersAndStopsAtAmbiguousOnes() {
+        for (header in listOf("[Other] ; fallback", "[Other]#fallback", "[Other")) {
+            val original = "[Render]\n$header\nResolution=1920x1080"
+            assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.optimize(original) }
+        }
+    }
+
+    @Test fun preservesBomAndFormattingThroughPreviewApplyAndRestore() {
+        val source = "\uFEFF[/Script/Engine.GameUserSettings] ; profile\r\n" +
+            "ResolutionSizeX =  1920 \t\r\nResolutionSizeY=1080\r\n[Other]#fallback\nResolutionSizeX=800"
+        val plan = LocalGameAdvisor.optimize(source)
+        assertEquals(source.replace("1920", "1280").replace("1080", "720"), plan.proposed)
+        val root = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText(source) }
+        val backup = GamePatchStore.apply(root, file.name, plan.original.toByteArray(),
+            plan.proposed.toByteArray(), temp.newFolder())
+        assertArrayEquals(plan.proposed.toByteArray(), file.readBytes())
+        GamePatchStore.restore(root, backup, file.name)
+        assertArrayEquals(source.toByteArray(), file.readBytes())
+    }
+
+    @Test fun matchesBomPrefixedGlobalKey() {
+        val original = "\uFEFFName = old\r\n"
+        assertEquals(original.replace("old", "new"),
+            GameConfigPreview.preview(original, null, mapOf("Name" to "new")).proposed)
+    }
+
     @Test fun rejectsMultilineValues() {
         assertThrows(IllegalArgumentException::class.java) {
             GameConfigPreview.preview("x=1", null, mapOf("x" to "2\ny=3"))
