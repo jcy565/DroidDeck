@@ -1,0 +1,40 @@
+name: AI upstream update preview
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-upstream-preview.yml'
+      - 'tools/ci/ai_upstream_preview.py'
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preview pinned integration inputs
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
+          mkdir -p "$RUNNER_TEMP/upstream-preview"
+          ai=4cca491bd6897e39112967c36e78baf8eee06de2
+          upstream=c6169cba808d82f4d247b00bf01827506c1db54d
+          git cat-file -e "$ai^{commit}"
+          git cat-file -e "$upstream^{commit}"
+          status=0
+          python3 tools/ci/ai_upstream_preview.py --ai "$ai" --upstream "$upstream" > "$RUNNER_TEMP/upstream-preview/report.json" || status=$?
+          jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .release_approved == false' "$RUNNER_TEMP/upstream-preview/report.json"
+          jq '{merge_status,next,ai_count:(.ai_changed|length),upstream_count:(.upstream_changed|length),conflict_count:(.conflicts|length),review_count:(.sensitive_review|length)}' "$RUNNER_TEMP/upstream-preview/report.json"
+          test -z "$(git status --porcelain)"
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-upstream-preview
+          path: ${{ runner.temp }}/upstream-preview/report.json
+          if-no-files-found: error
+          retention-days: 30
