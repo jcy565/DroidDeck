@@ -36,7 +36,13 @@ internal class FrameStats {
 
     @Synchronized
     fun add(frametimeNs: Long, timeNs: Long) {
-        if (frametimeNs <= 0L) return
+        // Keep legacy HUD statistics, but invalidate an in-progress trial on
+        // unusable frame intervals or nonmonotonic presentation timestamps.
+        if (frametimeNs <= 0L) {
+            graphGeneration++
+            return
+        }
+        if (timeNs <= 0L || (lastPresentNs != 0L && timeNs <= lastPresentNs)) graphGeneration++
         if (lastPresentNs != 0L) {
             graph[graphHead] = frametimeNs / 1e6f
             graphHead = (graphHead + 1) % GRAPH_FRAMES
