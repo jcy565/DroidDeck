@@ -23,7 +23,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-internal fun GamePatchDialog(file: File, resumeSavedRequest: Boolean = false, onDismiss: () -> Unit) {
+internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
+    GamePatchDialog(file, resumeSavedRequest = false, onDismiss = onDismiss)
+}
+
+@Composable
+internal fun GamePatchDialog(file: File, resumeSavedRequest: Boolean, onDismiss: () -> Unit) {
     key(file, resumeSavedRequest) {
         GamePatchContent(file, resumeSavedRequest, onDismiss)
     }
