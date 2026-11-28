@@ -203,7 +203,7 @@ internal fun GameDetail(
     val prefix = game?.protonPrefix?.takeIf { it.isDirectory }
     val addonTargets = remember(game?.gameId, game?.gameFiles) { game?.let(WowAddons::targets).orEmpty() }
     // Only verified Steam identities in this integration stage; other stores remain unchanged.
-    val historyId = game?.takeIf { !s.shortcutPicker && it.source == Library.SOURCE_STEAM && it.library != Library.ADDED && it.library != Library.XBOX_CLOUD && com.droiddeck.launcher.frontend.GameLaunchLink.validId(it.gameIdString) }?.let { "steam:${it.gameIdString}" }
+    val historyId = game?.takeIf { !s.shortcutPicker && it.source == Library.SOURCE_STEAM && it.library != Library.ADDED && it.library != Library.XBOX_CLOUD && !it.soundtrack && com.droiddeck.launcher.frontend.GameLaunchLink.validId(it.gameIdString) }?.let { "steam:${it.gameIdString}" }
     val tabs = buildList {
         if (description.isNotBlank() || developer.isNotBlank() || publisher.isNotBlank() || releaseDate.isNotBlank() || scored || (!s.shortcutPicker && title.isNotBlank() && title != id)) add(GameTab.ABOUT)
         if (achievementState != null) add(GameTab.ACHIEVEMENTS)
@@ -302,7 +302,7 @@ internal fun GameDetail(
                                 GameTab.ADDONS -> if (game != null) AddonsTab(game, addonTargets, s.sessionRunning, a)
                                 GameTab.INSTALL -> InstallTab(game, installed, item, store)
                                 GameTab.HISTORY -> historyId?.let {
-                                    com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp))
+                                    com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, game?.installedVersion, Modifier.heightIn(max = 420.dp))
                                 }
                             }
                         }
