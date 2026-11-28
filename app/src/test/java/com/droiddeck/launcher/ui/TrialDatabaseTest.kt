@@ -2,7 +2,6 @@ package com.droiddeck.launcher.ui
 
 import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -58,7 +57,8 @@ class TrialDatabaseTest {
                 db.insertOrThrow("trial", null, legacy)
                 db.version = version
             }
-            TrialDatabase(context, name).use { history ->
+            val history = TrialDatabase(context, name)
+            try {
                 assertTrue(history.record(values()).contains("첫 검증된 측정"))
                 val report = history.record(values(60.0, "Turnip B"))
                 assertTrue(report.contains("40.0 FPS"))
@@ -72,12 +72,15 @@ class TrialDatabaseTest {
                     while (it.moveToNext()) versions.add(it.getInt(0))
                     assertEquals(listOf(0, 1, 1), versions)
                 }
+            } finally {
+                history.close()
             }
         }
     }
 
     @Test fun invalidRecordCannotBecomeComparisonBaseline() {
-        TrialDatabase(context, name).use { history ->
+        val history = TrialDatabase(context, name)
+        try {
             history.record(values())
             val invalid = listOf(
                 values().apply { put("coverage_version", 0) },
@@ -96,6 +99,8 @@ class TrialDatabaseTest {
                 assertEquals(1, it.getInt(0))
             }
             assertTrue(history.record(values(60.0)).contains("40.0 FPS"))
+        } finally {
+            history.close()
         }
     }
 }
