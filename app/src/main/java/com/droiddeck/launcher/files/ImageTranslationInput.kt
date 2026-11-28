@@ -29,6 +29,7 @@ internal object ImageTranslationInput {
         while (true) {
             val n = input.read(buffer)
             if (n < 0) break
+            require(n > 0) { "이미지 파일 읽기가 진행되지 않습니다." }
             require(total + n <= MAX_BYTES) { "이미지 파일은 최대 8MiB까지 지원합니다." }
             consume(buffer, n)
             total += n
