@@ -198,6 +198,25 @@ class DevelopmentApkAuditTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Duplicate JSON key'):
             self.verify()
 
+    def test_rejects_malformed_comparison_structure(self):
+        for value in (None, [], {}, {'assistant': None}, {'assistant': []},
+                      {'assistant': {}}, {'assistant': {'package': 123}}):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'Unexpected inventory package'):
+                self.fixture(change={'official-comparison.json': json.dumps(value)})
+                self.verify()
+
+    def test_metadata_read_limit_and_missing_entry(self):
+        with zipfile.ZipFile(io.BytesIO(zip_bytes([('exact', b'1234'),
+                                                  ('large', b'12345')]))) as archive:
+            self.assertEqual(b'1234', AUDIT.read_metadata(archive, 'exact', 4))
+            with self.assertRaisesRegex(ValueError, 'oversized APK metadata'):
+                AUDIT.read_metadata(archive, 'large', 4)
+            with self.assertRaisesRegex(ValueError, 'Missing APK metadata'):
+                AUDIT.read_metadata(archive, 'missing', 4)
+        self.fixture(change={'source-commit.txt': COMMIT + ' ' * 4096})
+        with self.assertRaisesRegex(ValueError, 'oversized APK metadata'):
+            self.verify()
+
     def test_rejects_inner_inventory_mismatch_even_with_matching_apk_digest(self):
         valid = list(MEMBERS.items())
         for inner in (valid[:-1], valid + [('extra', b'x')], valid + [valid[0]],
