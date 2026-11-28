@@ -27,18 +27,65 @@ class StoreInstallRootTest {
         SessionPrefs.setGameStorage(app, SessionPrefs.GAME_STORAGE_OFF, "")
     }
 
+    @Test fun sharedStoreParentDoesNotAdoptOfficialGames() {
+        val parent = File(app.filesDir, "shared-store-parent").apply { mkdirs() }
+        val official = File(StoreInstallRoot.storeDir(File(parent, "Games"), Store.GOG), "Original").apply { mkdirs() }
+        StoreGameSidecar(Store.GOG, "42", "Original", "game.exe").write(official)
+        val sentinel = File(official, "game.exe").apply { writeText("official data") }
+        SessionPrefs.setDefaultStorageFolder(app, parent.path, "Shared")
+        assertNull(StoreInstallRoot.prepareDefaultFolder(app, parent))
+        val ai = File(parent, StoreInstallRoot.ON_VOLUME)
+        assertTrue(ai.isDirectory)
+        assertNull(StoreInstallRoot.existingFolder(app, Store.GOG, "42", "Original"))
+        assertFalse(StoreInstallRoot.gameFolders(app).contains(official))
+        assertFalse(StoreInstallRoot.unfinished(app).any { it.folder == official })
+        assertEquals(File(StoreInstallRoot.storeDir(ai, Store.GOG), "Original"),
+            StoreInstallRoot.folderFor(app, Store.GOG, "42", "Original", ai))
+        assertEquals("official data", sentinel.readText())
+    }
+
+    @Test fun refusesLinkedExternalStoreRootAndOfficialPackageParent() {
+        val parent = File(app.filesDir, "linked-store-parent").apply { mkdirs() }
+        val outside = File(app.filesDir, "outside-store").apply { mkdirs() }
+        val link = File(parent, StoreInstallRoot.ON_VOLUME)
+        java.nio.file.Files.createSymbolicLink(link.toPath(), outside.toPath())
+        SessionPrefs.setDefaultStorageFolder(app, parent.path, "Linked")
+        assertNotNull(StoreInstallRoot.prepareDefaultFolder(app, parent))
+        assertNull(StoreInstallRoot.customTarget(app))
+        assertFalse(StoreInstallRoot.roots(app).contains(link))
+        assertTrue(outside.list()!!.isEmpty())
+        val official = File(app.filesDir, "com.droiddeck.launcher").apply { mkdirs() }
+        assertNotNull(StoreInstallRoot.prepareDefaultFolder(app, official))
+        assertFalse(File(official, StoreInstallRoot.ON_VOLUME).exists())
+    }
+
+    @Test fun skipsLinkedGameDirectoriesAndRejectsTheirUseAsInstallTargets() {
+        val root = StoreInstallRoot.internalRoot(app)
+        val dir = StoreInstallRoot.storeDir(root, Store.GOG).apply { mkdirs() }
+        val outside = File(app.filesDir, "linked-game-outside").apply { mkdirs() }
+        StoreGameSidecar(Store.GOG, "99", "Linked", "game.exe").write(outside)
+        val link = File(dir, "Linked")
+        java.nio.file.Files.createSymbolicLink(link.toPath(), outside.toPath())
+        assertNull(StoreInstallRoot.existingFolder(app, Store.GOG, "99", "Linked"))
+        assertFalse(StoreInstallRoot.gameFolders(app).contains(link))
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            StoreInstallRoot.folderFor(app, Store.GOG, "99", "Linked", root)
+        }
+        assertEquals("game", StoreInstallRoot.folderName("", ".."))
+    }
+
     @Test fun theDefaultRootIsInternalWhateverTheSteamLibrarySettingSays() {
         val card = File(app.filesDir, "fake-card/steam").apply { mkdirs() }
         SessionPrefs.setGameStorage(app, card.path, "Card")
         assertEquals(File(LinuxRuntime.rootDir(app), "root/Games/Stores").absolutePath, StoreInstallRoot.installRoot(app).absolutePath)
-        assertTrue(StoreInstallRoot.roots(app).any { it.absolutePath == File(card, "Games").absolutePath })
+        assertTrue(StoreInstallRoot.roots(app).any { it.absolutePath == File(card, StoreInstallRoot.ON_VOLUME).absolutePath })
         assertFalse(StoreInstallRoot.targets(app).first().removable)
     }
 
     @Test fun defaultStoragePicksTheInternalOrTheConfiguredExternalTarget() {
         val library = File(app.filesDir, "default-card/steam").apply { mkdirs() }
         SessionPrefs.setGameStorage(app, library.path, "Card")
-        val external = File(library, "Games")
+        val external = File(library, StoreInstallRoot.ON_VOLUME)
 
         SessionPrefs.setDefaultStorage(app, SessionPrefs.DEFAULT_STORAGE_INTERNAL)
         assertEquals(StoreInstallRoot.internalRoot(app).absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
@@ -62,7 +109,7 @@ class StoreInstallRootTest {
     @Test fun aChosenFolderIsUsedForDefaultExternalStorage() {
         val folder = File(app.filesDir, "usb/SSD").apply { mkdirs() }
         assertNull(StoreInstallRoot.prepareDefaultFolder(app, folder))
-        val root = File(folder, "Games")
+        val root = File(folder, StoreInstallRoot.ON_VOLUME)
         assertTrue(root.isDirectory)
         SessionPrefs.setDefaultStorageFolder(app, folder.path, "SSD")
         SessionPrefs.setDefaultStorage(app, SessionPrefs.DEFAULT_STORAGE_EXTERNAL)
@@ -84,16 +131,16 @@ class StoreInstallRootTest {
 
         assertTrue(folder.delete())
         assertEquals(StoreInstallRoot.internalRoot(app).absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
-        assertEquals(File(card, "Games").absolutePath, StoreInstallRoot.detectedExternalTarget(app)?.root?.absolutePath)
+        assertEquals(File(card, StoreInstallRoot.ON_VOLUME).absolutePath, StoreInstallRoot.detectedExternalTarget(app)?.root?.absolutePath)
 
         assertTrue(folder.mkdirs())
-        assertEquals(File(folder, "Games").absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
+        assertEquals(File(folder, StoreInstallRoot.ON_VOLUME).absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
     }
 
     @Test fun filesOnAChosenFolderAreMappedIntoTheGuest() {
         val folder = File(app.filesDir, "usb/SSD").apply { mkdirs() }
         SessionPrefs.setDefaultStorageFolder(app, folder.path, "SSD")
-        val game = File(folder, "Games/GOG/Test/game.exe").apply {
+        val game = File(folder, "${StoreInstallRoot.ON_VOLUME}/GOG/Test/game.exe").apply {
             parentFile?.mkdirs()
             writeText("MZ")
         }
@@ -109,7 +156,7 @@ class StoreInstallRootTest {
         SessionPrefs.setGameStorage(app, library.path, "Games")
         val targets = StoreInstallRoot.targets(app)
         assertEquals(2, targets.size)
-        assertEquals(File(library, "Games").absolutePath, targets.last().root.absolutePath)
+        assertEquals(File(library, StoreInstallRoot.ON_VOLUME).absolutePath, targets.last().root.absolutePath)
         assertTrue(targets.last().folder)
         assertTrue(targets.last().label.startsWith("Games"))
         SessionPrefs.setGameStorage(app, SessionPrefs.GAME_STORAGE_OFF, "")
@@ -129,7 +176,7 @@ class StoreInstallRootTest {
 
     @Test fun xodusMapsTheSelectedSteamLibraryOnAnExternalVolume() {
         val library = File(app.filesDir, "card/steam").apply { mkdirs() }
-        val storeRoot = File(library, "Games").apply { mkdirs() }
+        val storeRoot = File(library, StoreInstallRoot.ON_VOLUME).apply { mkdirs() }
         SessionPrefs.setGameStorage(app, library.path, "Card")
 
         val xodusRoot = StoreInstallRoot.externalRootsForXodus(app).single { it.first.absolutePath == storeRoot.absolutePath }
@@ -144,13 +191,13 @@ class StoreInstallRootTest {
     @Test fun xodusRootsKeepEveryOtherStoreRootAtTheSameGuestPath() {
         val card = File(app.filesDir, "card2").apply { mkdirs() }
         val library = File(app.filesDir, "card/steam").apply { mkdirs() }
-        File(library, "Games").mkdirs()
+        File(library, StoreInstallRoot.ON_VOLUME).mkdirs()
         SessionPrefs.setDefaultStorageFolder(app, card.path, "Card 2")
         SessionPrefs.setGameStorage(app, library.path, "Card")
 
         val xodus = StoreInstallRoot.externalRootsForXodus(app)
         assertTrue(xodus.containsAll(StoreInstallRoot.externalRoots(app)))
-        assertTrue(xodus.any { it.first.absolutePath == File(library, "Games").absolutePath })
+        assertTrue(xodus.any { it.first.absolutePath == File(library, StoreInstallRoot.ON_VOLUME).absolutePath })
     }
 
     @Test fun theSteamLibraryGetsItsOwnGuestPathWhenItSharesACardWithAnotherStoreRoot() {
@@ -254,7 +301,7 @@ class StoreInstallRootTest {
         SessionPrefs.setGameStorage(app, card.path, "Card")
         for (store in listOf(Store.GOG, Store.AMAZON)) {
             val item = CatalogItem(store, "resume-${store.id}", "Partial ${store.id}", imageUrl = null, sizeBytes = Long.MAX_VALUE)
-            val folder = File(StoreInstallRoot.storeDir(File(card, "Games"), store), StoreInstallRoot.folderName(item.title, item.id)).apply { mkdirs() }
+            val folder = File(StoreInstallRoot.storeDir(File(card, StoreInstallRoot.ON_VOLUME), store), StoreInstallRoot.folderName(item.title, item.id)).apply { mkdirs() }
             StoreInstalls.begin(folder, store, item.id, item.title, null, null)
             val check = StoreInstallRoot.checkStorage(app, item, StoreInstallRoot.internalRoot(app))
             assertTrue(check.enough)
@@ -319,7 +366,7 @@ class StoreInstallRootTest {
         assertNull(StoreInstallRoot.libraryRoot(app))
 
         library.mkdirs()
-        assertEquals(File(library, "Games").absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
-        assertEquals(File(library, "Games").absolutePath, StoreInstallRoot.libraryRoot(app)?.absolutePath)
+        assertEquals(File(library, StoreInstallRoot.ON_VOLUME).absolutePath, StoreInstallRoot.defaultTarget(app)?.root?.absolutePath)
+        assertEquals(File(library, StoreInstallRoot.ON_VOLUME).absolutePath, StoreInstallRoot.libraryRoot(app)?.absolutePath)
     }
 }
