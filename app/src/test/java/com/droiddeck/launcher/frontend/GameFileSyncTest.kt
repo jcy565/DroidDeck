@@ -27,10 +27,11 @@ class GameFileSyncTest {
         val manifest = File(steamapps, "appmanifest_8400.acf").apply {
             writeText("\"AppState\"\n{\n\"name\" \"Geometry Wars\"\n\"StateFlags\" \"4\"\n}")
         }
-        val folder = File(context.filesDir, "exports").apply { mkdirs() }
-        GameFileSync.enable(context, folder)
+        val parent = File(context.filesDir, "exports").apply { mkdirs() }
+        GameFileSync.enable(context, parent)
+        val folder = GameFiles.exportDirectory(context, parent)
         assertEquals("8400", File(folder, "Geometry Wars.steam").readText())
-        assertEquals(folder.path, GameFileSync.folder(context))
+        assertEquals(parent.path, GameFileSync.folder(context))
         assertEquals(1, folder.listFiles()!!.count { it.extension == GameFiles.EXTENSION })
         val unavailable = File(steamapps.parentFile, "steamapps-unavailable")
         assertTrue(steamapps.renameTo(unavailable))
