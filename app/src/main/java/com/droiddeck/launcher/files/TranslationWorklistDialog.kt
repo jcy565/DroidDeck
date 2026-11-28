@@ -20,8 +20,19 @@ import java.io.File
 @Composable
 internal fun TranslationWorklistDialog(queue: TranslationWorklist.Queue, onOpen: (File) -> Unit,
     onDismiss: () -> Unit) {
+    // A different queue owns a different coroutine scope; old navigation and
+    // refresh work must be cancelled when the selected worklist changes.
+    key(queue) {
+        TranslationWorklistContent(queue, onOpen, onDismiss)
+    }
+}
+
+@Composable
+private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen: (File) -> Unit,
+    onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val currentOnOpen by rememberUpdatedState(onOpen)
     val drafts = File(context.filesDir, "translation-drafts")
     var report by remember(queue) { mutableStateOf<TranslationWorklist.Report?>(null) }
     var busy by remember(queue) { mutableStateOf(false) }
@@ -57,7 +68,8 @@ internal fun TranslationWorklistDialog(queue: TranslationWorklist.Queue, onOpen:
             check(GameplayBudget.allows(GameplayBudget.Work.STORAGE_SCAN))
             file
         }
-        onOpen(selected)
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        currentOnOpen(selected)
     }
 
     LaunchedEffect(queue) { refresh() }
