@@ -102,3 +102,12 @@ D01~D03 통과 후 소유한 게임에서만 시험한다. 최초 실행은 설�
 Linux 환경에서 JDK와 신뢰할 수 있는 Android SDK build-tools(aapt, apksigner), Python 3을 준비한다. 승인된 CI APK의 SHA-256은 위 8절을 따른다. 개인 키를 안전하게 백업한 후 기존 sign-ai-apk.sh에 승인된 APK 경로, 새 출력 경로, 본인 키 경로, droiddeck-ai alias, 승인 APK 해시 및 본인이 확인한 공개 인증서 해시를 전달한다. 도구는 입력 및 출력 인증서, v2 검증, 독립 패키지 ID 및 서명 메타데이터를 제외한 payload 동일성을 확인한다. 별도 출력 APK를 재검증한 뒤에만 D01을 진행한다.
 
 00e9742의 키 생성기를 실제 Java keytool로 일회용 테스트 디렉터리에서 시험했다. 최초 파이프 기반 시험은 keytool 재입력 문제로 실패하여 대화형 입력 전용으로 수정했다. 최종 Git blob 24fb472b52824a68abe0c5cfae0f33bfc255e4af와 동일한 파일로 대화형 생성, 공개 DER SHA-256, 개인 키 권한, 기존 경로 거부, 저장소 내부 경로 거부, 비대화형 입력 거부를 확인했다. 일회용 키는 시험 후 제거했고 실제 배포 키는 생성하지 않았다. 이 환경에는 apksigner와 aapt가 PATH에 없어 실제 APK 재서명은 미실행이다. 신규 키 생성 도구는 앱 코드와 기존 성공 CI를 변경하지 않는다.
+
+
+## 10. 실제 APK의 독립 JAR(v1) 서명 검사
+
+46111306535의 APK ZIP 및 추출 APK SHA-256을 8절의 고정값과 다시 대조했다. 로컬 OpenJDK 21.0.12.1의 jarsigner -verify -verbose -certs가 jar verified를 반환했으며 payload digest SHA-256, 서명 SHA256withRSA를 보고했다. keytool -printcert -jarfile의 인증서 SHA-256은 공개 테스트 키 a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc와 일치했다. 자체 서명 인증서, 신뢰 체인 미확립, 인증서 자체의 SHA1withRSA 및 JarFile/JarInputStream 해석 차이에 대한 경고도 있었으며 이를 무시하지 않는다.
+
+Java JarFile(verify=true)으로 각 일반 ZIP 항목을 끝까지 읽고 서명 메타데이터 3개를 제외한 1,009개 payload 항목 각각의 단일 CodeSigner 및 인증서 지문을 직접 검사했다. 전부 일치했다. 별도 임시 복사본의 classes.dex 마지막 바이트를 변경한 음성 대조 시험은 SecurityException(SHA-256 digest error for classes.dex)으로 거부됐다. 임시 변경본은 삭제했고 원본은 변경하지 않았다.
+
+이 검증은 JAR(v1) 서명 및 내용 무결성의 독립 확인일 뿐 Android APK v2/v3 서명 검증이나 개인 키로 재서명한 결과가 아니다. Android SDK apksigner/aapt는 로컬에서 찾지 못했다. 공식 Android 서명 검증 및 본인 관리 키를 사용한 재서명, D01~D08 실기 시험을 모두 남겨둔다. main과 성공 CI 소스는 변경하지 않는다.
