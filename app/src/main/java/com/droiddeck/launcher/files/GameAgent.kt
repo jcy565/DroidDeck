@@ -62,9 +62,10 @@ internal object GameAgent {
             Task.TRANSLATION -> {
                 require(GamePatchAuthor.matchesTranslationExtension(request.source, request.extension))
                 val rows = GamePatchAuthor.extract(request.source)
-                val ids = rows.map { it.id }.toSet()
-                require(request.existing.keys.all { it in ids })
-                require(request.existing.values.all { it.isNotEmpty() && it.length <= TranslationLimits.MAX_TEXT_CHARS })
+                val originals = rows.associate { it.id to it.text }
+                require(request.existing.all { (id, value) ->
+                    originals[id]?.let { GamePatchAuthor.validTranslation(it, value) } == true
+                }) { "기존 번역 초안의 ID 또는 변수가 원본과 일치하지 않습니다." }
                 require(request.start in 0..rows.size)
                 val selected = TranslationAgentWindow.missing(rows.map { it.id }, request.existing.keys,
                     request.start, MAX_TRANSLATION_ROWS).map { rows[it] }
@@ -111,6 +112,7 @@ internal object GameAgent {
         currentCoroutineContext().ensureActive()
         check(allowed()) { "Game or memory budget changed" }
         val result = validate(request, input, output, null)
+        currentCoroutineContext().ensureActive()
         check(allowed())
         return result
     }
@@ -156,12 +158,13 @@ internal object GameAgent {
                 require(incoming.isNotEmpty() && incoming.keys.all { it.startsWith("row.") })
                 val edits = incoming.mapKeys { it.key.removePrefix("row.") }
                 require(edits.keys.all { it in input.allowedIds })
-                val preview = GamePatchAuthor.translation(request.source, edits)
-                require(preview.original != preview.proposed) { "No translated change" }
                 val rows = GamePatchAuthor.extract(request.source)
                 val originals = rows.associate { it.id to it.text }
                 val changed = edits.filter { (id, value) -> originals.getValue(id) != value }
+                require(changed.isNotEmpty()) { "No translated change" }
                 val merged = request.existing + changed
+                // Validate the entire cumulative draft, including the patch byte limit.
+                GamePatchAuthor.translation(request.source, merged)
                 val next = TranslationAgentWindow.next(rows.map { it.id }, merged.keys, request.start)
                 Result.Translation(merged, next, explanation)
             }

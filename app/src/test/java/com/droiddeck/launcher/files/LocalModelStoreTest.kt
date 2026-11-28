@@ -34,6 +34,27 @@ class LocalModelStoreTest {
         assertTrue(dir.listFiles()!!.isEmpty())
     }
 
+    @Test fun budgetChangeDuringFinalReadRejectsImportAndVerification() {
+        val dir = temporary.newFolder()
+        val payload = "model fixture".toByteArray()
+        val hash = digest(payload)
+        var allowed = true
+        val stream = object : java.io.ByteArrayInputStream(payload) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val count = super.read(b, off, len)
+                if (count == -1) allowed = false
+                return count
+            }
+        }
+        assertTrue(runCatching { LocalModelStore.install(dir, hash, stream) { allowed } }.isFailure)
+        assertTrue(dir.listFiles()!!.isEmpty())
+        val installed = LocalModelStore.install(dir, hash, payload.inputStream()) { true }
+        var checks = 0
+        assertTrue(runCatching { LocalModelStore.verified(dir, hash) { ++checks < 4 } }.isFailure)
+        assertArrayEquals(payload, installed.readBytes())
+        assertEquals(installed, LocalModelStore.verified(dir, hash) { true })
+    }
+
     @Test fun capacityAndSymlinkGuard() {
         val dir = temporary.newFolder()
         val a = "first".toByteArray()

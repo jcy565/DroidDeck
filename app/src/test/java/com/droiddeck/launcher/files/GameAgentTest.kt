@@ -77,6 +77,23 @@ class GameAgentTest {
         assertTrue(runCatching { GameAgent.externalPrompt(resumed.copy(existing = last.edits), java.util.UUID.randomUUID().toString()) }.isFailure)
     }
 
+    @Test fun invalidExistingTranslationIsRejectedBeforeModelOrExternalPrompt() = runBlocking {
+        val source = "id\ttext\na\tHello {name}\nb\tBye {name}"
+        val invalid = GameAgent.Request("한글화", "tsv", source, mapOf("a" to "안녕"))
+        var opened = false
+        assertTrue(runCatching {
+            GameAgent.run(invalid, { true }, { opened = true; Model { error("unexpected inference") } })
+        }.isFailure)
+        assertFalse(opened)
+        assertTrue(runCatching {
+            GameAgent.externalPrompt(invalid, java.util.UUID.randomUUID().toString())
+        }.isFailure)
+        val valid = invalid.copy(existing = mapOf("a" to "안녕 {name}"))
+        val model = Model { """{"action":"translate","explanation":"번역","row.b":"잘 가 {name}"}""" }
+        val result = GameAgent.run(valid, { true }, { model }) as GameAgent.Result.Translation
+        assertEquals(mapOf("a" to "안녕 {name}", "b" to "잘 가 {name}"), result.edits)
+    }
+
     @Test fun logAdviceCannotProducePatch() = runBlocking {
         val request = GameAgent.Request("원인 분석", "log", "reason LOW_MEMORY")
         val advice = GameAgent.run(request, { true }, { Model {

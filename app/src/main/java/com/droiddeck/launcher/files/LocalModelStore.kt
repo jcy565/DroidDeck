@@ -30,6 +30,7 @@ internal object LocalModelStore {
         while (true) {
             check(allowed()) { "게임 실행 또는 메모리 상태 변경으로 중단했습니다." }
             val count = input.read(buffer)
+            check(allowed()) { "게임 실행 또는 메모리 상태 변경으로 중단했습니다." }
             if (count < 0) break
             require(count > 0)
             total += count
@@ -49,6 +50,7 @@ internal object LocalModelStore {
         }
         val actual = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { hash(it, allowed) }
         require(actual.equals(digest, true)) { "모델 SHA-256이 일치하지 않습니다." }
+        check(allowed()) { "게임 실행 또는 메모리 상태 변경으로 중단했습니다." }
         return file
     }
 
