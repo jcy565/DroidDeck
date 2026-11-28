@@ -65,3 +65,16 @@ for test in "${classes[@]}"; do
     run_case "$test" "$out/class-${test##*.}" "$out/class-summary.tsv" "$test"
 done
 cat "$out/class-summary.tsv"
+
+# If the larger group fails but both classes pass alone, run just those two
+# classes together. Keep the extra probe separate from existing summaries.
+# A failing pair narrows the reproducer; a passing pair does not prove which
+# preceding class or execution order caused the larger group's failure.
+printf 'test\texit_code\n' > "$out/pair-summary.tsv"
+rm -rf "$out/component-pair"
+if grep -Eq '^component-navigation[[:space:]]+[1-9][0-9]*$' "$out/group-summary.tsv" &&
+    grep -Fxq "$(printf '%s\t0' "${classes[0]}")" "$out/class-summary.tsv" &&
+    grep -Fxq "$(printf '%s\t0' "${classes[1]}")" "$out/class-summary.tsv"; then
+    run_case component-pair "$out/component-pair" "$out/pair-summary.tsv" "${classes[@]}"
+fi
+cat "$out/pair-summary.tsv"
