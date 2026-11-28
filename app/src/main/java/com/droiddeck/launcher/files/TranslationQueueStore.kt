@@ -34,6 +34,31 @@ internal object TranslationQueueStore {
 
     @Synchronized
     fun save(directory: File, queue: TranslationWorklist.Queue, checkpoint: () -> Unit = {}) {
+        publish(directory, queue, checkpoint) { true }
+    }
+
+    /** Compare the reviewed record under the same process-local lock as publication. */
+    @Synchronized
+    fun saveIfUnchanged(
+        directory: File,
+        queue: TranslationWorklist.Queue,
+        reviewed: TranslationWorklist.Queue?,
+        checkpoint: () -> Unit = {},
+    ): Boolean {
+        val (root, _) = location(directory, queue.root)
+        require(reviewed == null || reviewed.root.canonicalPath == root)
+        fun matches() = load(directory, queue.root)?.files == reviewed?.files
+        checkpoint()
+        if (!matches()) return false
+        return publish(directory, queue, checkpoint, ::matches)
+    }
+
+    private fun publish(
+        directory: File,
+        queue: TranslationWorklist.Queue,
+        checkpoint: () -> Unit,
+        canPublish: () -> Boolean,
+    ): Boolean {
         val (root, destination) = location(directory, queue.root)
         queue.files.forEach { checkpoint(); validate(it); TranslationDiscovery.snapshot(queue.root, it) }
         val body = ByteArrayOutputStream().also { buffer ->
@@ -53,7 +78,9 @@ internal object TranslationQueueStore {
         try {
             FileOutputStream(temp.toFile()).use { it.write(hash(body)); it.write(body); it.fd.sync() }
             checkpoint()
+            if (!canPublish()) return false
             Files.move(temp, destination.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+            return true
         } finally { Files.deleteIfExists(temp) }
     }
 
