@@ -111,3 +111,9 @@ Linux 환경에서 JDK와 신뢰할 수 있는 Android SDK build-tools(aapt, apk
 Java JarFile(verify=true)으로 각 일반 ZIP 항목을 끝까지 읽고 서명 메타데이터 3개를 제외한 1,009개 payload 항목 각각의 단일 CodeSigner 및 인증서 지문을 직접 검사했다. 전부 일치했다. 별도 임시 복사본의 classes.dex 마지막 바이트를 변경한 음성 대조 시험은 SecurityException(SHA-256 digest error for classes.dex)으로 거부됐다. 임시 변경본은 삭제했고 원본은 변경하지 않았다.
 
 이 검증은 JAR(v1) 서명 및 내용 무결성의 독립 확인일 뿐 Android APK v2/v3 서명 검증이나 개인 키로 재서명한 결과가 아니다. Android SDK apksigner/aapt는 로컬에서 찾지 못했다. 공식 Android 서명 검증 및 본인 관리 키를 사용한 재서명, D01~D08 실기 시험을 모두 남겨둔다. main과 성공 CI 소스는 변경하지 않는다.
+
+### D01 패키지 상태 기록
+
+승인된 본인 기기에서 독립판 설치 전과 설치 직후에 각각 `python3 tools/ai_device_packages.py`를 실행한다. 기기가 여러 대라면 `--serial`로 같은 기기를 지정한다. 두 결과를 구분해 기록하고 Android 사용자 번호가 같은지 확인한다. 숫자는 해당 패키지의 versionCode, null은 그 사용자에 대한 조회 결과에 패키지가 없음을 뜻한다. 조회 오류가 나면 결과를 보류한다.
+
+공식판이 설치돼 있었다면 설치 후에도 같은 버전인지, 독립판이 별도 패키지로 표시되는지 확인한다. 도구는 앱을 설치·실행하거나 세이브를 읽지 않는다. D01 판정에는 기존 세이브와 원본 앱 확인도 필요하다.
