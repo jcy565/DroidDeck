@@ -34,12 +34,15 @@ internal object TranslationQueueStore {
 
     @Synchronized
     fun save(directory: File, queue: TranslationWorklist.Queue, checkpoint: () -> Unit = {}) {
-        val (root, destination) = location(directory, queue.root)
-        queue.files.forEach { checkpoint(); validate(it); TranslationDiscovery.snapshot(queue.root, it) }
+        // Snapshot the caller's list before callbacks: the serialized candidates must
+        // be exactly those whose source revisions were checked.
+        val stable = queue.copy(files = queue.files.toList())
+        val (root, destination) = location(directory, stable.root)
+        stable.files.forEach { checkpoint(); validate(it); TranslationDiscovery.snapshot(stable.root, it) }
         val body = ByteArrayOutputStream().also { buffer ->
             DataOutputStream(buffer).use { out ->
-                out.writeUTF(MAGIC); out.writeUTF(root); out.writeInt(queue.files.size)
-                queue.files.forEach { c ->
+                out.writeUTF(MAGIC); out.writeUTF(root); out.writeInt(stable.files.size)
+                stable.files.forEach { c ->
                     out.writeUTF(c.relative); out.writeInt(c.rows); out.writeUTF(c.digest)
                 }
             }
