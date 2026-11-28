@@ -90,6 +90,47 @@ class GamePatchTest {
         assertEquals("x=2", file.readText())
     }
 
+    @Test fun checksummedBackupRejectsMetadataDamageAndPreservesOtherTargets() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val a = root.resolve("a.ini").apply { writeText("x=1") }
+        val b = root.resolve("b.ini").apply { writeText("x=2") }
+        val backup = GamePatchStore.apply(root, a.name, a.readBytes(), "x=2".toByteArray(), backups)
+        val bytes = backup.readBytes()
+        assertEquals("DDPATCH3", java.io.DataInputStream(bytes.inputStream()).use { it.readUTF() })
+        for (index in bytes.indices) {
+            val damaged = bytes.clone().also { it[index] = (it[index].toInt() xor 1).toByte() }
+            backup.writeBytes(damaged)
+            assertTrue("damage at $index", runCatching { GamePatchStore.restore(root, backup) }.isFailure)
+            assertEquals("x=2", a.readText())
+            assertEquals("x=2", b.readText())
+        }
+        backup.writeBytes(bytes)
+        GamePatchStore.restore(root, backup, a.name)
+        assertEquals("x=1", a.readText())
+        assertEquals("x=2", b.readText())
+    }
+
+    @Test fun restoresAnExistingVersionTwoBackup() {
+        val root = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=2") }
+        val backup = temp.newFile()
+        val original = "x=1".toByteArray()
+        fun hash(bytes: ByteArray) = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+        java.io.DataOutputStream(backup.outputStream()).use {
+            it.writeUTF("DDPATCH2")
+            it.writeUTF(hash(original))
+            it.writeUTF(root.canonicalPath)
+            it.writeUTF(file.name)
+            it.writeUTF(hash(file.readBytes()))
+            it.writeInt(original.size)
+            it.write(original)
+        }
+        GamePatchStore.restore(root, backup, file.name)
+        assertArrayEquals(original, file.readBytes())
+    }
+
     @Test fun preservesPosixModeOnApplyAndRestore() {
         val root = temp.newFolder()
         val file = root.resolve("game.ini").apply { writeText("x=1") }
