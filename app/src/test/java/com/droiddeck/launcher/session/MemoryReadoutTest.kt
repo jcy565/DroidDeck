@@ -54,6 +54,12 @@ class MemoryReadoutTest {
         assertEquals(0L, MemoryReadout.androidKb(device, MemoryReadout.Split(gameKb = 6_000, droiddeckKb = 2_000, gpuKb = 1_000)))
     }
 
+    @Test fun detailedSamplingRequiresKnownNormalMemory() {
+        assertTrue(MemoryReadout.allowDetailedSample(com.droiddeck.launcher.compatibility.GameplayBudget.MemoryAdvice.NORMAL))
+        assertFalse(MemoryReadout.allowDetailedSample(com.droiddeck.launcher.compatibility.GameplayBudget.MemoryAdvice.UNKNOWN))
+        assertFalse(MemoryReadout.allowDetailedSample(com.droiddeck.launcher.compatibility.GameplayBudget.MemoryAdvice.DEFER_OPTIONAL_WORK))
+    }
+
     @Test fun theLogLineSaysEveryPartInMegabytes() {
         val device = MemoryReadout.Device(totalKb = 11_379_920, availableKb = 1_048_576, swapTotalKb = 16_777_212, swapFreeKb = 8_388_606)
         val split = MemoryReadout.Split(gameKb = 2_097_152, droiddeckKb = 524_288, gpuKb = 3_145_728)

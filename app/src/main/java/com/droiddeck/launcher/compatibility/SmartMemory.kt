@@ -26,6 +26,6 @@ internal object SmartMemory {
             GameplayBudget.MemoryAdvice.DEFER_OPTIONAL_WORK -> "메모리가 부족합니다. 선택적 분석을 보류하고 사용하지 않는 앱을 직접 정리하세요."
         }
         return Report(snapshot?.availableBytes, snapshot?.totalBytes,
-            guidance + " RAM Plus 효과는 동일 조건의 반복 측정으로 확인하세요.")
+            guidance + " 메모리 부족 또는 상태 미확인 시 상세 HUD 분석을 보류합니다. RAM Plus 효과는 동일 조건의 반복 측정으로 확인하세요.")
     }
 }

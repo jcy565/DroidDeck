@@ -760,3 +760,7 @@ Adds PerformanceRetestAdvice and the history panel's explicit baseline-relative 
 
 ## Game-scoped optimization bookmarks
 Add one explicit saved output-resolution/DXVK preview candidate per game, via private preferences. Reopen by capturing current settings and panel dimensions, never reuse an old approval snapshot. No actual setting writes or performance claim; saved choice is a bookmark, not a per-game override. Existing apply UI remains disabled. Added two tests; not compiled or executed. Staged on ai-history-log-review-next while 46103956740 runs.
+
+
+## Pressure-aware memory diagnostics
+Skip the advanced HUD process-tree/GPU breakdown on low or unknown Android memory, retain basic totals, resume detailed sampling when normal. The context-free periodic logger retains basic totals but skips process-tree scanning at <=256 MiB available (conservative fallback, not Android LMK threshold). Existing game execution, processes, caches and memory settings unchanged. Added pure policy test; compile/test/device validation pending. No guaranteed memory savings or crash prevention. Stage on ai-history-log-review-next while integrated build runs.

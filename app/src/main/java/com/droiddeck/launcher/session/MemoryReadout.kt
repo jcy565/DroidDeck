@@ -47,6 +47,10 @@ internal object MemoryReadout {
 
     fun gb(kb: Long): String = String.format(Locale.US, "%.1f", kb / (1024.0 * 1024.0))
 
+    /** Under Android memory pressure, keep inexpensive totals but skip process-tree breakdown. */
+    internal fun allowDetailedSample(advice: com.droiddeck.launcher.compatibility.GameplayBudget.MemoryAdvice): Boolean =
+        advice == com.droiddeck.launcher.compatibility.GameplayBudget.MemoryAdvice.NORMAL
+
     fun availableMb(): Long? = runCatching { parseMeminfo(File("/proc/meminfo").readText())?.availableKb?.div(1024) }.getOrNull()
 
     fun device(): Device? = runCatching { parseMeminfo(File("/proc/meminfo").readText()) }.getOrNull()
@@ -91,6 +95,7 @@ internal object MemoryReadout {
 object MemoryLog {
     private const val TAG = "Memory"
     private const val PERIOD_MS = 10_000L
+    private const val PRESSURE_AVAILABLE_KB = 256L * 1024L
     @Volatile private var thread: Thread? = null
 
     internal fun line(device: MemoryReadout.Device, split: MemoryReadout.Split): String =
@@ -104,7 +109,18 @@ object MemoryLog {
         if (thread != null) return
         thread = Thread({
             while (!Thread.currentThread().isInterrupted) {
-                runCatching { MemoryReadout.device()?.let { android.util.Log.i(TAG, line(it, MemoryReadout.split())) } }
+                runCatching {
+                    MemoryReadout.device()?.let { device ->
+                        // This logger has no Context. A conservative low-headroom fallback avoids
+                        // a process-tree walk while still retaining basic diagnostic evidence.
+                        val text = if (device.availableKb <= PRESSURE_AVAILABLE_KB)
+                            "used " + device.usedKb / 1024 + "/" + device.totalKb / 1024 +
+                                " MB, available " + device.availableKb / 1024 +
+                                " MB | detailed breakdown deferred: low headroom"
+                        else line(device, MemoryReadout.split())
+                        android.util.Log.i(TAG, text)
+                    }
+                }
                 try { Thread.sleep(PERIOD_MS) } catch (e: InterruptedException) { break }
             }
         }, "memory-log").apply { isDaemon = true; start() }
@@ -160,6 +176,10 @@ class MemoryHud(context: Context) {
             MemoryReadout.gb(device.swapUsedKb), MemoryReadout.gb(device.swapTotalKb),
         )
         if (SessionPrefs.memoryHud(context) != SessionPrefs.MEMORY_HUD_ADVANCED) return memory
+        val budget = com.droiddeck.launcher.compatibility.GameplayBudget
+        if (!MemoryReadout.allowDetailedSample(budget.memoryAdvice(budget.memory(context)))) {
+            return memory + "\n메모리 상세 분석 일시 보류"
+        }
         val split = MemoryReadout.split()
         val parts = context.getString(
             R.string.memory_hud_split,
