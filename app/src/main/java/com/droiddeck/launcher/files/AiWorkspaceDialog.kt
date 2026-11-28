@@ -1,0 +1,101 @@
+package com.droiddeck.launcher.files
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.droiddeck.launcher.compatibility.GameplayBudget
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/** Explicit, folder-scoped entry point to the existing AI workflows. */
+@Composable
+internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
+    onTextQueue: (TranslationWorklist.Queue) -> Unit,
+    onImageQueue: (ImageAssetDiscovery.Queue) -> Unit, onDismiss: () -> Unit) {
+    key(folder) {
+        val context = LocalContext.current.applicationContext
+        val scope = rememberCoroutineScope()
+        val host = remember { AiHostBridge.availability() }
+        var busy by remember { mutableStateOf(false) }
+        var message by remember { mutableStateOf("") }
+        var admission by remember { mutableStateOf<GameplayBudget.Admission?>(null) }
+        fun runTask(action: suspend () -> Unit) {
+            if (busy) return
+            busy = true
+            message = ""
+            scope.launch {
+                try { action() }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { message = e.message ?: "AI 작업 목록을 열지 못했습니다." }
+                finally { busy = false }
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { if (!busy) onDismiss() },
+            title = { Text("AI 작업 센터") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    Text("현재 폴더: " + folder.name.ifBlank { folder.path })
+                    Text("AI 연결 모듈: " + (host.version ?: "미확인"))
+                    host.reason?.let { Text(it) }
+                    Text("ChatGPT 연동: " + if (host.enabled) "수동 요청·응답 교환 지원" else "사용 불가")
+                    Text("로컬 모델: " + if (host.enabled && LocalAgentRuntime.enabled)
+                        "실험용 런타임 포함 · 모델 별도 필요" else "이 빌드에서 사용 불가")
+                    Text("이미지 OCR: " + if (ImageOcrRuntime.enabled) "런타임 포함" else "수동 영역 입력")
+                    Text("서명 데이터 업데이트: " + if (host.enabled && AiGlossaryUpdates.configured)
+                        "설정됨" else "미설정 또는 비호환")
+                    TextButton(enabled = !busy, onClick = {
+                        runTask {
+                            admission = withContext(Dispatchers.IO) { GameplayBudget.admission(context) }
+                        }
+                    }) { Text("집중 보호 및 메모리 상태 확인") }
+                    admission?.let { Text("조회 시점: " + it.guidance) }
+                    Text("저장한 작업 목록을 현재 폴더에서 다시 엽니다. 자동 탐색·전송·패치 적용은 하지 않습니다.")
+                    TextButton(enabled = !busy, onClick = {
+                        runTask {
+                            val queue = withContext(Dispatchers.IO) {
+                                val coroutine = currentCoroutineContext()
+                                TranslationQueueStore.load(File(context.noBackupFilesDir, "translation-queues"), folder) {
+                                    coroutine.ensureActive()
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                }
+                            }
+                            if (queue == null) message = "이 폴더에 저장된 텍스트 작업 목록이 없습니다."
+                            else onTextQueue(queue)
+                        }
+                    }) { Text("텍스트 한글 패치 이어서 작업") }
+                    TextButton(enabled = !busy, onClick = {
+                        runTask {
+                            val queue = withContext(Dispatchers.IO) {
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                                ImageQueueStore.load(File(context.noBackupFilesDir, "image-worklists"), folder).also {
+                                    currentCoroutineContext().ensureActive()
+                                    check(GameplayBudget.allowsOptionalAnalysis(context))
+                                }
+                            }
+                            if (queue == null) message = "이 폴더에 저장된 이미지 작업 목록이 없습니다."
+                            else onImageQueue(queue)
+                        }
+                    }) { Text("이미지 한글화 이어서 작업") }
+                    TextButton(enabled = !busy, onClick = onFolderTools) { Text("현재 폴더의 번역 대상 탐색 도구 열기") }
+                    if (busy) Text("확인 중…")
+                    if (message.isNotBlank()) Text(message)
+                }
+            },
+            confirmButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("닫기") } }
+        )
+    }
+}

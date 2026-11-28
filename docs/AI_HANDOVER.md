@@ -768,3 +768,7 @@ Skip the advanced HUD process-tree/GPU breakdown on low or unknown Android memor
 
 ## Game focus admission and local AI resource gate
 Expose current session/memory admission reason on demand in compatibility and experimental model UI. Use one memory snapshot for local inference admission and preserve existing 2 GiB available threshold; session checked before/after reading. Check budget after native engine and session creation and before returning generated response; close partially initialized session before engine and retain lease on close failure. Explicit performance sampling remains allowed. No forced app termination, guaranteed resource savings, or hard native interruption. Added pure policy test, not compiled/executed. Experimental localAi flavor remains unverified. Stage separately while integration run 46103956740 continues.
+
+
+## Folder AI workspace
+Adds AI workspace entry in the file manager sort menu (non-picker only), with module/runtime availability, on-demand memory/focus admission, direct reopen of current folder's saved text/image queues and existing folder discovery tools. No background scans or automatic network/model/file modifications. The center is folder-scoped, not a global dashboard of every game; existing game compatibility/performance screens remain separate. Pending Android compile and actual device navigation checks. Keep active integration CI 46103956740 unchanged until terminal.

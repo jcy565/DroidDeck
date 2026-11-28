@@ -165,6 +165,7 @@ fun FileManagerScreen(
     var selectedEntry by remember { mutableStateOf<File?>(null) }
     var showMenuFor by remember { mutableStateOf<File?>(null) }
     var patchTarget by remember { mutableStateOf<File?>(null) }
+    var aiWorkspaceFolder by remember { mutableStateOf<File?>(null) }
     var imageTranslationTarget by remember { mutableStateOf<File?>(null) }
     var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
     var imageQueue by remember { mutableStateOf<ImageAssetDiscovery.Queue?>(null) }
@@ -576,6 +577,25 @@ fun FileManagerScreen(
         )
     }
 
+    aiWorkspaceFolder?.let { folder ->
+        AiWorkspaceDialog(folder,
+            onFolderTools = {
+                aiWorkspaceFolder = null
+                propertiesTarget = folder
+            },
+            onTextQueue = { queue ->
+                aiWorkspaceFolder = null
+                imageQueue = null
+                translationQueue = queue
+            },
+            onImageQueue = { queue ->
+                aiWorkspaceFolder = null
+                translationQueue = null
+                imageQueue = queue
+            },
+            onDismiss = { aiWorkspaceFolder = null })
+    }
+
     propertiesTarget?.let { file ->
         FilePropertiesDialog(
             file = file,
@@ -911,6 +931,15 @@ fun FileManagerScreen(
                                 )
                             }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                        if (!pickMode) DropdownMenuItem(
+                            text = { Text("AI 작업 센터") },
+                            enabled = !isOperationActive() && !cancellingNavigation,
+                            onClick = {
+                                showSortMenu = false
+                                aiWorkspaceFolder = currentDir
+                            },
+                            modifier = Modifier.focusGlide(),
+                        )
                         DropdownMenuItem(
                             text = { Text(if (compactRows) stringResource(R.string.fm_rows_comfortable) else stringResource(R.string.fm_rows_compact)) },
                             onClick = {
