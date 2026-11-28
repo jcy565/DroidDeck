@@ -946,7 +946,7 @@ class FrontEndActivity : ComponentActivity(), com.droiddeck.launcher.ui.AgentPet
 
     private fun readGameIntent(request: Intent) {
         request.getStringExtra(com.droiddeck.launcher.stores.download.StoreDownloadService.EXTRA_NAV)?.let { navRequest = it; request.removeExtra(com.droiddeck.launcher.stores.download.StoreDownloadService.EXTRA_NAV) }
-        request.data?.takeIf { it.scheme == "droiddeck" && it.host == "settings" }?.let { uri ->
+        request.data?.takeIf { it.scheme == "droiddeck-ai" && it.host == "settings" }?.let { uri ->
             val section = uri.pathSegments.firstOrNull()
             navRequest = if (section in setOf("storage", "sync", "downloads", "decky", "boot-movies")) section
                 else "settings:" + (com.droiddeck.launcher.ui.SettingsSection.of(section) ?: com.droiddeck.launcher.ui.SettingsSection.OVERVIEW).key
