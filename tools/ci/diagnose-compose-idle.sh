@@ -47,6 +47,13 @@ run_case component-navigation "$out/component-navigation" "$out/group-summary.ts
     "$prefix.ComponentDownloadsDrawerTest" "$prefix.ComponentsPageProfileTest"
 cat "$out/group-summary.tsv"
 
+# Build 69 reproduced both timeouts in the five-class group. Test whether
+# the two affected classes alone are sufficient, without the three predecessors.
+printf 'test\texit_code\n' > "$out/pair-summary.tsv"
+run_case component-pair "$out/component-pair" "$out/pair-summary.tsv" \
+    "$prefix.ComponentDownloadsDrawerTest" "$prefix.ComponentsPageProfileTest"
+cat "$out/pair-summary.tsv"
+
 printf 'test\texit_code\n' > "$out/summary.tsv"
 for test in "${tests[@]}"; do
     run_case "$test" "$out/${test##*.}" "$out/summary.tsv" "$test"
