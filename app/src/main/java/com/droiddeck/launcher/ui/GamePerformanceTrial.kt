@@ -1,6 +1,7 @@
 package com.droiddeck.launcher.ui
 
 import com.droiddeck.launcher.compatibility.OptimizationComparison
+import com.droiddeck.launcher.compatibility.TrialFrameSamples
 import androidx.compose.material3.OutlinedTextField
 import android.content.ContentValues
 import android.content.Context
@@ -75,10 +76,13 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                 message = "측정을 중단했습니다."
             } else job = scope.launch {
                 try {
+                    val measuredScene = scene.trim()
+                    require(measuredScene.isNotBlank() && activeGame() == game)
                     require(feed.live && !feed.steamFocused && feed.pid > 0) { "게임 프레임 측정값이 필요합니다." }
                     val pid = feed.pid
                     val width = feed.outputWidth
                     val height = feed.outputHeight
+                    require(width > 0 && height > 0) { "게임 출력 해상도를 확인할 수 없습니다." }
                     val ring = FloatArray(FrameStats.GRAPH_FRAMES)
                     var seen = feed.stats.graph(ring)
                     val samples = ArrayList<Float>()
@@ -91,14 +95,14 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                         val total = feed.stats.graph(ring)
                         val count = total - seen
                         require(count in 0L..ring.size.toLong()) { "프레임 표본이 누락됐습니다." }
+                        require(samples.size + count <= 20_000L) { "프레임 표본 한도를 초과했습니다." }
                         for (i in ring.size - count.toInt() until ring.size) samples.add(ring[i])
                         seen = total
                     }
-                    require(samples.size >= 2 && samples.all { it.isFinite() && it > 0 }) { "유효한 프레임 표본이 부족합니다." }
-                    samples.sort()
+                    val metrics = TrialFrameSamples.summarize(samples, SystemClock.elapsedRealtime() - start)
                     val values = ContentValues().apply {
                         put("game", game)
-                        put("scene", scene.trim())
+                        put("scene", measuredScene)
                         put("model", Build.MODEL)
                         put("gpu", gpu)
                         put("driver", driver)
@@ -106,9 +110,9 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                         put("width", width)
                         put("height", height)
                         put("recorded", System.currentTimeMillis())
-                        put("frames", samples.size)
-                        put("fps", 1000.0 / samples.average())
-                        put("p95", samples[(kotlin.math.ceil(samples.size * 0.95).toInt() - 1)])
+                        put("frames", metrics.frames)
+                        put("fps", metrics.fps)
+                        put("p95", metrics.p95Ms)
                     }
                     message = withContext(Dispatchers.IO) { TrialDatabase(context).use { it.record(values) } }
                 } catch (e: CancellationException) { throw e }
