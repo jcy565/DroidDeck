@@ -86,7 +86,7 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     val height = feed.outputHeight
                     require(width > 0 && height > 0) { "게임 출력 해상도를 확인할 수 없습니다." }
                     val ring = FloatArray(FrameStats.GRAPH_FRAMES)
-                    var seen = feed.stats.graph(ring)
+                    var seen = feed.stats.graphSnapshot(ring)
                     val samples = ArrayList<Float>()
                     message = "10초 측정 중 · 같은 장면을 유지하세요."
                     val start = SystemClock.elapsedRealtime()
@@ -94,11 +94,10 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                         delay(150)
                         require(activeGame() == game && feed.live && !feed.steamFocused && feed.pid == pid &&
                             feed.outputWidth == width && feed.outputHeight == height) { "게임 또는 출력이 바뀌어 측정을 중단했습니다." }
-                        val total = feed.stats.graph(ring)
-                        val count = total - seen
-                        require(count in 0L..ring.size.toLong()) { "프레임 표본이 누락됐습니다." }
+                        val total = feed.stats.graphSnapshot(ring)
+                        val count = total.newFramesSince(seen)
                         require(samples.size + count <= 20_000L) { "프레임 표본 한도를 초과했습니다." }
-                        for (i in ring.size - count.toInt() until ring.size) samples.add(ring[i])
+                        for (i in ring.size - count until ring.size) samples.add(ring[i])
                         seen = total
                     }
                     val metrics = TrialFrameSamples.summarize(samples, SystemClock.elapsedRealtime() - start)
