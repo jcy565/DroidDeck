@@ -13,8 +13,9 @@ internal object SharedAgentReply {
     fun normalize(text: CharSequence, expectedId: String): String {
         require(text.length in 1..GameAgent.MAX_OUTPUT_CHARS + 32) { "응답 길이가 지원 범위를 벗어났습니다." }
         var body = text.toString().trim()
-        if (body.startsWith("```json\n") && body.endsWith("\n```"))
-            body = body.removePrefix("```json\n").removeSuffix("\n```").trim()
+        val fence = if (body.startsWith("```json\r\n")) "\r\n" else "\n"
+        if (body.startsWith("```json" + fence) && body.endsWith(fence + "```"))
+            body = body.removePrefix("```json" + fence).removeSuffix(fence + "```").trim()
         require(body.length in 1..GameAgent.MAX_OUTPUT_CHARS)
         val fields = TranslationJson.entries(body, maxEntries = GameAgent.MAX_TRANSLATION_ROWS + 4,
             maxChars = GameAgent.MAX_OUTPUT_CHARS).associate { it.id to it.text }
@@ -46,6 +47,14 @@ internal object SharedAgentReply {
     @Synchronized fun discard(context: Context) {
         check(prefs(context).edit().remove("id").remove("reply").commit())
         changes.value++
+    }
+
+    @Synchronized fun clearOtherRequests(context: Context, retainedId: String) {
+        val store = prefs(context)
+        if (store.getString("id", null) != null && store.getString("id", null) != retainedId) {
+            check(store.edit().remove("id").remove("reply").commit())
+            changes.value++
+        }
     }
 
     @Synchronized fun clear(context: Context, id: String) {

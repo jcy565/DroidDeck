@@ -10,6 +10,7 @@ class SharedAgentReplyTest {
     @Test fun acceptsOnlyBoundTextAndOptionalSingleJsonFence() {
         assertEquals(reply, SharedAgentReply.normalize(reply, id))
         assertEquals(reply, SharedAgentReply.normalize("```json\n" + reply + "\n```", id))
+        assertEquals(reply, SharedAgentReply.normalize("```json\r\n" + reply + "\r\n```", id))
         for (invalid in listOf("https://chatgpt.com/share/example", reply + "\nmore",
             reply.replace(id, "different"), reply.replace("advice", "shell"),
             reply.replace("\"action\":\"advice\"", "\"action\":\"advice\",\"action\":\"mod\""),

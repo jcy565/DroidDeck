@@ -362,6 +362,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             val saved = ChatGptExchange.checkpoint(pending, file.canonicalPath, source, edits)
                             check(GameplayBudget.allowsOptionalAnalysis(context))
                             ExchangeCheckpoint.save(exchangeCheckpointFile, saved)
+                            SharedAgentReply.clearOtherRequests(context, saved.id)
                         }
                         message = "현재 요청의 재개 정보를 저장했습니다. 이전 저장 요청은 교체됐습니다."
                     } }) { Text("현재 요청 저장 (이전 저장 요청 교체)") }
@@ -414,7 +415,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                             val result = ChatGptExchange.accept(pending, file.canonicalPath, source, edits, reply)
                             check(GameplayBudget.allowsOptionalAnalysis(context))
-                            if (!log) require(original() == source) { "원본이 변경됐습니다." }
+                            require((if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()) == source) { "원본이 변경됐습니다." }
                             val persisted = if (result is GameAgent.Result.Translation) {
                                 val cursor = rows[result.next.coerceAtMost(rows.lastIndex)].id
                                 TranslationDraftStore.saveProgressIfUnchanged(draftDirectory, file.canonicalPath,
