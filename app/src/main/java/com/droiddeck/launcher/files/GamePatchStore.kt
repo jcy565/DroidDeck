@@ -46,6 +46,7 @@ internal object GamePatchStore {
         while (true) {
             val n = input.read(buffer)
             if (n < 0) break
+            require(n > 0) { "Input stream made no progress" }
             require(out.size() + n <= LIMIT) { "File too large" }
             out.write(buffer, 0, n)
         }
@@ -57,11 +58,15 @@ internal object GamePatchStore {
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
         val temp = Files.createTempFile(file.parentFile!!.toPath(), ".ddpatch-", ".tmp")
         try {
-            Files.write(temp, bytes)
+            java.io.FileOutputStream(temp.toFile()).use { out ->
+                out.write(bytes)
+                out.fd.sync()
+            }
             if (Files.getFileStore(file.toPath()).supportsFileAttributeView("posix")) {
                 Files.setPosixFilePermissions(temp, Files.getPosixFilePermissions(file.toPath(), NOFOLLOW_LINKS))
             }
             require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "Invalid target file" }
+            require(read(temp.toFile()).contentEquals(bytes)) { "Temporary patch verification failed" }
             require(read(file).contentEquals(expected)) { "File changed; preview again" }
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
         } finally { Files.deleteIfExists(temp) }
@@ -70,21 +75,25 @@ internal object GamePatchStore {
     @Synchronized
     fun apply(root: File, relative: String, expected: ByteArray, proposed: ByteArray, backupDir: File): File {
         require(expected.size <= LIMIT && proposed.size <= LIMIT)
+        val original = expected.copyOf()
+        val replacement = proposed.copyOf()
         val file = target(root, relative)
-        require(read(file).contentEquals(expected)) { "File changed; preview again" }
+        require(read(file).contentEquals(original)) { "File changed; preview again" }
+        require(Files.notExists(backupDir.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(backupDir.toPath(), NOFOLLOW_LINKS)) { "Invalid backup directory" }
         require(backupDir.isDirectory || backupDir.mkdirs())
-        require(!Files.isSymbolicLink(backupDir.toPath()))
+        require(Files.isDirectory(backupDir.toPath(), NOFOLLOW_LINKS))
         val backup = Files.createTempFile(backupDir.toPath(), "ddpatch-", ".bak").toFile()
         try {
             val body = java.io.ByteArrayOutputStream().also { buffer ->
                 java.io.DataOutputStream(buffer).use { record ->
                     record.writeUTF("DDPATCH3")
-                    record.writeUTF(hash(expected))
+                    record.writeUTF(hash(original))
                     record.writeUTF(root.canonicalPath)
                     record.writeUTF(relative)
-                    record.writeUTF(hash(proposed))
-                    record.writeInt(expected.size)
-                    record.write(expected)
+                    record.writeUTF(hash(replacement))
+                    record.writeInt(original.size)
+                    record.write(original)
                 }
             }.toByteArray()
             require(body.size + CHECKSUM_BYTES <= BACKUP_LIMIT)
@@ -93,12 +102,14 @@ internal object GamePatchStore {
                 raw.write(digest(body))
                 raw.fd.sync()
             }
-            require(readBackup(root, backup).original.contentEquals(expected)) { "Backup verification failed" }
+            val checked = readBackup(root, backup)
+            require(checked.relativePath == relative && checked.original.contentEquals(original) &&
+                checked.appliedHash == hash(replacement)) { "Backup verification failed" }
         } catch (e: Exception) {
             backup.delete()
             throw e
         }
-        replace(file, expected, proposed)
+        replace(file, original, replacement)
         return backup
     }
 
