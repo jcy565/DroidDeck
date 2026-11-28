@@ -89,7 +89,7 @@ gradle.projectsEvaluated {
                 .collectEntries { line -> def kv = line.split('=', 2); [(kv[0].trim()): kv[1].trim()] }
             def expected = [
                 ["org.opencv:opencv:" + pins.OPENCV_VERSION, "opencv-" + pins.OPENCV_VERSION + ".aar", pins.OPENCV_AAR_SHA256],
-                ["com.google.mediapipe:tasks-vision:" + pins.MEDIAPIPE_VERSION, "tasks-vision-" + pins.MEDIAPIPE_VERSION + ".aar", pins.MEDIAPIPE_AAR_SHA256]
+                ["com.google.mediapipe:tasks-core:" + pins.MEDIAPIPE_VERSION, "tasks-core-" + pins.MEDIAPIPE_VERSION + ".aar", pins.MEDIAPIPE_AAR_SHA256]
             ]
             expected.each { pin ->
                 def matches = artifacts.findAll { it.component == pin[0] && it.name == pin[1] }
