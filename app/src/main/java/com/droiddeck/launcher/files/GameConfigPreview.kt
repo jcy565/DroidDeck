@@ -6,8 +6,12 @@ internal object GameConfigPreview {
 
     fun preview(original: String, section: String?, updates: Map<String, String>): Preview {
         require(original.length <= 262144)
-        require(updates.isNotEmpty())
-        require(updates.all { (k, v) -> k.matches(Regex("[A-Za-z0-9_. -]+")) && v.none { it.isISOControl() } })
+        TranslationJson.validUnicode(original)
+        section?.let(TranslationJson::validUnicode)
+        val stable = updates.toMap()
+        require(stable.isNotEmpty())
+        require(stable.all { (k, v) -> k.matches(Regex("[A-Za-z0-9_. -]+")) && v.none { it.isISOControl() } })
+        stable.values.forEach(TranslationJson::validUnicode)
         val seen = mutableSetOf<String>()
         val changes = mutableListOf<Change>()
         var current: String? = null
@@ -19,7 +23,7 @@ internal object GameConfigPreview {
             }
             val eq = line.indexOf('=')
             val key = if (eq > 0) line.substring(0, eq).trim() else ""
-            val value = updates[key]
+            val value = stable[key]
             if (current != section || value == null || trimmed.startsWith("#") || trimmed.startsWith(";")) line
             else {
                 require(seen.add(key)) { "Duplicate key: $key" }
@@ -31,7 +35,7 @@ internal object GameConfigPreview {
                 }
             }
         }
-        require(seen.containsAll(updates.keys)) { "Setting not found" }
+        require(seen.containsAll(stable.keys)) { "Setting not found" }
         return Preview(original, proposed, changes.toList())
     }
 }
