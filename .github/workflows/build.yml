@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next, ai-chatgpt-exchange-next, ai-png-compose-integration-next, ai-integrated-ci-diagnostic-next ]
+    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next, ai-chatgpt-exchange-next, ai-png-compose-integration-next, ai-integrated-ci-diagnostic-next, ai-device-validation-next ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   source:
     name: Pin source tree
-    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next","ai-device-validation-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
