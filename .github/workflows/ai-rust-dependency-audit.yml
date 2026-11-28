@@ -28,7 +28,7 @@ jobs:
             cp "$path" "$out/input/$name.lock"
             sha256sum "$out/input/$name.lock" >> "$out/report/lock-sha256.txt"
           done <<'LOCKS'
-          stores app/src/main/rust/stores/Cargo.lock 6a470b3beae093190d06da5b224492083bf641f5
+          stores app/src/main/rust/stores/Cargo.lock 9a622a699bf8db5cfd7bf591d7a3a3b2822f6df2
           epic tools/epic-launcher/Cargo.lock 569575bb0915e1d5aa103a4edeb46afd4184ec18
           rockstar tools/rockstar-launcher/Cargo.lock f73866571d6690ff686e487742c7035c6c9aa21b
           ubisoft tools/ubisoft-launcher/Cargo.lock a2bc2229eae56d91b145e3c435e8433dc8b7348c
