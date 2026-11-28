@@ -270,6 +270,7 @@ internal fun FilePropertiesDialog(
                             val label = when (entry.state) {
                                 ImagePatchImport.State.READY -> "원본 일치"
                                 ImagePatchImport.State.ALREADY_APPLIED -> "번역본과 동일"
+                                ImagePatchImport.State.UNCHANGED -> "변경 없음 · 원본과 번역본 동일"
                                 ImagePatchImport.State.MISSING -> "파일 없음"
                                 ImagePatchImport.State.UNSAFE -> "지원하지 않는 경로"
                                 ImagePatchImport.State.MISMATCH -> "원본 버전 불일치"
@@ -423,6 +424,27 @@ internal fun FilePropertiesDialog(
                                     report.candidates.filter { it.relative in selectedImages }))
                             }) { Text("선택한 이미지 ${selectedImages.size}개 작업 목록 열기") }
                         }
+                    }
+                    if (onTranslationQueue != null) {
+                        TextButton(enabled = !busy && !importPending, onClick = {
+                            busy = true
+                            discoveryMessage = ""
+                            scope.launch {
+                                try {
+                                    val saved = withContext(Dispatchers.IO) {
+                                        val coroutine = kotlinx.coroutines.currentCoroutineContext()
+                                        TranslationQueueStore.load(File(context.noBackupFilesDir, "translation-queues"), file) {
+                                            coroutine.ensureActive()
+                                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        }
+                                    }
+                                    if (saved == null) discoveryMessage = "저장된 텍스트 작업 목록 없음"
+                                    else onTranslationQueue(saved)
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (e: Exception) { discoveryMessage = e.message ?: "작업 목록 불러오기 실패" }
+                                finally { busy = false }
+                            }
+                        }) { Text("저장된 텍스트 한글 패치 작업 목록 열기") }
                     }
                     if (onTranslationFile != null) {
                         TextButton(enabled = !busy, onClick = {
