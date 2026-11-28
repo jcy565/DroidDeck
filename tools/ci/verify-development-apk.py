@@ -95,7 +95,8 @@ def verify_signer(apksigner, apk_path, expected_cert_sha256):
     report = subprocess.run([str(apksigner), 'verify', '--verbose', '--print-certs', str(apk_path)],
                             check=True, capture_output=True, text=True, timeout=60).stdout
     require_certificate(report, expected_cert_sha256)
-    if not re.search(r'^Verified using v3 scheme .*: true
+    if not re.search(r'^Verified using v3 scheme .*: true$', report, re.MULTILINE):
+        raise ValueError('APK v3 signature verification required')
 
 
 def verify_package(aapt, apk_path, expected_version_code):
@@ -194,90 +195,6 @@ def main():
                             apksigner=args.apksigner,
                             expected_cert_sha256=args.expected_cert_sha256,
                             aapt=args.aapt, expected_version_code=args.expected_version_code), indent=2))
-
-
-if __name__ == '__main__':
-    main()
-, report, re.MULTILINE):
-        raise ValueError('APK v3 signature verification required')
-
-
-def read_metadata(archive, name, limit):
-    """Reject missing or oversized metadata before allocating its full contents."""
-    try:
-        entry = archive.getinfo(name)
-    except KeyError as exc:
-        raise ValueError(f'Missing APK metadata: {name}') from exc
-    if entry.is_dir() or entry.file_size > limit:
-        raise ValueError(f'Invalid or oversized APK metadata: {name}')
-    with archive.open(entry) as stream:
-        raw = stream.read(limit + 1)
-    if len(raw) > limit:
-        raise ValueError(f'Oversized APK metadata: {name}')
-    return raw
-
-
-def verify_payload(apk_zip, inventory_zip, expected_commit, pinned,
-                   apksigner, expected_cert_sha256):
-    with zipfile.ZipFile(inventory_zip) as inv:
-        unique_files(inv)
-        if read_metadata(inv, 'source-commit.txt', 4096).decode().strip() != expected_commit:
-            raise ValueError('Source commit mismatch')
-        hash_fields = read_metadata(inv, 'apk-sha256.txt', 4096).decode().split()
-        expected_hash = hash_fields[0] if hash_fields else ''
-        if not re.fullmatch(r'[a-f0-9]{64}', expected_hash):
-            raise ValueError('Invalid APK SHA-256')
-        entries = inventory_entries(read_metadata(inv, 'app-release.apk.json', 16 * 1024 * 1024))
-        comparison = json.loads(read_metadata(inv, 'official-comparison.json', 4 * 1024 * 1024),
-                                object_pairs_hook=reject_duplicate_keys)
-        assistant = comparison.get('assistant') if isinstance(comparison, dict) else None
-        if not isinstance(assistant, dict) or assistant.get('package') != 'com.droiddeck.launcher.ai':
-            raise ValueError('Unexpected inventory package')
-    with zipfile.ZipFile(apk_zip) as outer, tempfile.TemporaryDirectory() as directory:
-        apk_path = Path(directory) / 'app-release.apk'
-        with apk_path.open('w+b') as apk:
-            members = unique_files(outer)
-            if set(members) != {'app-release.apk'}:
-                raise ValueError('Unexpected APK artifact contents')
-            with outer.open(members['app-release.apk']) as stream:
-                for block in iter(lambda: stream.read(1024 * 1024), b''):
-                    apk.write(block)
-            apk.seek(0)
-            if digest(apk) != expected_hash:
-                raise ValueError('APK SHA-256 mismatch')
-            with zipfile.ZipFile(apk) as inner:
-                files = unique_files(inner)
-                if set(files) != set(entries):
-                    raise ValueError('APK inventory entry set mismatch')
-                for name, entry in files.items():
-                    with inner.open(entry) as stream:
-                        if entry.file_size != entries[name]['size'] or digest(stream) != entries[name]['sha256']:
-                            raise ValueError(f'APK inventory mismatch: {name}')
-                abis = sorted({name.split('/')[1] for name in files if name.startswith('lib/') and name.count('/') >= 2})
-        if apksigner is not None:
-            verify_signer(apksigner, apk_path, expected_cert_sha256)
-    return {'source_commit': expected_commit, 'apk_sha256': expected_hash,
-            'verified_entries': len(entries), 'native_abis': abis,
-            'package_from_ci_inventory': comparison['assistant']['package'],
-            'archive_hashes_matched': pinned, 'signature_verified_here': apksigner is not None,
-            'verified_certificate_sha256': expected_cert_sha256 if apksigner is not None else None}
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('apk_zip', type=Path)
-    parser.add_argument('inventory_zip', type=Path)
-    parser.add_argument('expected_commit')
-    parser.add_argument('--apk-zip-sha256', help='Trusted CI artifact ZIP SHA-256')
-    parser.add_argument('--inventory-zip-sha256', help='Trusted CI inventory ZIP SHA-256')
-    parser.add_argument('--apksigner', type=Path, help='Trusted Android SDK apksigner executable')
-    parser.add_argument('--expected-cert-sha256', help='Independently trusted signer SHA-256')
-    args = parser.parse_args()
-    print(json.dumps(verify(args.apk_zip, args.inventory_zip, args.expected_commit,
-                            apk_zip_sha256=args.apk_zip_sha256,
-                            inventory_zip_sha256=args.inventory_zip_sha256,
-                            apksigner=args.apksigner,
-                            expected_cert_sha256=args.expected_cert_sha256), indent=2))
 
 
 if __name__ == '__main__':
