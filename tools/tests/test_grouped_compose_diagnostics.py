@@ -35,7 +35,12 @@ results = Path("app/build/test-results/testReleaseUnitTest")
 results.mkdir(parents=True)
 (results / "TEST.xml").write_text(json.dumps(selectors))
 print("diagnostic selectors:", selectors)
-sys.exit(int(os.environ["GROUP_EXIT"]) if len(selectors) > 1 else 0)
+group_exit = int(os.environ["GROUP_EXIT"])
+if len(selectors) == 5:
+    sys.exit(group_exit)
+if len(selectors) == 4:
+    sys.exit(23 if selectors[-1].endswith("ComponentsPageProfileTest") else 17)
+sys.exit(0)
 ''')
                 gradle.chmod(0o755)
                 out = root / "app/build/compose-idle-diagnostics"
@@ -64,7 +69,7 @@ sys.exit(int(os.environ["GROUP_EXIT"]) if len(selectors) > 1 else 0)
                 subset_summary = (out / "subset-summary.tsv").read_text().splitlines()
                 names = ["target-pair", "predecessors-drawer", "predecessors-profile"]
                 self.assertEqual(["test\texit_code"] + [
-                    f"{name}\t{group_exit}" for name in names if group_exit
+                    f"{name}\t{code}" for name, code in zip(names, (0, 17, 23)) if group_exit
                 ], subset_summary)
                 self.assertEqual(subsets, calls[1:1 + len(subsets)])
                 for name, selectors in zip(names, subsets):
