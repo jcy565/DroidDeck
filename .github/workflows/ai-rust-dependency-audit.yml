@@ -1,0 +1,59 @@
+name: AI Rust dependency audit
+on:
+  push:
+    branches: [ai-independent-apk-verification-next]
+    paths:
+      - '.github/workflows/ai-rust-dependency-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Copy reviewed lockfile to isolated directory
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
+          lock=app/src/main/rust/stores/Cargo.lock
+          test "$(git hash-object "$lock")" = 2fac37c5aa822698617c14fa23f2370249092258
+          mkdir -p "$RUNNER_TEMP/rust-audit/input" "$RUNNER_TEMP/rust-audit/report"
+          cp "$lock" "$RUNNER_TEMP/rust-audit/input/Cargo.lock"
+          cd "$RUNNER_TEMP/rust-audit/input"
+          sha256sum Cargo.lock > ../report/lock-sha256.txt
+          printf '%s\n' 'd8c84a5faec188c4c3d2cbf61df8b234495a1668' > ../report/reviewed-source.txt
+      - name: Install pinned scanner outside the project
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/rust-audit"
+          cargo +stable install cargo-audit --version '=0.23.0' --locked --root "$RUNNER_TEMP/rust-audit/tool"
+          "$RUNNER_TEMP/rust-audit/tool/bin/cargo-audit" audit --version | tee report/scanner-version.txt
+      - name: Scan lockfile against RustSec
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/rust-audit/input"
+          export PATH="$RUNNER_TEMP/rust-audit/tool/bin:$PATH"
+          status=0
+          cargo +stable audit --file Cargo.lock --json > ../report/audit.json || status=$?
+          printf '%s\n' "$status" > ../report/scanner-exit-code.txt
+          # Preserve failures and findings, never translate a scanner error into a clean report.
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path('../report/audit.json').read_text())
+          assert isinstance(r.get('vulnerabilities'), dict), 'Missing vulnerability results'
+          assert isinstance(r.get('warnings'), dict), 'Missing warning results'
+          print('Reported vulnerabilities:', r['vulnerabilities'].get('count'))
+          print('Warning categories:', sorted(r['warnings']))
+          PY
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-rust-dependency-audit
+          path: ${{ runner.temp }}/rust-audit/report/
+          if-no-files-found: error
+          retention-days: 30
