@@ -66,6 +66,29 @@ class TranslationDiscoveryTest {
         } }.exceptionOrNull() is CancellationException)
     }
 
+    @Test fun discoveryAndSavedWorklistAgreeOnRelativePaths() {
+        val root = temporary.newFolder("game")
+        val storage = temporary.newFolder("storage")
+        File(root, "bad\nname.json").writeText("""{"a":"Hello"}""")
+        File(root, "bad\\name.json").writeText("""{"a":"Hello"}""")
+        val normal = File(root, "normal.json").apply { writeText("""{"a":"Hello"}""") }
+        val report = TranslationDiscovery.inspect(root)
+        assertEquals(3, report.examined)
+        assertEquals(2, report.rejected)
+        assertEquals(listOf("normal.json"), report.candidates.map { it.relative })
+        val queue = TranslationWorklist.Queue(root, report.candidates)
+        TranslationQueueStore.save(storage, queue)
+        assertEquals(queue.copy(root = root.canonicalFile), TranslationQueueStore.load(storage, root))
+        assertEquals(normal.canonicalFile, TranslationDiscovery.open(root, queue.files.single()))
+        assertTrue(runCatching {
+            TranslationDiscovery.open(root, queue.files.single().copy(relative = "bad\nname.json"))
+        }.isFailure)
+        val invalidStorage = temporary.newFile("not-a-directory").apply { writeText("preserve") }
+        assertTrue(runCatching { TranslationQueueStore.load(invalidStorage, root) }.isFailure)
+        assertTrue(runCatching { TranslationQueueStore.save(invalidStorage, queue) }.isFailure)
+        assertEquals("preserve", invalidStorage.readText())
+    }
+
     @Test fun oversizedAndInvalidUtf8FilesAreExcluded() {
         val root = temporary.newFolder("game")
         File(root, "large.json").writeBytes(ByteArray(TranslationLimits.MAX_PATCH_BYTES + 1))
