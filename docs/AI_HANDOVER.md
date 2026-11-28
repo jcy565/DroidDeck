@@ -736,3 +736,7 @@ User requested prioritizing unfinished AI features over repeated audit tooling. 
 
 ## Direct translation row navigation
 Commit 1dc19d2022830384c36f5edbe1a1c144192d9014 adds exact row ID or one-based row number navigation in GamePatchDialog. Exact ID takes precedence, invalid input leaves current row unchanged, disabled during pending exchange/export or busy work. No draft or game file writes. Android compilation and device verification pending. Continue functional development and reconcile staged changes with integration CI.
+
+
+## Supported optimization preset discovery
+b8c623f1fcf8addd74809ca7c153a5c6ec98fdf6 adds current-file preset discovery (720p/900p 16:9 reductions and existing Unreal 30 FPS cap), excludes no-op or unsupported plans, displays configured pixel reduction rather than predicted FPS, and checks original before preview. Existing backup/approval apply path retained. Added regression test; not yet compiled or executed. Integrated run 46100476853 completed success at 680e197d4553003f5ab92fef45619175806c86dd; APK artifact 15245696763, unit-test-results 15246255516 (XML not inspected here). Feature branch remains a descendant of this successful integration head. Advance integration without force only after verifying head; separate audit staging remains preserved. Next verify actual integrated build, then prioritize device acceptance and practical AI optimization.
