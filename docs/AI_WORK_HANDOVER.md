@@ -248,3 +248,6 @@
 ### 사용자 APK 빌드 명시 승인
 - 사용자 지시: “빌드 시행해줘”. 기존 수동 dispatch 호출 도구 없음. 승인된 기존 Build APK push 경로인 ai-device-validation-next의 [build apk] 조건을 사용한다. 기존 빌드 브랜치 3f3eaab6920c8f149dd5bd9ad34a77962b6baeb8는 최신 통합 1c42b91f23832ddb8727387bd66b7b63b5933d50의 조상(ahead 41/behind 0); 실행 중 CI 없음 확인. 소스/보호 설정을 변경하지 않고 인계 문서만 추가한 커밋을 비강제 fast-forward한다. 공식 main/릴리스/키/기존 아티팩트는 유지한다. OCR true, 실험 로컬 AI 기본 false, 독립 패키지 com.droiddeck.launcher.ai. 작성자/키 검사 등 기존 CI 보호 유지. 빌드 실행 및 결과는 원격 ref 변경 후 실제 Actions 조회로 확인해야 한다.
 - 기존 성공 APK는 계속 이전 3f3eaab6920c8f149dd5bd9ad34a77962b6baeb8에 해당한다. 새 APK, 서명, 전체 테스트, 실기는 아직 미검증. D01~D08 0/8. 공식 할당량 조회 불가로 승인 및 소스 체크포인트를 선저장.
+
+### 승인된 신규 APK 빌드 실행 확인
+- ai-device-validation-next를 c9742460981a42411334c3d1db7a57140dacd17f로 비강제 fast-forward 완료. 실제 Actions [46121382760](https://github.com/jcy565/DroidDeck/actions/runs/46121382760) / head c9742460981a42411334c3d1db7a57140dacd17f / 조회 상태 in_progress/미정 확인. 빌드 브랜치는 실행 종료까지 변경하지 않는다. 이 인계 갱신은 비빌드 브랜치에만 저장. 기존 APK 및 공식 main 보존. 결과/새 APK SHA-256/전체 Android·Python 테스트/서명은 미확인. 다음: 실제 실행 로그 및 아티팩트 확인, 성공 시 새 APK 독립 검증, 소유자 서명 및 D01~D08. 실패 시 실제 원인에 한해 수정하고 보호 정책 우회 금지. 공식 할당량 조회 불가로 실행 ID 선저장.
