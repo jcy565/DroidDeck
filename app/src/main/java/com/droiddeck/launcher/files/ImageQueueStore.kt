@@ -9,7 +9,10 @@ import java.security.MessageDigest
 
 /** One explicitly saved queue per canonical root, in app-private no-backup storage. */
 internal object ImageQueueStore {
-    private const val MAGIC = "DDIMAGEQUEUE1"
+    private const val LEGACY_MAGIC = "DDIMAGEQUEUE1"
+    private const val MAGIC = "DDIMAGEQUEUE2"
+    private const val DIGEST_BYTES = 32
+    private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
     private const val LIMIT = 128 * 1024
 
     private fun rootPath(root: File): String {
@@ -56,13 +59,13 @@ internal object ImageQueueStore {
                 }
             }
         }.toByteArray()
-        require(body.size <= LIMIT)
+        require(body.size + DIGEST_BYTES <= LIMIT)
         require(directory.isDirectory || directory.mkdirs())
         require(Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
         require(Files.notExists(destination.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(destination.toPath(), NOFOLLOW_LINKS))
         val temp = Files.createTempFile(directory.toPath(), "queue-", ".tmp").toFile()
         try {
-            FileOutputStream(temp).use { it.write(body); it.fd.sync() }
+            FileOutputStream(temp).use { it.write(body); it.write(digest(body)); it.fd.sync() }
             Files.move(temp.toPath(), destination.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
         } finally { Files.deleteIfExists(temp.toPath()) }
     }
@@ -110,8 +113,23 @@ internal object ImageQueueStore {
             }
             out.toByteArray()
         }
-        return DataInputStream(bytes.inputStream()).use { input ->
-            require(input.readUTF() == MAGIC && input.readUTF() == path)
+        // Legacy records remain readable. Every newly saved record has a digest.
+        val magic = DataInputStream(bytes.inputStream()).use { it.readUTF() }
+        val body = when (magic) {
+            LEGACY_MAGIC -> bytes
+            MAGIC -> {
+                require(bytes.size > DIGEST_BYTES)
+                val end = bytes.size - DIGEST_BYTES
+                bytes.copyOfRange(0, end).also {
+                    require(MessageDigest.isEqual(digest(it), bytes.copyOfRange(end, bytes.size))) {
+                        "이미지 작업 목록이 손상됐습니다."
+                    }
+                }
+            }
+            else -> throw IllegalArgumentException("지원하지 않는 이미지 작업 목록 형식입니다.")
+        }
+        return DataInputStream(body.inputStream()).use { input ->
+            require(input.readUTF() == magic && input.readUTF() == path)
             val count = input.readInt()
             require(count in 1..20)
             val entries = List(count) {
