@@ -362,3 +362,5 @@
 - 원본 및 첫 후보 RustSec ZIP을 내려받아 GitHub 게시 SHA-256 일치 확인. 잔여 9건은 quinn-proto 7건, quinn-udp 및 url 각 1건. 감사 JSON의 수정 범위에 맞춰 dd34e1dca978382fb489171ed442ecdb3f8fc59b에서 후보 버전을 각각 0.11.19, 0.5.16, 2.5.9로 확장. Rust 실행 46138338849, Gradle 실행 46138284330 진행 중. 앱 lock 적용 전.
 
 - Gradle 재실행 46138284330 성공. artifact 15260636244 ZIP 게시 해시 일치, JSON source fd4dc5b. 구성요소 167, 관계 790, 파일 145개. 그래프 참조 및 해시 형식 재검사 통과. Maven 좌표 165개를 OSV querybatch로 조회: guava 27.0.1-android 3건, protobuf-javalite 4.26.1 1건, commons-lang3 3.16.0 1건, bcpkix-jdk18on 1.79 1건, bcprov-jdk18on 1.79 5건(총 11건). 현 감사 소스 profile 기준. 원본 APK 내 도달성 및 설치 차단과 인과관계는 별도.
+
+- Android 전이 경로는 MediaPipe→Guava/Protobuf, commons-compress→commons-lang3, kadb-android→Bouncy Castle로 확인. 8c6356e에서 Android용 Guava 33.7.2-android, protobuf-javalite 4.28.2, commons-lang3 3.18.0, bcpkix 및 bcprov 1.85로 최소 버전 제약 추가. 5개 Maven POM 응답 및 후보 좌표 OSV 결과 빈 목록 확인. 실제 재해석 Gradle 46138493075, 변경 파일 자동 재검사 07cccc1. 릴리스 도구 CI 46138491132 성공. 전체 Android 회귀는 별도.
