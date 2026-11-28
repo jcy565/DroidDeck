@@ -300,3 +300,10 @@
 - Run 46124010382 job 140915109409: Build, store library check, testkey v1/v2/v3 signing, signature check, inventory generation, pinned official 0.7.1 comparison and inventory artifact upload all success. Unit tests step 42 in progress; final APK upload and actual device verification pending. No build source changes; quota unavailable.
 
 - Run 46124010382 completed successfully, Android 4303 passed, prior host 2338 passed, total 6641 passed, 50 host skipped. APK artifact 15255820290 (105546315 bytes), inventory 15254459803, unit results 15255448428, packs 15255309103. Development testkey only. Independent post-build verification and D01–D08 actual device checks pending. No build source changes.
+
+### 2026-11-28 실제 기기 설치 차단 — D01 중단 / 보안 검토 우선
+- 사용자 Galaxy에서 '악성 앱으로 의심' 설치 차단 화면 제공. 설치 성공으로 기록하지 않는다. 보안 해제, 우회 설치, 탐지 회피 목적의 서명/패키지/권한 변경 금지. 공식 앱 및 세이브 보존.
+- 사용자 첨부 app-release.apk 실제 로컬 ZIP CRC 전 항목 정상, 1012 entries, SHA-256 e8cb6c70216be904f7f597c4ab5963a3cefe93c3aa8f8ec40701d6556c77ff70. 내장 VCS revision d8c84a5faec188c4c3d2cbf61df8b234495a1668. binary manifest 직접 파싱: com.droiddeck.launcher.ai, versionCode 19, versionName 0.7.1. keytool 인증서 SHA-256 a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc, 공개 테스트 키, 인증서 SHA1withRSA. 이는 악성 판정 원인의 증명이나 안전성 증명 아님.
+- Actions 46124010382의 9개 개발 job 성공, 4개 배포 job skip. job 140915109409 원본 로그에서 CI APK v2/v3 true 및 동일 인증서 확인. artifact 15255820290 ZIP digest fb527aa8335280c83486b6242cb7830f1910b3d3c1a0451002462f94f1f195e3. ZIP digest와 첨부 APK digest는 다른 대상; 원본 artifact 내부 APK와 바이트 동일 여부 아직 미확인. 로컬 apksigner 미설치로 첨부 APK v2/v3 독립 검증 미완료.
+- manifest 실제 uses-permission 26개(병합 포함), 전체 저장공간, 패키지 설치/삭제 요청, 위치, 카메라, 마이크, WRITE_SETTINGS 등 존재. DUMP 및 BIND_ACCESSIBILITY_SERVICE는 uses-permission이 아니라 호출자 제한 컴포넌트 권한. WirelessAdbPairingService exported=false. 소스 manifest d8c84a5에서 동일 선언 확인. 존재만으로 실제 악성 행위를 추정하지 않는다.
+- 다음: 기존 artifact 내부 APK 해시 대조, 공식 기준과 코드/권한 및 의존성 출처 검토, 최소 권한/외부 컴포넌트의 필요성 검토, 공식 보안 검토 경로로 차단 판정 확인. 실제 위험 요소를 제거하는 경우 기능 회귀 검증. 현재 원인 불명, 앱 코드/서명/빌드 변경 없음. D01 차단, D02–D08 미검증. 할당량 조회 불가로 단계별 기록.
