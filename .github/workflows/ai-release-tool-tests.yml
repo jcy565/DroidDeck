@@ -1,0 +1,30 @@
+name: AI release tool tests
+on:
+  push:
+    branches: [ai-independent-apk-verification-next]
+    paths:
+      - '.github/workflows/ai-release-tool-tests.yml'
+      - 'tools/ci/apk_signer_report.py'
+      - 'tools/tests/test_apk_signer_report.py'
+      - 'tools/release/sign-ai-apk.sh'
+      - 'tools/release/test_sign_ai_apk.py'
+      - 'tools/adb_device.py'
+      - 'tools/ai_device_packages.py'
+      - 'tools/tests/test_ai_device_packages.py'
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check release signing guards and device package queries
+        run: |
+          set -euo pipefail
+          bash -n tools/release/sign-ai-apk.sh
+          python3 tools/release/test_sign_ai_apk.py
+          python3 -m unittest discover -s tools/tests -p test_apk_signer_report.py
+          python3 -m unittest discover -s tools/tests -p test_ai_device_packages.py
