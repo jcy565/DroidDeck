@@ -95,3 +95,13 @@ D01~D03 통과 후 소유한 게임에서만 시험한다. 최초 실행은 설�
 - 소스 blob: GameConfigPreview 7f7adfce8f72acf04fda8571398727e0f3bb5fc1; GamePatchAuthor 84a3c21b377fe8351d8f89b36a4b7e50de3e5dca; GamePatchStore 41bfa1b43d9b505c142e7a725336bda3290ec1b4; LocalGameAdvisor 5215b096fb45b2e402c0a1ac5430785ab13f59b4; TranslationJson 935bbc68d039daabbb13eff34f654d90e542d5ef; TranslationLimits 34c8befcc6266a0dbb8a20f88a31a441ce012030; TranslationTable 01868fff6a572ceba4d98a688febd56879b4fe02.
 - 실행 명령: `kotlinc GameConfigPreview.kt GamePatchAuthor.kt GamePatchStore.kt LocalGameAdvisor.kt TranslationJson.kt TranslationLimits.kt TranslationTable.kt KitCheck.kt -include-runtime -d kitcheck.jar && java -jar kitcheck.jar fixtures`. 출력 마지막 줄: `TOTAL PASS 85`. 이번 검사는 D09/D10/D12/D14의 호스트 엔진 범위 일부에 해당한다. Android UI, 저장소 권한, OCR, ChatGPT 앱 공유, 로컬 AI, 실제 게임 실행 및 실제 기기 시험은 모두 미검증 상태 유지. 성능 향상이나 RE7 오류 해결을 주장하지 않는다.
 - 최신 빌드의 combined status 및 PR 기반 실행 목록은 비어 있고, 컨테이너의 공개 GitHub API 요청은 DNS 오류로 실패했다. 빌드 상태 미확인. 기존 CI 실행에 영향을 주지 않기 위해 제품 코드와 워크플로는 변경하지 않았다.
+
+
+## 8. ChatGPT 수동 교환 엔진 및 작업 재개 호스트 검증
+
+기준 소스 f30d1dccaa2acd140590a0321e2c5bdd0a6c01c8. 실제 제품 Kotlin 13개와 AiCore.java를 Git blob SHA로 대조한 후 JDK 21 / kotlinc 및 설치된 kotlinx-coroutines-core-jvm.jar를 사용해 /tmp/dd-exchange-host에서 컴파일·실행했다. Android 및 AI 모델 대역 없이 실제 요청/응답 처리 엔진, 체크포인트와 초안 디스크 파일을 사용했다. 응답은 직접 작성한 합성 JSON이며 실제 ChatGPT 호출은 없었다.
+
+- 실행 결과 `TOTAL PASS 20533`: 요청 생성·원본/초안 결합·재개·응답 거부·설정/로그 작업 53개 검사와 1~8개 행의 모든 기존 초안 조합, 시작 위치 및 1~5개 요청 한도에 대한 20,480개 범위 검사. 기존 번역 보존, 순환 작업 순서, 다른 요청 ID/파일/확장자/원본/초안/요청 문구 거부, 잘못된 변수 및 비대상 문장·중복 JSON 키 거부, 변경되지 않은 번역만 담은 응답 거부, 유효한 응답 수락 후 명시적 초안 저장, 오래된 초안 덮어쓰기 차단, 원본 파일 보존, 수치 설정 미리보기와 로그 증거 분리 확인. 요청 전문에 대상 경로가 없고 체크포인트에 대상 경로 및 합성 원문이 없는 경우도 확인했다.
+- 추가 검증 소스 blob: AiCore a259cad8f9963c31f39da29a263d804f31b32510; AiHostBridge c2fbd001e374fdb955c31e5257fd508807005104; ChatGptExchange 887b3dd2db048400e1633121b768dcda7dd5420d; GameAgent c0fa166fafd43f8bdd3348c08f664515db6af9ec; TranslationAgentWindow f646b3b2031dd584a7b13299636af1a8ca14ace7; TranslationDraftStore 2cb8137058cb583372b367b8dba94a0ab613c5eb; ExchangeCheckpoint a9a34ed8c1cbec64af4906515b006c5f67f0725a; 나머지 패치 엔진 blob은 7절과 동일.
+- 실행: `javac -d classes AiCore.java`, `kotlinc *.kt -cp "classes:$KLIB/kotlinx-coroutines-core-jvm.jar" -include-runtime -d exchange.jar`, `java -cp "exchange.jar:classes:$KLIB/kotlinx-coroutines-core-jvm.jar" com.droiddeck.launcher.files.CheckKt`. KLIB는 설치된 Kotlin lib 디렉터리. Check.kt는 별도 임시 검증 코드다. 이 검사는 Android/JUnit 전체 테스트나 실기 D11 통과가 아니다.
+- f30d1dc의 연결 도구 combined status 및 PR 기반 workflow 목록이 여전히 비어 있음. 실제 push run의 ID/결과는 미확인. 제품 코드/빌드 정책 및 기존 통합 ref 유지. 다음 단계는 실행 번호 또는 결과 URL 확보, 실제 전체 CI 확인 후 신뢰 가능한 독립 서명과 기기 검증. 단순 호스트 검사 반복으로 출시 준비도를 높여 표시하지 않는다.
