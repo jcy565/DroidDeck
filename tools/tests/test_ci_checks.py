@@ -50,7 +50,7 @@ class CiChecksTest(unittest.TestCase):
         build = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']['build']
         flag = 'ORG_GRADLE_PROJECT_experimentalImageOcr'
         self.assertEqual(build['env'][flag],
-                         "${{ contains(fromJSON('[\"ai-chatgpt-exchange-next\",\"ai-png-compose-integration-next\",\"ai-integrated-ci-diagnostic-next\",\"ai-device-validation-next\"]'), github.ref_name) && 'true' || 'false' }}")
+                         "${{ contains(fromJSON('[\"ai-chatgpt-exchange-next\",\"ai-png-compose-integration-next\",\"ai-integrated-ci-diagnostic-next\",\"ai-device-validation-next\",\"ai-independent-apk-verification-next\"]'), github.ref_name) && 'true' || 'false' }}")
         steps = {step.get('id'): step for step in build['steps']}
         for name in ('build', 'unit-tests', 'compose-idle-diagnostics'):
             self.assertNotIn(flag, steps[name].get('env', {}))
@@ -220,6 +220,7 @@ esac
         self.assertIn('ai-png-compose-integration-next', triggers['push']['branches'])
         self.assertIn('ai-integrated-ci-diagnostic-next', triggers['push']['branches'])
         self.assertIn('ai-device-validation-next', triggers['push']['branches'])
+        self.assertNotIn('ai-independent-apk-verification-next', triggers['push']['branches'])
         gate = workflow['jobs']['source']['if']
         self.assertIn('ai-compatibility-history', gate)
         self.assertIn('ai-recovery-review-next', gate)
@@ -235,6 +236,7 @@ esac
         self.assertIn('ai-png-compose-integration-next', diagnostic['if'])
         self.assertIn('ai-integrated-ci-diagnostic-next', diagnostic['if'])
         self.assertIn('ai-device-validation-next', diagnostic['if'])
+        self.assertIn('ai-independent-apk-verification-next', diagnostic['if'])
         self.assertIn("steps.unit-tests.outcome == 'failure'", diagnostic['if'])
         self.assertNotIn('continue-on-error', next(s for s in steps if s.get('id') == 'unit-tests'))
         for name in ('sign', 'packs'):

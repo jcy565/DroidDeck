@@ -264,3 +264,7 @@
 ### 신규 APK 빌드 — 스토어 엔진 검증 완료
 - 실행 46121382760 / c9742460981a42411334c3d1db7a57140dacd17f / in_progress/미정. Store engines host tests job 140906518449 성공, 실제 Rust 로그: 171 passed, 0 failed, 0 ignored. Xbox/소스 고정/러너 선정 성공 유지. 전체 Python·네이티브 및 컴포넌트 준비는 아직 최종 미확인.
 - 조회된 작업: Pin source tree=completed/success; Python and native regression tests=in_progress/미정; Xbox ARM64 backend=completed/success; Store engines host tests=completed/success; components-runner / Pick runner=completed/success; Prepare verified components=in_progress/미정. 새 APK, 전체 Android 테스트 및 실제 서명은 미확인. 기존 성공 APK 보존. 현재 실행을 중복 시작하거나 실행 중 빌드 브랜치를 변경하지 않는다. 할당량 조회 불가로 비빌드 브랜치에 기록. 다음: 동일 실행의 종료/로그/아티팩트 확인; 실패 시 원인 수정, 필요시 별도 승인 없이 후속 개발용 빌드. 실기 D01~D08 0/8.
+
+### 전체 APK 빌드 Python 회귀 실패 수정
+- 46121382760 / Python job 140906518436 실패. 실제 로그 test_ci_checks.CiChecksTest.test_ocr_variant_is_shared_by_build_tests_and_isolated_diagnostics 의 OCR 브랜치 고정 목록 불일치 1건. 838/723/651개 시험 보고, 723개 그룹 실패 1 skip 6. 나머지 그룹 세부 skip/집계는 로그 확인 후 기록. 신규 OCR 허용 브랜치를 기대값에 반영하되 기존 공통 플래그/정식 배포/실패 진단 가드를 유지. 기존 test_ci_checks 12개 전체를 release 도구 CI에 연결하여 다음 전체 빌드 전 선행 검증. 추가 테스트는 독립 브랜치 자동 push 미허용 및 실패 진단 포함을 확인한다.
+- 기존 빌드 Android job 140907126730 진행 중, 컴포넌트 준비 성공. 실행 중 빌드 브랜치 변경 금지. 수정은 staging에만 저장; 신규 CI 및 기존 APK/Android 종료 확인 전 재빌드하지 않는다. 사용자 상시 승인에 따라 성공한 수정 통합 후 필요시 자동 재빌드. 기존 실패 실행은 성공판으로 간주하지 않는다. 공식 main/키/데이터 변경 없음. 할당량 조회 불가로 코드와 인계 동시 저장.

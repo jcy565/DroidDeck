@@ -14,6 +14,10 @@ on:
       - 'tools/ai_device_packages.py'
       - 'tools/tests/test_ai_device_packages.py'
       - 'tools/tests/test_ai_build_readiness.py'
+      - 'tools/tests/test_ci_checks.py'
+      - 'tools/ci/install-ubuntu-packages.sh'
+      - 'tools/ci/diagnose-compose-idle.sh'
+      - 'tools/release/report-build.sh'
       - '.github/workflows/build.yml'
       - 'app/build.gradle'
 permissions:
@@ -26,6 +30,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Prepare workflow-test dependencies
+        run: bash tools/ci/install-ubuntu-packages.sh python3-yaml jq
       - name: Check release signing guards and device package queries
         run: |
           set -euo pipefail
@@ -35,3 +41,4 @@ jobs:
           python3 -m unittest discover -s tools/tests -p test_ai_device_packages.py
           python3 -m unittest discover -s tools/tests -p test_ai_build_readiness.py
           python3 -m unittest discover -s tools/tests -p test_verify_development_apk.py
+          /usr/bin/python3 -m unittest discover -s tools/tests -p test_ci_checks.py
