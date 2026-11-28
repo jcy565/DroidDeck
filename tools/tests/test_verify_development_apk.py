@@ -118,7 +118,7 @@ class DevelopmentApkAuditTest(unittest.TestCase):
                     inventory_zip_sha256=hashlib.sha256(self.inv.read_bytes()).hexdigest())
         with zipfile.ZipFile(self.apk) as archive:
             payload = archive.read('app-release.apk')
-        report = f'Verified using v2 scheme (APK Signature Scheme v2): true\nSigner #1 certificate SHA-256 digest: {cert}\n'
+        report = f'Verified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nSigner #1 certificate SHA-256 digest: {cert}\n'
 
         def run(args, **kwargs):
             self.assertEqual(['/trusted/apksigner', 'verify', '--verbose', '--print-certs'], args[:-1])
@@ -134,7 +134,7 @@ class DevelopmentApkAuditTest(unittest.TestCase):
         self.assertTrue(result['signature_verified_here'])
         self.assertEqual(cert, result['verified_certificate_sha256'])
         self.assertFalse(Path(tool.call_args.args[0][-1]).exists())
-        for wrong in (report.replace(cert, 'b' * 64), report.replace('true', 'false'),
+        for wrong in (report.replace(cert, 'b' * 64), report.replace('true', 'false'), report.replace('v3): true', 'v3): false'),
                       report + f'Signer #2 certificate SHA-256 digest: {cert}\n', ''):
             with self.subTest(report=wrong), mock.patch.object(AUDIT.subprocess, 'run',
                     return_value=mock.Mock(stdout=wrong)), self.assertRaises(ValueError):
@@ -144,6 +144,28 @@ class DevelopmentApkAuditTest(unittest.TestCase):
             with self.assertRaises(AUDIT.subprocess.CalledProcessError):
                 AUDIT.verify(self.apk, self.inv, COMMIT, **pins,
                              apksigner='/trusted/apksigner', expected_cert_sha256=cert)
+
+    def test_actual_package_verification(self):
+        self.fixture()
+        cert = 'c' * 64
+        pins = dict(apk_zip_sha256=hashlib.sha256(self.apk.read_bytes()).hexdigest(),
+                    inventory_zip_sha256=hashlib.sha256(self.inv.read_bytes()).hexdigest())
+        signature = f'Verified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): true\nSigner #1 certificate SHA-256 digest: {cert}\n'
+        good = "package: name='com.droiddeck.launcher.ai' versionCode='19' versionName='0.7.1'\n"
+        options = dict(**pins, apksigner='/sdk/apksigner', expected_cert_sha256=cert,
+                       aapt='/sdk/aapt', expected_version_code=19)
+        with mock.patch.object(AUDIT.subprocess, 'run', side_effect=[mock.Mock(stdout=signature), mock.Mock(stdout=good)]) as tool:
+            result = AUDIT.verify(self.apk, self.inv, COMMIT, **options)
+            self.assertTrue(result['package_verified_here'])
+            self.assertEqual(19, result['verified_version_code'])
+            self.assertFalse(result['device_acceptance_verified'])
+            self.assertEqual(tool.call_args_list[0].args[0][-1], tool.call_args_list[1].args[0][-1])
+        for bad in (good.replace("launcher.ai", "launcher"), good.replace("'19'", "'18'"), good + good, ""):
+            with mock.patch.object(AUDIT.subprocess, 'run', side_effect=[mock.Mock(stdout=signature), mock.Mock(stdout=bad)]):
+                with self.assertRaises(ValueError):
+                    AUDIT.verify(self.apk, self.inv, COMMIT, **options)
+        with self.assertRaises(ValueError):
+            AUDIT.verify(self.apk, self.inv, COMMIT, aapt='tool', expected_version_code=19)
 
     def test_signature_requires_all_trust_inputs(self):
         self.fixture()

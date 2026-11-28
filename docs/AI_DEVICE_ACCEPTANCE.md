@@ -129,3 +129,8 @@ Java JarFile(verify=true)으로 각 일반 ZIP 항목을 끝까지 읽고 서명
 ## 12. 후속 소스 APK 빌드 준비
 
 독립 검증 브랜치 `ai-independent-apk-verification-next`는 Build APK의 자동 push 허용 목록에 추가하지 않는다. 사용자 명시 승인 이후 GitHub Actions의 Build APK 수동 실행에서 정확한 브랜치를 선택한다. 기존 `rebuild_preloads` 기본 false를 유지한다. 해당 브랜치의 OCR 플래그는 true, 실험 로컬 AI는 기본 false, 독립 패키지는 com.droiddeck.launcher.ai. 실제 산출물에 대한 aapt/SDK 서명/인벤토리/전체 테스트 검증은 별도 필수다. 정식 main 서명/팩 게시/릴리스 조건 및 작성자·키 보호 검사는 그대로 유지한다. 실패한 테스트의 APK는 진단 전용이며 설치 후보가 아니다. 신규 빌드는 아직 시작하지 않았다.
+
+
+## 13. 후속 APK 독립 검증
+
+새 성공 빌드의 정확한 commit 및 APK/인벤토리 ZIP SHA-256과 신뢰할 공개 인증서 지문을 확보한다. 이전 후보의 해시는 재사용하지 않는다. verify-development-apk.py의 archive pin, apksigner 및 expected-cert 옵션에 --aapt와 --expected-version-code를 함께 지정하면 동일 검증 APK의 v2/v3 서명과 실제 package/versionCode를 검사한다. 기기 시험과 소유자 서명을 대체하지 않는다.

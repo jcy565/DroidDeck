@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/ai-release-tool-tests.yml'
       - 'tools/ci/apk_signer_report.py'
+      - 'tools/ci/verify-development-apk.py'
+      - 'tools/tests/test_verify_development_apk.py'
       - 'tools/tests/test_apk_signer_report.py'
       - 'tools/release/sign-ai-apk.sh'
       - 'tools/release/test_sign_ai_apk.py'
@@ -32,3 +34,4 @@ jobs:
           python3 -m unittest discover -s tools/tests -p test_apk_signer_report.py
           python3 -m unittest discover -s tools/tests -p test_ai_device_packages.py
           python3 -m unittest discover -s tools/tests -p test_ai_build_readiness.py
+          python3 -m unittest discover -s tools/tests -p test_verify_development_apk.py
