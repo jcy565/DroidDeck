@@ -32,6 +32,7 @@ internal object GamePatchAuthor {
 
     private fun tokens(text: String): List<String> {
         require(text.isNotBlank() && text.length <= TranslationLimits.MAX_TEXT_CHARS && text.none(Char::isISOControl))
+        TranslationJson.validUnicode(text)
         val parts = token.findAll(text).map { it.value }.toList()
         require(token.replace(text, "").none { it in "{}%\\<>" }) {
             "지원하지 않는 변수, 이스케이프 또는 태그가 있습니다."
@@ -79,15 +80,17 @@ internal object GamePatchAuthor {
     }
 
     fun translation(source: String, edits: Map<String, String>): GameConfigPreview.Preview {
+        require(edits.size in 1..TranslationLimits.MAX_ROWS)
+        val stable = edits.toMap()
         val rows = extract(source).associateBy { it.id }
-        require(edits.isNotEmpty() && edits.keys.all { it in rows })
-        for ((id, translated) in edits) {
+        require(stable.isNotEmpty() && stable.keys.all { it in rows })
+        for ((id, translated) in stable) {
             require(validTranslation(rows.getValue(id).text, translated)) {
                 "변수와 이스케이프의 종류·개수·순서를 유지하세요: $id"
             }
         }
         if (TranslationJson.isCandidate(source)) {
-            val proposed = TranslationJson.rewrite(source, edits)
+            val proposed = TranslationJson.rewrite(source, stable)
             require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
             return GameConfigPreview.Preview(source, proposed, emptyList())
         }
@@ -99,7 +102,7 @@ internal object GamePatchAuthor {
             else if (header) { header = false; line }
             else {
                 val row = TranslationTable.row(line, format)
-                edits[row.id]?.let { if (it == row.text) line else TranslationTable.replace(row, it, format) } ?: line
+                stable[row.id]?.let { if (it == row.text) line else TranslationTable.replace(row, it, format) } ?: line
             }
         }
         require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
