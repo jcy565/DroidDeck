@@ -166,6 +166,21 @@ class ImageQueueStoreTest {
         assertEquals(setOf("b.png"), report.examinedPaths)
     }
 
+    @Test fun invalidQueueDirectoryCannotMasqueradeAsMissing() {
+        val root = temp.newFolder("game")
+        val invalid = temp.newFile("not-directory").apply { writeText("preserve") }
+        val candidate = ImageAssetDiscovery.Candidate("menu.png", 32, 16, 3, "a".repeat(64))
+        val queue = ImageAssetDiscovery.Queue(root, listOf(candidate))
+        assertTrue(runCatching { ImageQueueStore.load(invalid, root) }.isFailure)
+        assertTrue(runCatching { ImageQueueStore.save(invalid, queue) }.isFailure)
+        assertTrue(runCatching { ImageQueueStore.merge(invalid, queue) }.isFailure)
+        assertEquals("preserve", invalid.readText())
+        val missing = File(temp.root, "new-queue")
+        assertNull(ImageQueueStore.load(missing, root))
+        ImageQueueStore.save(missing, queue)
+        assertEquals(queue.copy(root = root.canonicalFile), ImageQueueStore.load(missing, root))
+    }
+
     @Test fun continuesWithoutReprobingExaminedFiles() {
         val root = temp.newFolder()
         repeat(13) { File(root, "$it.png").writeBytes(byteArrayOf(1)) }
