@@ -11,6 +11,9 @@ on:
       - 'tools/adb_device.py'
       - 'tools/ai_device_packages.py'
       - 'tools/tests/test_ai_device_packages.py'
+      - 'tools/tests/test_ai_build_readiness.py'
+      - '.github/workflows/build.yml'
+      - 'app/build.gradle'
 permissions:
   contents: read
 jobs:
@@ -28,3 +31,4 @@ jobs:
           python3 tools/release/test_sign_ai_apk.py
           python3 -m unittest discover -s tools/tests -p test_apk_signer_report.py
           python3 -m unittest discover -s tools/tests -p test_ai_device_packages.py
+          python3 -m unittest discover -s tools/tests -p test_ai_build_readiness.py
