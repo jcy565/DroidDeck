@@ -141,7 +141,9 @@ set -eu
 mkdir -p app/build/test-results/testReleaseUnitTest
 printf '%s\\n' "$3" > app/build/test-results/testReleaseUnitTest/test.xml
 if [[ "$3" == *.BottomScreenBarTest ]]; then
-    printf '%s\\n' "$@" > group-arguments
+    if [[ ! -e group-arguments ]]; then
+        printf '%s\\n' "$@" > group-arguments
+    fi
     exit 7
 fi
 case "$3" in
