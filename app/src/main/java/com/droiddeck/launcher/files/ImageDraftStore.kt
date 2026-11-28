@@ -38,7 +38,8 @@ internal object ImageDraftStore {
     }
 
     private fun location(directory: File, identity: Identity): File {
-        require(!Files.isSymbolicLink(directory.toPath()))
+        require(Files.notExists(directory.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS)) { "이미지 초안 저장 경로가 안전하지 않습니다." }
         return File(directory, name(identity) + ".draft")
     }
 
@@ -59,21 +60,24 @@ internal object ImageDraftStore {
 
     @Synchronized
     fun save(directory: File, image: File, expected: Identity, draft: Draft) {
-        validate(draft)
+        // Validate and serialize the same detached region and edit collections.
+        val stable = draft.copy(regions = draft.regions?.let { it.copy(regions = it.regions.toList()) },
+            edits = draft.edits.toMap())
+        validate(stable)
         require(identity(image) == expected) { "원본 이미지가 변경됐습니다. 다시 열어 주세요." }
         val file = location(directory, expected)
         require(directory.isDirectory || directory.mkdirs())
-        require(!Files.isSymbolicLink(directory.toPath()))
-        require(!Files.exists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        require(Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
+        require(Files.notExists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         val body = ByteArrayOutputStream().also { bytes ->
             DataOutputStream(bytes).use {
-                it.writeUTF(if (draft.regions == null) MAGIC else REGION_MAGIC)
+                it.writeUTF(if (stable.regions == null) MAGIC else REGION_MAGIC)
                 it.writeUTF(name(expected))
-                it.writeUTF(draft.script.name)
-                it.writeUTF(draft.rotation.name)
-                it.writeUTF(draft.source)
-                it.writeUTF(draft.translated)
-                draft.regions?.let { result ->
+                it.writeUTF(stable.script.name)
+                it.writeUTF(stable.rotation.name)
+                it.writeUTF(stable.source)
+                it.writeUTF(stable.translated)
+                stable.regions?.let { result ->
                     it.writeInt(result.width)
                     it.writeInt(result.height)
                     it.writeBoolean(result.partial)
@@ -85,7 +89,7 @@ internal object ImageDraftStore {
                         it.writeInt(region.box.right)
                         it.writeInt(region.box.bottom)
                         it.writeUTF(region.text)
-                        it.writeUTF(draft.edits[region.id].orEmpty())
+                        it.writeUTF(stable.edits[region.id].orEmpty())
                     }
                 }
             }
@@ -106,7 +110,7 @@ internal object ImageDraftStore {
     /** A batch must never overwrite a manually saved or damaged existing draft. */
     @Synchronized
     fun saveIfAbsent(directory: File, image: File, expected: Identity, draft: Draft): Boolean {
-        if (Files.exists(location(directory, expected).toPath(), NOFOLLOW_LINKS)) return false
+        if (!Files.notExists(location(directory, expected).toPath(), NOFOLLOW_LINKS)) return false
         save(directory, image, expected, draft)
         return true
     }
@@ -130,7 +134,7 @@ internal object ImageDraftStore {
     @Synchronized
     fun load(directory: File, expected: Identity): Draft? {
         val file = location(directory, expected)
-        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null
+        if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         require(file.length() in 33L..LIMIT.toLong())
         val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { input ->
