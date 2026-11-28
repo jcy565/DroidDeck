@@ -23,6 +23,7 @@ internal object GameSettingsApproval {
         val base = root.canonicalFile
         val path = file.absoluteFile.toPath()
         val origin = root.absoluteFile.toPath()
+        require(path == path.normalize() && origin == origin.normalize())
         require(path.startsWith(origin) && path != origin)
         val relative = origin.relativize(path)
         require(relative.none { it.toString() in listOf(".", "..") || '\\' in it.toString() })
