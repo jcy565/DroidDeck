@@ -746,6 +746,7 @@ jobs:
             else
               python3 tools/ci/apk_inventory.py "$apk" > "app/build/apk-inventory/$(basename "$apk").json"
             fi
+            python3 tools/ci/check_ocr_inventory.py "app/build/apk-inventory/$(basename "$apk").json" "$ORG_GRADLE_PROJECT_experimentalImageOcr"
             AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
             test -n "$AAPT"
             "$AAPT" dump permissions "$apk" > "app/build/apk-inventory/$(basename "$apk").permissions.txt"
