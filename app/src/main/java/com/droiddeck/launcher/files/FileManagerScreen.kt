@@ -165,6 +165,7 @@ fun FileManagerScreen(
     var selectedEntry by remember { mutableStateOf<File?>(null) }
     var showMenuFor by remember { mutableStateOf<File?>(null) }
     var patchTarget by remember { mutableStateOf<File?>(null) }
+    var resumeSavedRequest by remember { mutableStateOf(false) }
     var aiWorkspaceFolder by remember { mutableStateOf<File?>(null) }
     var imageTranslationTarget by remember { mutableStateOf<File?>(null) }
     var translationQueue by remember { mutableStateOf<TranslationWorklist.Queue?>(null) }
@@ -578,7 +579,14 @@ fun FileManagerScreen(
     }
 
     aiWorkspaceFolder?.let { folder ->
-        AiWorkspaceDialog(folder,
+        AiWorkspaceDialog(folder, listed = if (folder == currentDir) entries else emptyList(),
+            onResumeFile = { selected ->
+                aiWorkspaceFolder = null
+                translationQueue = null
+                imageQueue = null
+                resumeSavedRequest = true
+                patchTarget = selected
+            },
             onFolderTools = {
                 aiWorkspaceFolder = null
                 propertiesTarget = folder
@@ -625,7 +633,10 @@ fun FileManagerScreen(
         }
     }
     patchTarget?.let { file ->
-        GamePatchDialog(file) { patchTarget = null }
+        GamePatchDialog(file, resumeSavedRequest = resumeSavedRequest) {
+            patchTarget = null
+            resumeSavedRequest = false
+        }
     }
     if (imageTranslationTarget == null && patchTarget == null) {
         imageQueue?.let { queue ->
