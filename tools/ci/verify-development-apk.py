@@ -10,6 +10,8 @@ import zipfile
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
+from apk_signer_report import require_certificate
+
 
 def unique_files(archive):
     files = [entry for entry in archive.infolist() if not entry.is_dir()]
@@ -88,13 +90,7 @@ def inventory_entries(raw):
 def verify_signer(apksigner, apk_path, expected_cert_sha256):
     report = subprocess.run([str(apksigner), 'verify', '--verbose', '--print-certs', str(apk_path)],
                             check=True, capture_output=True, text=True, timeout=60).stdout
-    signers = re.findall(r'^Signer #([0-9]+) certificate SHA-256 digest: ([a-fA-F0-9]+)$',
-                         report, re.MULTILINE)
-    if (len(signers) != 1 or signers[0][0] != '1'
-            or signers[0][1].lower() != expected_cert_sha256):
-        raise ValueError('Unexpected signing certificate or signer count')
-    if not re.search(r'^Verified using v2 scheme .*: true$', report, re.MULTILINE):
-        raise ValueError('APK v2 signature verification required')
+    require_certificate(report, expected_cert_sha256)
 
 
 def read_metadata(archive, name, limit):
