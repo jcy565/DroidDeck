@@ -48,6 +48,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var translationSource by remember(file) { mutableStateOf<String?>(null) }
     var translationRows by remember(file) { mutableStateOf(emptyList<GamePatchAuthor.Row>()) }
     var translationIndex by remember(file) { mutableIntStateOf(0) }
+    var rowSearch by remember(file) { mutableStateOf("") }
     var menuCursor by remember(file) { mutableIntStateOf(0) }
     var translations by remember(file) { mutableStateOf(emptyMap<String, String>()) }
     var savedDraft by remember(file) { mutableStateOf<TranslationDraftStore.Draft?>(null) }
@@ -586,6 +587,21 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 translationRows.getOrNull(translationIndex)?.let { row ->
                     Text("${translationIndex + 1} / ${translationRows.size} · ${row.id}")
                     Text(row.text)
+                    OutlinedTextField(rowSearch, { if (it.length <= 256) rowSearch = it },
+                        enabled = !busy && exchange == null && pendingExport == null,
+                        singleLine = true, label = { Text("문장 번호 또는 ID 검색") })
+                    TextButton(enabled = !busy && exchange == null && pendingExport == null && rowSearch.isNotBlank(),
+                        onClick = {
+                            val query = rowSearch.trim()
+                            val exact = translationRows.indexOfFirst { it.id == query }
+                            val number = query.toIntOrNull()
+                            val index = if (exact >= 0) exact else if (number != null && number in 1..translationRows.size) number - 1 else -1
+                            if (index >= 0) {
+                                translationIndex = index
+                                rowSearch = ""
+                                message = "선택한 문장으로 이동했습니다."
+                            } else message = "일치하는 문장 ID 또는 유효한 번호가 없습니다."
+                        }) { Text("문장으로 이동") }
                     Text("입력한 번역: ${translations.size} / ${translationRows.size} (최종 검증 전)")
                     Text("오프라인 메뉴 사전: 알려진 영어 메뉴 문구만 번역합니다. 일반 대사 및 신경망 번역은 지원하지 않습니다.")
                     Text("메뉴 사전 처리 위치: ${menuCursor} / ${translationRows.size}")
