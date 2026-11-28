@@ -24,12 +24,13 @@ internal object ImageBatchExchange {
 
     fun prepare(queue: ImageAssetDiscovery.Queue, directory: File, token: String = UUID.randomUUID().toString(), checkpoint: () -> Unit = {}): Request {
         require(UUID.fromString(token).toString() == token)
+        val stable = queue.copy(candidates = queue.candidates.toList())
         val targets = mutableListOf<Target>()
         val rows = mutableListOf<Row>()
-        for (candidate in queue.candidates) {
+        for (candidate in stable.candidates) {
             checkpoint()
             val target = try {
-                val file = ImageAssetDiscovery.open(queue.root, candidate)
+                val file = ImageAssetDiscovery.open(stable.root, candidate)
                 val id = ImageDraftStore.Identity(file.canonicalPath, candidate.digest)
                 ImageDraftStore.load(directory, id)?.let { Target(candidate, id, it) }
             } catch (e: CancellationException) { throw e }
@@ -88,14 +89,24 @@ internal object ImageBatchExchange {
 
     fun apply(queue: ImageAssetDiscovery.Queue, directory: File, review: Review,
         checkpoint: () -> Unit = {}): Applied {
+        val stable = queue.copy(candidates = queue.candidates.toList())
+        require(review.changes.size in 1..20)
+        fun detach(draft: ImageDraftStore.Draft) = draft.copy(
+            regions = draft.regions?.let { it.copy(regions = it.regions.toList()) },
+            edits = draft.edits.toMap())
+        val changes = review.changes.map { change ->
+            change.copy(target = change.target.copy(draft = detach(change.target.draft)),
+                replacement = detach(change.replacement))
+        }
+        require(changes.map { it.target.candidate.relative }.distinct().size == changes.size)
         var saved = 0
         var failed = 0
-        for (change in review.changes) {
+        for (change in changes) {
             checkpoint()
             val target = change.target
             val success = try {
-                require(target.candidate in queue.candidates)
-                val file = ImageAssetDiscovery.open(queue.root, target.candidate)
+                require(target.candidate in stable.candidates)
+                val file = ImageAssetDiscovery.open(stable.root, target.candidate)
                 ImageDraftStore.replaceIfUnchanged(directory, file, target.identity, target.draft, change.replacement)
             } catch (e: CancellationException) { throw e }
               catch (_: Exception) { false }
