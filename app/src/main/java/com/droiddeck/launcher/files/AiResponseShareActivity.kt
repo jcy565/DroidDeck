@@ -53,7 +53,7 @@ class AiResponseShareActivity : ComponentActivity() {
                     title = { Text("보관된 AI 응답 교체") },
                     text = {
                         Column(Modifier.verticalScroll(rememberScrollState())) {
-                            Text("같은 요청의 다른 응답이 이미 있습니다. 교체해도 게임에는 적용되지 않습니다.")
+                            Text("보관된 응답이 있습니다. 응답이 다르거나 저장된 요청 정보가 변경되었을 수 있습니다. 다시 확인한 뒤 교체하세요. 게임에는 적용되지 않습니다.")
                             Text("기존 응답")
                             Text(candidate.previous)
                             Text("새 응답")
