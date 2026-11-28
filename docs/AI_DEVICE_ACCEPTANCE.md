@@ -2,6 +2,12 @@
 
 대상: Galaxy S23+ (8 GB RAM). 현재 검증 기록은 없음. 이 문서는 테스트 계획이며 완료 보고서가 아니다.
 
+## 현재 소유자 서명 대상
+
+[검증 대상 빌드 46139567549](https://github.com/jcy565/DroidDeck/actions/runs/46139567549)의 `droiddeck-apk` 아티팩트에서 추출한 `app-release.apk`를 사용한다. 소스는 `fc57f72eca36b3930177bc521b752dfeca230044`, 패키지는 `com.droiddeck.launcher.ai`, versionCode는 19다. 승인된 **APK 파일 자체**의 SHA-256은 `8c10d68b3a9e9e48b1caab45299ffda436f2cb18a03577f82ff6e959b10889b6`이다. 이전 빌드의 검증 기록은 아래에 보존한다.
+
+키 없이 먼저 독립 검증 작업의 실행 요약에서 파일 해시, 인증서, 패키지 버전과 검증된 항목 수를 확인할 수 있다. 본인 PC에서 실제 서명할 때는 9절의 도구와 본인이 관리하는 인증서를 사용한다. APK를 바꾸면 새로 검증한 해시가 필요하다. 설치 결과는 기기에서 별도로 기록한다.
+
 ## 0. APK 확인 및 설치 전
 
 - [ ] 정확한 소스 커밋과 Actions 실행 번호, APK SHA-256, 패키지 ID 및 서명 인증서 지문을 기록한다.
@@ -99,7 +105,7 @@ D01~D03 통과 후 소유한 게임에서만 시험한다. 최초 실행은 설�
 
 기존 `tools/release/make-release-key.sh`는 공식 저장소 GitHub Secrets 등록용이므로 독립판에 사용하지 않는다. 신규 `tools/release/make-ai-release-key.sh`는 본인 관리 컴퓨터의 대화형 터미널에서만 실행하며 저장소 밖의 새 비공개 디렉터리에 PKCS12 개인 키와 공개 인증서·SHA-256을 생성한다. 기존 키가 있으면 새로 생성하지 않고 기존 키와 인증서를 사용한다. 암호는 keytool 대화형 입력으로만 입력하며 저장소, 채팅, 외부 서비스에 키 또는 암호를 보내지 않는다. 생성 중 중단되면 새 키가 생겼는지 확인하고 기존 파일을 덮어쓰지 않는다.
 
-Linux 환경에서 JDK와 신뢰할 수 있는 Android SDK build-tools(aapt, apksigner), Python 3을 준비한다. 승인된 CI APK의 SHA-256은 위 8절을 따른다. 개인 키를 안전하게 백업한 후 기존 sign-ai-apk.sh에 승인된 APK 경로, 새 출력 경로, 본인 키 경로, droiddeck-ai alias, 승인 APK 해시 및 본인이 확인한 공개 인증서 해시를 전달한다. 도구는 입력 및 출력 인증서, v2 검증, 독립 패키지 ID 및 서명 메타데이터를 제외한 payload 동일성을 확인한다. 별도 출력 APK를 재검증한 뒤에만 D01을 진행한다.
+Linux 환경에서 JDK와 신뢰할 수 있는 Android SDK build-tools(aapt, apksigner), Python 3을 준비한다. 승인된 CI APK의 SHA-256은 이 문서 맨 위의 현재 소유자 서명 대상을 따른다. 개인 키를 안전하게 백업한 후 기존 sign-ai-apk.sh에 승인된 APK 경로, 새 출력 경로, 본인 키 경로, droiddeck-ai alias, 승인 APK 해시 및 본인이 확인한 공개 인증서 해시를 전달한다. 도구는 입력 및 출력 인증서, v2 검증, 독립 패키지 ID 및 서명 메타데이터를 제외한 payload 동일성을 확인한다. 별도 출력 APK를 재검증한 뒤에만 D01을 진행한다.
 
 00e9742의 키 생성기를 실제 Java keytool로 일회용 테스트 디렉터리에서 시험했다. 최초 파이프 기반 시험은 keytool 재입력 문제로 실패하여 대화형 입력 전용으로 수정했다. 최종 Git blob 24fb472b52824a68abe0c5cfae0f33bfc255e4af와 동일한 파일로 대화형 생성, 공개 DER SHA-256, 개인 키 권한, 기존 경로 거부, 저장소 내부 경로 거부, 비대화형 입력 거부를 확인했다. 일회용 키는 시험 후 제거했고 실제 배포 키는 생성하지 않았다. 이 환경에는 apksigner와 aapt가 PATH에 없어 실제 APK 재서명은 미실행이다. 신규 키 생성 도구는 앱 코드와 기존 성공 CI를 변경하지 않는다.
 
