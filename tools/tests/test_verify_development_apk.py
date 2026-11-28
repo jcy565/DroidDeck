@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest import mock
 import warnings
@@ -12,6 +13,7 @@ import zipfile
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'ci/verify-development-apk.py'
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location('verify_development_apk', SCRIPT)
 AUDIT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(AUDIT)
