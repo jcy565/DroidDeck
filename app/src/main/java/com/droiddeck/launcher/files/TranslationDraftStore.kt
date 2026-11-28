@@ -75,6 +75,16 @@ internal object TranslationDraftStore {
         }
     }
 
+    /** Compare and save under the same process-local monitor; never replace a newer draft. */
+    @Synchronized
+    fun saveIfUnchanged(directory: File, target: String, source: String,
+        expected: Map<String, String>?, edits: Map<String, String>) {
+        require(load(directory, target, source) == expected) {
+            "저장된 초안이 변경됐습니다. 다시 검토하세요."
+        }
+        save(directory, target, source, edits)
+    }
+
     @Synchronized
     fun load(directory: File, target: String, source: String): Map<String, String>? {
         val file = location(directory, target, source)

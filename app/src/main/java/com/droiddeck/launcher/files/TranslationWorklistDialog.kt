@@ -41,6 +41,7 @@ private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen:
     var message by remember(queue) { mutableStateOf("") }
     var exportPlan by remember(queue) { mutableStateOf<TranslationWorklistExport.Plan?>(null) }
     var pendingExport by remember(queue) { mutableStateOf<TranslationWorklistExport.Plan?>(null) }
+    var reusePlan by remember(queue) { mutableStateOf<TranslationWorklistReuse.Plan?>(null) }
 
     fun runTask(action: suspend () -> Unit) {
         if (busy) return
@@ -56,6 +57,7 @@ private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen:
 
     fun refresh() = runTask {
         exportPlan = null
+        reusePlan = null
         report = null
         report = withContext(Dispatchers.IO) {
             check(GameplayBudget.allowsOptionalAnalysis(context))
@@ -109,6 +111,39 @@ private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen:
         }
     }
 
+    fun prepareReuse(entry: TranslationWorklist.Entry) = runTask {
+        reusePlan = null
+        exportPlan = null
+        reusePlan = withContext(Dispatchers.IO) {
+            val coroutine = kotlinx.coroutines.currentCoroutineContext()
+            TranslationWorklistReuse.prepare(queue, entry.candidate, drafts) {
+                coroutine.ensureActive()
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+            }
+        }
+    }
+
+    fun saveReuse(plan: TranslationWorklistReuse.Plan) = runTask {
+        withContext(Dispatchers.IO) {
+            val coroutine = kotlinx.coroutines.currentCoroutineContext()
+            TranslationWorklistReuse.saveReviewed(queue, plan, drafts) {
+                coroutine.ensureActive()
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+            }
+        }
+        reusePlan = null
+        exportPlan = null
+        report = null
+        report = withContext(Dispatchers.IO) {
+            val coroutine = kotlinx.coroutines.currentCoroutineContext()
+            TranslationWorklist.review(queue, drafts) {
+                coroutine.ensureActive()
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+            }
+        }
+        message = "검토한 번역을 초안에 저장했습니다."
+    }
+
     LaunchedEffect(queue) { refresh() }
 
     AlertDialog(
@@ -156,6 +191,20 @@ private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen:
                             Text("내보내기 취소")
                         }
                     }
+                    reusePlan?.let { plan ->
+                        Text("다른 파일 번역 재사용 · ${plan.target.relative}")
+                        Text("추천 ${plan.suggestions.size}문장 (한 번에 최대 25개) · 충돌 제외 ${plan.conflicts}문장")
+                        Text("같은 원문이라도 게임 맥락에 따라 번역이 다를 수 있습니다. 아래 내용을 확인하세요.")
+                        plan.suggestions.forEach { suggestion ->
+                            Text(suggestion.id + ": " + suggestion.original)
+                            Text("→ " + suggestion.translated)
+                        }
+                        TextButton(enabled = !busy && pendingExport == null && plan.suggestions.isNotEmpty(),
+                            onClick = { saveReuse(plan) }) { Text("검토한 추천만 초안에 저장") }
+                        TextButton(enabled = !busy && pendingExport == null, onClick = { reusePlan = null }) {
+                            Text("추천 닫기")
+                        }
+                    }
                     val next = result.next()
                     TextButton(enabled = !busy && pendingExport == null && next != null, onClick = { next?.let { open(it) } }) {
                         Text("다음 미완료 파일 열기")
@@ -172,6 +221,11 @@ private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen:
                         TextButton(enabled = !busy && pendingExport == null && entry.state != TranslationWorklist.State.SOURCE_CHANGED &&
                             entry.state != TranslationWorklist.State.DRAFT_UNAVAILABLE,
                             onClick = { open(entry) }) { Text("파일 편집기 열기") }
+                        if (entry.state == TranslationWorklist.State.NOT_STARTED ||
+                            entry.state == TranslationWorklist.State.IN_PROGRESS) {
+                            TextButton(enabled = !busy && pendingExport == null && queue.files.size > 1,
+                                onClick = { prepareReuse(entry) }) { Text("다른 파일의 저장된 번역 재사용") }
+                        }
                     }
                 }
             }
