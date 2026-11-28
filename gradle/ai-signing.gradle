@@ -28,8 +28,8 @@ android {
         }
     }
     buildTypes {
-        debug { signingConfig configured ? signingConfigs.aiPrivate : null }
-        release { signingConfig configured ? signingConfigs.aiPrivate : null }
+        debug { signingConfig = configured ? signingConfigs.aiPrivate : null }
+        release { signingConfig = configured ? signingConfigs.aiPrivate : null }
     }
 }
 
