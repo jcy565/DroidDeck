@@ -47,6 +47,9 @@ if args[0] == 'verify':
     v2 = not (mode == 'v2-input' and not signed or mode == 'v2-output' and signed)
     if mode != 'v2-missing':
         print('Verified using v2 scheme (APK Signature Scheme v2): ' + str(v2).lower())
+    if not (signed and mode == 'v3-missing'):
+        v3 = not (signed and mode == 'v3-output')
+        print('Verified using v3 scheme (APK Signature Scheme v3): ' + str(v3).lower())
     if mode == 'versioned':
         print('Number of signers: 1')
         print('V3.0 Signer: certificate SHA-256 digest: ' + cert)
@@ -56,6 +59,8 @@ if args[0] == 'verify':
         print('Signer #2 certificate SHA-256 digest: ' + '3' * 64)
     if mode == 'verify-failure': sys.exit(1)
 else:
+    for scheme in ('--v2-signing-enabled', '--v3-signing-enabled'):
+        assert args[args.index(scheme) + 1] == 'true'
     target = args[args.index('--out') + 1]
     shutil.copyfile(args[-1], target)
     if mode == 'changed':
@@ -97,7 +102,7 @@ else:
     def test_reject_tool_failures_and_payload_changes(self):
         for mode in ['wrong-package', 'bad-input', 'bad-output', 'multiple', 'multiple-output',
                      'verify-failure', 'v2-input', 'v2-output', 'v2-missing',
-                     'changed', 'duplicate', 'sign-failure']:
+                     'v3-missing', 'v3-output', 'changed', 'duplicate', 'sign-failure']:
             with self.subTest(mode=mode):
                 self.assertNotEqual(self.invoke(mode).returncode, 0)
                 self.assertFalse(self.out.exists())

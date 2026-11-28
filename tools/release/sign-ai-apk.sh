@@ -35,9 +35,13 @@ check_signer() {
 }
 check_package "$work/input.apk"
 check_signer "$work/input.apk" "$test_cert" "$work/input-signer"
-apksigner sign --ks "$keystore" --ks-key-alias "$alias_name" --v4-signing-enabled false --out "$work/signed.apk" "$work/input.apk"
+apksigner sign --ks "$keystore" --ks-key-alias "$alias_name" \
+  --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false \
+  --out "$work/signed.apk" "$work/input.apk"
 check_package "$work/signed.apk"
 check_signer "$work/signed.apk" "$expected" "$work/output-signer"
+grep -Fxq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$work/output-signer" \
+  || fail "APK v3 signature verification required."
 # Only JAR signature metadata may differ; package code/resources must be identical.
 python3 - "$work/input.apk" "$work/signed.apk" <<'PY'
 import hashlib
