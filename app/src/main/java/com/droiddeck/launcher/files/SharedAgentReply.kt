@@ -42,6 +42,12 @@ internal object SharedAgentReply {
         return store.getString("reply", null)?.let { normalize(it, id) }
     }
 
+    /** Explicit discard from the editor also removes the unaccepted response. */
+    @Synchronized fun discard(context: Context) {
+        check(prefs(context).edit().remove("id").remove("reply").commit())
+        changes.value++
+    }
+
     @Synchronized fun clear(context: Context, id: String) {
         val store = prefs(context)
         if (store.getString("id", null) == id) {

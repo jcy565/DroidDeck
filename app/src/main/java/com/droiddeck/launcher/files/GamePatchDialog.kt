@@ -303,26 +303,53 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     message = "아래 요청 전문을 검토한 후 공유하세요. 실제 전송은 직접 선택합니다."
                 } }) { Text(if (translationTable) "다음 미입력 문장 AI 요청 생성" else "AI 작업 요청 생성") }
                 Text("앱 전환 후 작업을 재개하려면 요청 정보를 저장하세요. 요청 문구와 식별자·해시만 이 기기의 백업 제외 앱 저장소에 보관합니다. 원본·로그·번역문은 저장하지 않습니다. 번역 초안은 별도로 저장해야 합니다.")
-                TextButton(enabled = !busy && pendingExport == null && (!translationTable || translationRows.isNotEmpty()),
+                TextButton(enabled = !busy && pendingExport == null && exchange == null,
                     onClick = { runAction {
                         val edits = if (translationTable) translations.toMap() else emptyMap()
                         val expected = translationSource
-                        val restored = withContext(Dispatchers.IO) {
+                        val currentDraft = savedDraft
+                        if (translationTable && expected != null) {
+                            require(edits == currentDraft?.edits.orEmpty()) {
+                                "저장하지 않은 번역이 있습니다. 먼저 초안을 저장하세요."
+                            }
+                        }
+                        val (restored, restoredTranslation, received) = withContext(Dispatchers.IO) {
                             check(GameplayBudget.allowsOptionalAnalysis(context))
                             val saved = ExchangeCheckpoint.load(exchangeCheckpointFile) ?: error("저장된 AI 요청이 없습니다.")
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
-                            if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
-                            ChatGptExchange.restore(saved, file.canonicalPath, file.extension, source, edits)
+                            val target = file.canonicalPath
+                            val translation = if (translationTable) {
+                                if (expected != null) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
+                                val draft = TranslationDraftStore.loadState(draftDirectory, target, source)
+                                if (expected != null) require(draft == currentDraft) { "저장된 초안이 변경됐습니다. 다시 열어 주세요." }
+                                ChatGptExchange.resumeTranslation(saved, target, file.extension, source, draft)
+                            } else null
+                            val pending = translation?.pending ?: ChatGptExchange.restore(saved, target, file.extension, source, edits)
+                            val reply = SharedAgentReply.load(context, pending.id)
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            Triple(pending, translation, reply)
                         }
                         exchangeInstruction = restored.request.instruction
-                        if (translationTable) translationIndex = restored.request.start
-                        exchangeReply = ""
+                        if (restoredTranslation != null) {
+                            translationSource = restored.request.source
+                            translationRows = restoredTranslation.rows
+                            savedDraft = restoredTranslation.draft
+                            translations = restored.request.existing
+                            translationIndex = restored.request.start.coerceAtMost(translationRows.lastIndex)
+                            menuCursor = 0
+                            rowSearch = ""
+                        }
+                        exchangeReply = received.orEmpty()
                         exchange = restored
-                        message = "저장된 AI 요청을 복구했습니다. 기존 ChatGPT 응답을 붙여넣으세요."
-                    } }) { Text("저장된 AI 요청 재개") }
+                        preview = null
+                        message = if (received != null) "저장한 요청과 공유 응답을 복구했습니다. 검증 후 반영하세요."
+                            else "저장한 AI 요청을 복구했습니다. ChatGPT 응답을 공유하세요."
+                    } }) { Text("저장한 AI 요청 및 공유 응답 재개") }
                 TextButton(enabled = !busy, onClick = { runAction {
                     val removed = withContext(Dispatchers.IO) {
-                        ExchangeCheckpoint.discard(exchangeCheckpointFile)
+                        val removed = ExchangeCheckpoint.discard(exchangeCheckpointFile)
+                        SharedAgentReply.discard(context)
+                        removed
                     }
                     message = if (removed) "저장된 AI 요청 정보를 삭제했습니다." else "저장된 AI 요청이 없습니다."
                 } }) { Text("저장된 AI 요청 정보 지우기 (손상된 정보 포함)") }
@@ -352,6 +379,15 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         sharePreparedRequest(pending)
                     } }) { Text("검토 후 요청 저장 및 ChatGPT 열기") }
                     Text("복사·붙여넣기 없이 응답 JSON 텍스트를 Android 공유 메뉴의 DroidDeck AI 응답으로 보낼 수 있습니다. 대화 링크는 지원하지 않습니다.")
+                    TextButton(enabled = !busy, onClick = { runAction {
+                        val received = withContext(Dispatchers.IO) { SharedAgentReply.load(context, pending.id) }
+                            ?: error("이 요청에 공유된 응답이 없습니다.")
+                        require(exchangeReply.isBlank() || exchangeReply == received) {
+                            "입력란에 다른 응답이 있습니다. 직접 비운 뒤 다시 불러오세요."
+                        }
+                        exchangeReply = received
+                        message = "공유 응답을 불러왔습니다. 검증 후 반영하세요."
+                    } }) { Text("공유 응답 다시 불러오기") }
                     OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
                         enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
                     TextButton(enabled = !busy, onClick = {

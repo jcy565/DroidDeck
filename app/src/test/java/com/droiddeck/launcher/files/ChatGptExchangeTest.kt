@@ -65,6 +65,20 @@ class ChatGptExchangeTest {
             reviewed + ("b" to "bad\uD800"))) }.isFailure)
     }
 
+    @Test fun resumeTranslationRestoresRowsAndDraftAgainstExactCheckpoint() {
+        val source = "id\ttext\na\tHello {name}\nb\tBye"
+        val draft = TranslationDraftStore.Draft(mapOf("b" to "잘 가"), "a")
+        val pending = ChatGptExchange.create(target, GameAgent.Request("번역", "tsv", source, draft.edits))
+        val checkpoint = ChatGptExchange.checkpoint(pending, target, source, draft.edits)
+        val resumed = ChatGptExchange.resumeTranslation(checkpoint, target, "tsv", source, draft)
+        assertEquals(pending.id, resumed.pending.id)
+        assertEquals(listOf("a", "b"), resumed.rows.map { it.id })
+        assertEquals(draft, resumed.draft)
+        assertTrue(runCatching { ChatGptExchange.resumeTranslation(checkpoint, target, "tsv", source, null) }.isFailure)
+        assertTrue(runCatching { ChatGptExchange.resumeTranslation(checkpoint, "/other/file.tsv", "tsv", source, draft) }.isFailure)
+        assertTrue(runCatching { ChatGptExchange.resumeTranslation(checkpoint, target, "tsv", source + "\n", draft) }.isFailure)
+    }
+
     @Test fun savedRequestRestoresExactIdAndRejectsChangedSource() {
         val p = ChatGptExchange.create(target, request)
         val saved = ChatGptExchange.checkpoint(p, target, source, emptyMap())

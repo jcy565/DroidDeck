@@ -784,3 +784,7 @@ Both reviewed manual and local-fallback share actions now validate source/draft 
 
 ## No-paste Android response handoff
 Add exported text/plain ACTION_SEND receiver with dedicated share label, bounded strict flat JSON, saved checkpoint ID/action validation, private one-slot response inbox and in-editor reactive import only when response field empty. Existing source/draft checks and explicit acceptance remain mandatory. Shared links are rejected (no network scraping); actual ChatGPT selected-text share depends on app/Android UI, not a documented automatic callback. Existing clipboard/manual route remains fallback. Response inbox cleared on accepted reply; private preferences may retain unaccepted response until replacement/clear. No automatic transmission or API calls. Added parser test; not compiled or device-verified.
+
+
+## Shared reply one-step recovery (no paid API)
+Reopen the same original file and use saved request and shared response resume even before extracting translation rows. Reload revision-bound saved draft and rows, verify checkpoint, then display response for existing validation. Refuse mismatched source/draft and unsaved edits. Explicit inbox reload cannot overwrite different typed response; explicit checkpoint discard removes unaccepted inbox data. No paid API, credentials or automatic network calls. Still uses Android text share, not automatic ChatGPT callback; device behavior unverified. New regression method not run. Integrated run 46103956740 reached Android compile/tests; keep separate staging until terminal.

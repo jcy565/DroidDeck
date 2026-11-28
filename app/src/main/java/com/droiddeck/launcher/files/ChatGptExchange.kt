@@ -53,6 +53,18 @@ internal object ChatGptExchange {
         return Pending(request, prompt, AiCore.Exchange(target, source, request.existing, saved.id))
     }
 
+    data class TranslationResume(val pending: Pending, val rows: List<GamePatchAuthor.Row>,
+        val draft: TranslationDraftStore.Draft?)
+
+    /** Recover only against the exact saved source revision and edits. */
+    fun resumeTranslation(saved: ExchangeCheckpoint.Saved, target: String, extension: String,
+        source: String, draft: TranslationDraftStore.Draft?): TranslationResume {
+        require(GamePatchAuthor.matchesTranslationExtension(source, extension))
+        val rows = GamePatchAuthor.extract(source)
+        val pending = restore(saved, target, extension, source, draft?.edits.orEmpty())
+        return TranslationResume(pending, rows, draft)
+    }
+
     fun accept(pending: Pending, currentTarget: String, currentSource: String,
         currentEdits: Map<String, String>, response: String): GameAgent.Result {
         AiHostBridge.requireCompatible()
