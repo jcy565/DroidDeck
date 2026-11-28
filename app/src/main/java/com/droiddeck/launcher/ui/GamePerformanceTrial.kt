@@ -143,9 +143,12 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     saving = true
                     message = "검증된 측정값을 저장하는 중입니다."
                     message = withContext(Dispatchers.IO) {
-                        TrialDatabase(context).use {
+                        val database = TrialDatabase(context)
+                        try {
                             currentCoroutineContext().ensureActive()
-                            it.record(values)
+                            database.record(values)
+                        } finally {
+                            database.close()
                         }
                     }
                 } catch (e: CancellationException) {
