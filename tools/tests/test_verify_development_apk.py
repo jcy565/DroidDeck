@@ -132,6 +132,27 @@ class DevelopmentApkAuditTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.verify()
 
+    def test_rejects_ambiguous_or_malformed_inventory(self):
+        valid = {'size': 0, 'sha256': 'a' * 64}
+        for raw in ('{"entries":{},"entries":{}}',
+                    '{"entries":{"x":{"size":0,"size":1,"sha256":"' + 'a' * 64 + '"}}}',
+                    '[]', '{}', '{"entries":{}}',
+                    json.dumps({'entries': {'x': None}}),
+                    *(json.dumps({'entries': {'x': dict(valid, size=size)}})
+                      for size in (True, -1, 0.0, '0')),
+                    *(json.dumps({'entries': {'x': dict(valid, sha256=sha)}})
+                      for sha in (None, 'bad', 'A' * 64))):
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                self.fixture(change={'app-release.apk.json': raw})
+                self.verify()
+        self.fixture(change={'apk-sha256.txt': ''})
+        with self.assertRaisesRegex(ValueError, 'Invalid APK SHA-256'):
+            self.verify()
+        self.fixture(change={'official-comparison.json':
+                             '{"assistant":{"package":"wrong","package":"com.droiddeck.launcher.ai"}}'})
+        with self.assertRaisesRegex(ValueError, 'Duplicate JSON key'):
+            self.verify()
+
     def test_rejects_inner_inventory_mismatch_even_with_matching_apk_digest(self):
         valid = list(MEMBERS.items())
         for inner in (valid[:-1], valid + [('extra', b'x')], valid + [valid[0]],

@@ -55,16 +55,41 @@ def snapshot_archive(path, expected, label):
         yield snapshot
 
 
+def reject_duplicate_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f'Duplicate JSON key: {key}')
+        result[key] = value
+    return result
+
+
+def inventory_entries(raw):
+    document = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
+    entries = document.get('entries') if isinstance(document, dict) else None
+    if not isinstance(entries, dict) or not entries:
+        raise ValueError('Missing or invalid APK inventory entries')
+    for name, entry in entries.items():
+        if (not name or not isinstance(entry, dict)
+                or type(entry.get('size')) is not int or entry['size'] < 0
+                or not isinstance(entry.get('sha256'), str)
+                or not re.fullmatch(r'[a-f0-9]{64}', entry['sha256'])):
+            raise ValueError(f'Invalid APK inventory entry: {name}')
+    return entries
+
+
 def verify_payload(apk_zip, inventory_zip, expected_commit, pinned):
     with zipfile.ZipFile(inventory_zip) as inv:
         unique_files(inv)
         if inv.read('source-commit.txt').decode().strip() != expected_commit:
             raise ValueError('Source commit mismatch')
-        expected_hash = inv.read('apk-sha256.txt').decode().split()[0]
+        hash_fields = inv.read('apk-sha256.txt').decode().split()
+        expected_hash = hash_fields[0] if hash_fields else ''
         if not re.fullmatch(r'[a-f0-9]{64}', expected_hash):
             raise ValueError('Invalid APK SHA-256')
-        entries = json.loads(inv.read('app-release.apk.json'))['entries']
-        comparison = json.loads(inv.read('official-comparison.json'))
+        entries = inventory_entries(inv.read('app-release.apk.json'))
+        comparison = json.loads(inv.read('official-comparison.json'),
+                                object_pairs_hook=reject_duplicate_keys)
         if comparison['assistant']['package'] != 'com.droiddeck.launcher.ai':
             raise ValueError('Unexpected inventory package')
     with zipfile.ZipFile(apk_zip) as outer, tempfile.TemporaryFile() as apk:
