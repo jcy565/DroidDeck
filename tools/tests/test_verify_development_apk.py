@@ -63,6 +63,29 @@ class DevelopmentApkAuditTest(unittest.TestCase):
         self.assertEqual('com.droiddeck.launcher.ai', result['package_from_ci_inventory'])
         self.assertFalse(result['signature_verified_here'])
 
+    def test_archive_pins_match_both_downloads(self):
+        self.fixture()
+        self.assertFalse(self.verify()['archive_hashes_matched'])
+        a = hashlib.sha256(self.apk.read_bytes()).hexdigest()
+        b = hashlib.sha256(self.inv.read_bytes()).hexdigest()
+        result = AUDIT.verify(self.apk, self.inv, COMMIT,
+                              apk_zip_sha256=a, inventory_zip_sha256=b)
+        self.assertTrue(result['archive_hashes_matched'])
+        self.assertEqual(2, result['verified_entries'])
+        self.assertFalse(result['signature_verified_here'])
+
+    def test_archive_pins_reject_missing_invalid_or_mismatched_digests(self):
+        self.fixture()
+        a = hashlib.sha256(self.apk.read_bytes()).hexdigest()
+        b = hashlib.sha256(self.inv.read_bytes()).hexdigest()
+        for pins in (dict(apk_zip_sha256=a), dict(inventory_zip_sha256=b),
+                     dict(apk_zip_sha256='bad', inventory_zip_sha256=b),
+                     dict(apk_zip_sha256=a, inventory_zip_sha256='bad'),
+                     dict(apk_zip_sha256='0' * 64, inventory_zip_sha256=b),
+                     dict(apk_zip_sha256=a, inventory_zip_sha256='0' * 64)):
+            with self.subTest(pins=pins), self.assertRaises(ValueError):
+                AUDIT.verify(self.apk, self.inv, COMMIT, **pins)
+
     def test_rejects_wrong_source_hash_and_package(self):
         self.fixture()
         for commit in ('a', 'b' * 40, 'A' * 40):
