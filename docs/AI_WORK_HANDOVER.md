@@ -368,3 +368,5 @@
 - Rust 수정 후보 46138338849 성공, artifact 15261255414 및 원본/후보 lock 해시 확인. RustSec 취약점 0 경고 0, 호스트 171/171 통과. registry 출처, 기존 버전 체크섬 보존, diff 검토 후 lock SHA-256 b9de40e2a90f7d02f41a0720850e01cbbe070b85f9342ec200461f7c190732a2를 437c35ea0c89e5f0e4b2a4dc4d26b7d02ad67c6f에 반영. 원격 blob 6ea301ff 일치. Gradle 46138493075 성공, 164 Maven 좌표 및 파일 144개, 대상 5개 버전 일치. 공개 OSV Maven DB ZIP(d55fcc55fda1605f26bdd0a732d0cbb69532e5f8ad35c1721ee4f662e9168ee2)을 로컬에서 Maven ComparableVersion으로 대조해 원본 11건 재현, 수정 후 0건. 기기 보호 차단 원인 미확정. 승인된 개발 빌드 브랜치 d8c84a5에서 437c35e로 비강제 fast-forward. 빌드 46138753883 결과 확인 필요.
 
 - 7b85899에서 향후 Cargo.lock 변경 때마다 해당 커밋의 Git blob을 RustSec으로 검사하도록 연결. 기존 기준판과 후보판 보고서는 각 Actions 실행에 보존. 전체 빌드 46138753883의 Rust 호스트·Python/네이티브·Xbox·컴포넌트 준비 통과, Android job 진행 중.
+
+- 전체 빌드 46138753883에서 Rust 171/171, Python 2162 통과/50 skip, 서명 도구 5/5 통과 후 Android mergeReleaseJavaResource 실패. Bouncy Castle 1.85 세 JAR의 META-INF/LICENSE.md 충돌 확인. fc57f72에서 해당 텍스트만 병합해 각 고지 보존. 비강제 빌드 브랜치 통합, 후속 전체 빌드 46139567549. 별도 실제 커밋 lock RustSec 46138989765 취약점 및 경고 0 확인.
