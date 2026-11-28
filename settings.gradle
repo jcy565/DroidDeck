@@ -11,6 +11,25 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
+        // CI enables this only after the SHA-512 checked prefetch succeeds.
+        // Restrict local resolution to the single pinned native runtime module.
+        if (providers.environmentVariable('DROIDDECK_VERIFIED_ROBOLECTRIC_REPO').orNull == 'true') {
+            exclusiveContent {
+                forRepository {
+                    maven {
+                        name = 'verifiedRobolectricNativeRuntime'
+                        url = uri(new File(System.getProperty('user.home'), '.m2/repository'))
+                        metadataSources {
+                            mavenPom()
+                            ignoreGradleMetadataRedirection()
+                        }
+                    }
+                }
+                filter {
+                    includeVersion('org.robolectric', 'nativeruntime-dist-compat', '1.0.18')
+                }
+            }
+        }
     }
 }
 
