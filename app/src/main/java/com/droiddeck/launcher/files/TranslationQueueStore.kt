@@ -18,16 +18,15 @@ internal object TranslationQueueStore {
         val game = root.canonicalFile.toPath()
         val target = directory.canonicalFile.toPath()
         require(!game.startsWith(target) && !target.startsWith(game))
-        require(!Files.isSymbolicLink(directory.toPath()))
+        require(Files.notExists(directory.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
         val path = game.toString()
         require(path.length <= 4096)
         val key = hash(path.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it.toInt() and 255) }
         return path to File(directory, "$key.queue")
     }
     private fun validate(c: TranslationDiscovery.Candidate) {
-        require(c.relative.length in 1..4096 && c.relative.split('/').all {
-            it.isNotBlank() && it != "." && it != ".." && it.none { ch -> ch.isISOControl() || ch == '\\' }
-        })
+        require(TranslationDiscovery.validRelative(c.relative))
         require(File(c.relative).extension.lowercase(Locale.ROOT) in setOf("tsv", "csv", "json"))
         require(c.rows in 1..TranslationLimits.MAX_ROWS && c.digest.matches(Regex("[0-9a-f]{64}")))
     }
