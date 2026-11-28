@@ -228,13 +228,23 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             if (aiAvailability.enabled && (config || log || translationTable)) {
                 Text("ChatGPT 앱 연동 · 수동 작업 교환")
                 Text("별도 API 키나 로컬 모델 없이 사용합니다. 요청에 선택한 파일 내용이 포함됩니다. 개인정보, 계정 정보, 저작권 제한 자료를 공유하지 마세요. 자동 전송 또는 자동 익명화는 하지 않습니다.")
+                if (translationTable) {
+                    TextButton(enabled = !busy && pendingExport == null && exchange == null, onClick = {
+                        exchangeInstruction = "게임 문맥에 맞게 자연스러운 한국어로 번역하고 변수와 이스케이프를 그대로 유지해 주세요."
+                    }) { Text("한국어 번역 요청 자동 입력") }
+                    if (translationRows.isNotEmpty()) {
+                        val missing = translationRows.count { it.id !in translations }
+                        Text("AI 요청 가능 미입력 문장 ${missing}개 · 한 번에 최대 5개")
+                        Text("기존 입력은 덮어쓰지 않습니다. 형식 오류와 원문 그대로인 문장은 편집기에서 직접 검토하세요.")
+                    }
+                }
                 OutlinedTextField(exchangeInstruction, { if (it.length <= GameAgent.MAX_REQUEST_CHARS) {
                     exchangeInstruction = it
                     exchange = null
                     exchangeReply = ""
-                } }, enabled = !busy, label = { Text("ChatGPT 작업 요청") })
-                TextButton(enabled = !busy && pendingExport == null && exchangeInstruction.isNotBlank() &&
-                    (!translationTable || translationRows.isNotEmpty()), onClick = { runAction {
+                } }, enabled = !busy && exchange == null, label = { Text("ChatGPT 작업 요청") })
+                TextButton(enabled = !busy && pendingExport == null && exchange == null && exchangeInstruction.isNotBlank() &&
+                    (!translationTable || translationRows.any { it.id !in translations }), onClick = { runAction {
                     exchange = null
                     exchangeReply = ""
                     val instruction = exchangeInstruction
@@ -248,7 +258,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         ChatGptExchange.create(file.canonicalPath, GameAgent.Request(instruction, file.extension, source, edits, start))
                     }
                     message = "아래 요청 전문을 검토한 후 공유하세요. 실제 전송은 직접 선택합니다."
-                } }) { Text("AI 작업 요청 생성") }
+                } }) { Text(if (translationTable) "다음 미입력 문장 AI 요청 생성" else "AI 작업 요청 생성") }
                 Text("앱 전환 후 작업을 재개하려면 요청 정보를 저장하세요. 요청 문구와 식별자·해시만 이 기기의 백업 제외 앱 저장소에 보관합니다. 원본·로그·번역문은 저장하지 않습니다. 번역 초안은 별도로 저장해야 합니다.")
                 TextButton(enabled = !busy && pendingExport == null && (!translationTable || translationRows.isNotEmpty()),
                     onClick = { runAction {
@@ -289,6 +299,14 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         label = { Text("공유할 요청 전문") }, maxLines = 8)
                     TextButton(enabled = !busy && pendingExport == null, onClick = {
                         try {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("DroidDeck AI 요청", pending.prompt))
+                            message = "요청 전문을 복사했습니다. 직접 붙여넣고 공유하세요."
+                        } catch (_: Exception) { message = "요청을 복사하지 못했습니다." }
+                    }) { Text("검토한 요청 복사") }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = {
+                        try {
                             AiHostBridge.requireCompatible()
                             context.startActivity(Intent.createChooser(
                                 Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -297,24 +315,34 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }) { Text("검토 후 요청 공유") }
                     OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
                         enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
+                    if (translationTable) Text("아래 버튼은 응답을 검증한 뒤 현재 번역 초안과 다음 작업 위치를 저장합니다. 게임 파일에는 적용하지 않습니다.")
                     TextButton(enabled = !busy && pendingExport == null && exchangeReply.isNotBlank(), onClick = { runAction {
                         val reply = exchangeReply
                         val edits = if (translationTable) translations.toMap() else emptyMap()
-                        val result = withContext(Dispatchers.IO) {
+                        val expectedDraft = savedDraft
+                        val rows = translationRows.toList()
+                        val (result, persisted) = withContext(Dispatchers.IO) {
                             check(GameplayBudget.allowsOptionalAnalysis(context))
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                             val result = ChatGptExchange.accept(pending, file.canonicalPath, source, edits, reply)
                             check(GameplayBudget.allowsOptionalAnalysis(context))
                             if (!log) require(original() == source) { "원본이 변경됐습니다." }
-                            result
+                            val persisted = if (result is GameAgent.Result.Translation) {
+                                val cursor = rows[result.next.coerceAtMost(rows.lastIndex)].id
+                                TranslationDraftStore.saveProgressIfUnchanged(draftDirectory, file.canonicalPath,
+                                    source, expectedDraft, result.edits, cursor)
+                            } else null
+                            result to persisted
                         }
                         when (result) {
                             is GameAgent.Result.Patch -> { preview = result.preview; message = result.explanation }
                             is GameAgent.Result.Translation -> {
                                 translations = result.edits
+                                savedDraft = requireNotNull(persisted)
                                 translationIndex = result.next.coerceAtMost(translationRows.lastIndex)
                                 preview = null
-                                message = result.explanation + " · 초안을 검토하고 저장하세요."
+                                val missing = rows.count { it.id !in result.edits }
+                                message = result.explanation + " · 초안과 작업 위치 저장 완료. 남은 미입력 문장 " + missing + "개. 번역 품질은 직접 검토하세요."
                             }
                             is GameAgent.Result.Advice -> { preview = null; message = result.explanation + "\n" + result.evidence }
                         }
@@ -324,7 +352,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         if (cleanupFailed) message += " · 저장된 요청 정보 정리 실패"
                         exchange = null
                         exchangeReply = ""
-                    } }) { Text("AI 결과 검증 및 초안 반영") }
+                    } }) { Text(if (translationTable) "AI 응답 검증 및 번역 초안 저장" else "AI 결과 검증 및 초안 반영") }
                     TextButton(enabled = !busy, onClick = { exchange = null; exchangeReply = "" }) { Text("AI 작업 취소") }
                 }
             }
