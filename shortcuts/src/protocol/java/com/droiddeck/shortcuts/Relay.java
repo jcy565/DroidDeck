@@ -9,10 +9,11 @@ import java.util.List;
 import java.util.Map;
 
 public final class Relay {
-    public static final String PACKAGE = "com.droiddeck.shortcuts";
-    public static final String SERVICE = PACKAGE + ".ShortcutsService";
-    public static final String ACTION = "com.droiddeck.shortcuts.RELAY";
-    public static final String DESCRIPTOR = "com.droiddeck.shortcuts.Relay";
+    public static final String PACKAGE = "com.droiddeck.shortcuts.ai";
+    public static final String HOST_PACKAGE = "com.droiddeck.launcher.ai";
+    public static final String SERVICE = "com.droiddeck.shortcuts.ShortcutsService";
+    public static final String ACTION = "com.droiddeck.shortcuts.ai.RELAY";
+    public static final String DESCRIPTOR = "com.droiddeck.shortcuts.ai.Relay";
     public static final int VERSION = 3;
 
     public static final int CONFIG = 1;
