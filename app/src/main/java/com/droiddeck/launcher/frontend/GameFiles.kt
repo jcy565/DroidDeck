@@ -18,8 +18,9 @@ object GameFiles {
     const val EXTENSION = "steam"
     private const val MAX_BYTES = 4096
     private const val MAX_NAME_BYTES = 200
-    private const val INVENTORY = ".droiddeck-sync.json"
-    private const val FORMAT = "droiddeck-game-files-v1"
+    internal const val EXPORT_DIRECTORY = "DroidDeck AI"
+    private const val INVENTORY = ".droiddeck-ai-sync.json"
+    private const val FORMAT = "droiddeck-ai-game-files-v1"
 
     fun readIntent(context: Context, request: Intent): GameRequest? = runCatching {
         if (request.action != Intent.ACTION_VIEW) return null
@@ -109,8 +110,21 @@ object GameFiles {
         return id
     }
 
+    // The selected folder is a parent, never an inventory shared with the official app.
+    internal fun exportDirectory(context: Context, parent: File): File {
+        require(parent.isDirectory) { context.getString(R.string.gfiles_folder_unavailable) }
+        val folder = child(context, parent.canonicalFile, EXPORT_DIRECTORY)
+        require(!java.nio.file.Files.isSymbolicLink(folder.toPath()))
+        check(folder.isDirectory || folder.mkdir()) { context.getString(R.string.gfiles_folder_unavailable) }
+        // Do not adopt an official export folder even if it has the AI directory name.
+        require(!java.nio.file.Files.exists(File(folder, ".droiddeck-sync.json").toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            context.getString(R.string.gfiles_unrelated_inventory)
+        }
+        return folder
+    }
+
     @Synchronized fun export(context: Context, folder: File, game: Library.SteamGame): File =
-        exportNamed(context, folder, game, filename(game))
+        exportNamed(context, exportDirectory(context, folder), game, filename(game))
 
     private fun exportNamed(context: Context, folder: File, game: Library.SteamGame, name: String): File {
         require(folder.isDirectory) { context.getString(R.string.gfiles_folder_unavailable) }
@@ -144,8 +158,8 @@ object GameFiles {
         if (!target.exists()) AtomicFile(target).writeBytes(art.readBytes())
     }
 
-    @Synchronized fun sync(context: Context, folder: File, games: List<Library.SteamGame>) {
-        require(folder.isDirectory) { context.getString(R.string.gfiles_folder_unavailable) }
+    @Synchronized fun sync(context: Context, parent: File, games: List<Library.SteamGame>) {
+        val folder = exportDirectory(context, parent)
         val inventory = child(context, folder, INVENTORY)
         val previous = if (inventory.exists()) {
             val record = JSONObject(AtomicFile(inventory).readText())
@@ -197,6 +211,7 @@ object GameFiles {
     private fun child(context: Context, folder: File, name: String): File {
         require(name.isNotEmpty() && '/' !in name && '\\' !in name && name != "." && name != "..")
         val file = File(folder, name)
+        require(!java.nio.file.Files.isSymbolicLink(file.toPath()))
         require(file.canonicalFile.parentFile == folder.canonicalFile) { context.getString(R.string.gfiles_outside_folder) }
         return file
     }
