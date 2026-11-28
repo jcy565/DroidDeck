@@ -36,6 +36,7 @@ run_case() {
     if [ -d app/build/test-results/testReleaseUnitTest ]; then
         cp -a app/build/test-results/testReleaseUnitTest "$dest/results"
     fi
+    last_case_exit=$code
 }
 
 # Run the five classes observed before and through the second timeout in
@@ -46,6 +47,24 @@ run_case component-navigation "$out/component-navigation" "$out/group-summary.ts
     "$prefix.BottomScreenBarTest" "$prefix.BottomScreenTypingTest" "$prefix.CloudMessageTest" \
     "$prefix.ComponentDownloadsDrawerTest" "$prefix.ComponentsPageProfileTest"
 cat "$out/group-summary.tsv"
+
+# A failure only in a shared worker warrants smaller, independent probes.
+# Gradle controls class order; these are subsets, not ordered reproductions.
+group_exit=$last_case_exit
+printf 'test\texit_code\n' > "$out/subset-summary.tsv"
+for name in target-pair predecessors-drawer predecessors-profile; do
+    rm -rf "$out/$name"
+done
+if (( group_exit != 0 )); then
+    predecessors=("$prefix.BottomScreenBarTest" "$prefix.BottomScreenTypingTest" "$prefix.CloudMessageTest")
+    run_case target-pair "$out/target-pair" "$out/subset-summary.tsv" \
+        "$prefix.ComponentDownloadsDrawerTest" "$prefix.ComponentsPageProfileTest"
+    run_case predecessors-drawer "$out/predecessors-drawer" "$out/subset-summary.tsv" \
+        "${predecessors[@]}" "$prefix.ComponentDownloadsDrawerTest"
+    run_case predecessors-profile "$out/predecessors-profile" "$out/subset-summary.tsv" \
+        "${predecessors[@]}" "$prefix.ComponentsPageProfileTest"
+fi
+cat "$out/subset-summary.tsv"
 
 printf 'test\texit_code\n' > "$out/summary.tsv"
 for test in "${tests[@]}"; do

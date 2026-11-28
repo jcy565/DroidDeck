@@ -35,13 +35,22 @@ results = Path("app/build/test-results/testReleaseUnitTest")
 results.mkdir(parents=True)
 (results / "TEST.xml").write_text(json.dumps(selectors))
 print("diagnostic selectors:", selectors)
-sys.exit(int(os.environ["GROUP_EXIT"]) if len(selectors) > 1 else 0)
+group_exit = int(os.environ["GROUP_EXIT"])
+if len(selectors) == 5:
+    sys.exit(group_exit)
+if len(selectors) == 4:
+    sys.exit(23 if selectors[-1].endswith("ComponentsPageProfileTest") else 17)
+sys.exit(0)
 ''')
                 gradle.chmod(0o755)
                 out = root / "app/build/compose-idle-diagnostics"
                 old = out / "component-navigation/results"
                 old.mkdir(parents=True)
                 (old / "stale.xml").write_text("stale")
+                for name in ("target-pair", "predecessors-drawer", "predecessors-profile"):
+                    stale_subset = out / name / "results"
+                    stale_subset.mkdir(parents=True)
+                    (stale_subset / "stale.xml").write_text("stale")
                 for directory in ("test-results", "reports/tests"):
                     stale = root / "app/build" / directory / "testReleaseUnitTest"
                     stale.mkdir(parents=True)
@@ -50,13 +59,28 @@ sys.exit(int(os.environ["GROUP_EXIT"]) if len(selectors) > 1 else 0)
                                env={**os.environ, "NDK_VERSION": "mock", "GROUP_EXIT": str(group_exit)},
                                capture_output=True, text=True)
                 calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
-                self.assertEqual(14, len(calls))
+                subsets = [GROUP[-2:], GROUP[:4], GROUP[:3] + GROUP[-1:]] if group_exit else []
+                self.assertEqual(14 + len(subsets), len(calls))
                 self.assertEqual(GROUP, calls[0])
                 self.assertEqual(["test\texit_code", f"component-navigation\t{group_exit}"],
                                  (out / "group-summary.tsv").read_text().splitlines())
                 self.assertEqual(GROUP, json.loads((old / "TEST.xml").read_text()))
                 self.assertFalse((old / "stale.xml").exists())
-                for filename, count, offset in (("summary.tsv", 11, 1), ("class-summary.tsv", 2, 12)):
+                subset_summary = (out / "subset-summary.tsv").read_text().splitlines()
+                names = ["target-pair", "predecessors-drawer", "predecessors-profile"]
+                self.assertEqual(["test\texit_code"] + [
+                    f"{name}\t{code}" for name, code in zip(names, (0, 17, 23)) if group_exit
+                ], subset_summary)
+                self.assertEqual(subsets, calls[1:1 + len(subsets)])
+                for name, selectors in zip(names, subsets):
+                    self.assertEqual(selectors, json.loads(
+                        (out / name / "results/TEST.xml").read_text()))
+                for name in names:
+                    self.assertFalse((out / name / "results/stale.xml").exists())
+                if not group_exit:
+                    self.assertTrue(all(not (out / name).exists() for name in names))
+                for filename, count, offset in (("summary.tsv", 11, 1 + len(subsets)),
+                                                ("class-summary.tsv", 2, 12 + len(subsets))):
                     rows = (out / filename).read_text().splitlines()[1:]
                     self.assertEqual(count, len(rows))
                     self.assertEqual([[row.split("\t")[0]] for row in rows], calls[offset:offset+count])
