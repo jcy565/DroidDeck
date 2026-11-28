@@ -10,7 +10,9 @@ import java.util.UUID
 
 /** Explicit local checkpoint; no source text, target path, draft text, prompt or response stored. */
 internal object ExchangeCheckpoint {
-    private const val MAGIC = 0x44445831
+    private const val LEGACY_MAGIC = 0x44445831
+    private const val MAGIC = 0x44445832
+    private const val DIGEST_BYTES = 32
     private const val MAX_BYTES = 8192L
     data class Saved(val id: String, val instruction: String, val start: Int, val fingerprint: String)
 
@@ -33,17 +35,31 @@ internal object ExchangeCheckpoint {
         return digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
     }
 
+    private fun directory(file: File): java.nio.file.Path {
+        val path = requireNotNull(file.parentFile).toPath()
+        require(Files.notExists(path, NOFOLLOW_LINKS) || Files.isDirectory(path, NOFOLLOW_LINKS)) { "Invalid checkpoint directory" }
+        return path
+    }
+
+    private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
+
     @Synchronized fun save(file: File, saved: Saved) {
         validate(saved)
-        val directory = requireNotNull(file.parentFile).toPath()
+        val directory = directory(file)
+        require(Files.notExists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
+        val body = ByteArrayOutputStream().also { bytes ->
+            DataOutputStream(bytes).use { out ->
+                out.writeInt(MAGIC); out.writeUTF(saved.id); out.writeUTF(saved.instruction)
+                out.writeInt(saved.start); out.writeUTF(saved.fingerprint)
+            }
+        }.toByteArray()
+        require(body.size + DIGEST_BYTES <= MAX_BYTES)
         Files.createDirectories(directory)
-        require(!Files.isSymbolicLink(directory) && !Files.isSymbolicLink(file.toPath()))
+        require(Files.isDirectory(directory, NOFOLLOW_LINKS))
         val temp = Files.createTempFile(directory, ".exchange-", ".tmp")
         try {
             FileOutputStream(temp.toFile()).use { stream ->
-                val out = DataOutputStream(stream)
-                out.writeInt(MAGIC); out.writeUTF(saved.id); out.writeUTF(saved.instruction)
-                out.writeInt(saved.start); out.writeUTF(saved.fingerprint); out.flush(); stream.fd.sync()
+                stream.write(body); stream.write(digest(body)); stream.fd.sync()
             }
             require(Files.size(temp) <= MAX_BYTES)
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
@@ -51,12 +67,35 @@ internal object ExchangeCheckpoint {
     }
 
     @Synchronized fun load(file: File): Saved? {
-        require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
+        directory(file)
         val path = file.toPath()
         if (Files.notExists(path, NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(path, NOFOLLOW_LINKS) && Files.size(path) in 1..MAX_BYTES)
-        return DataInputStream(Files.newInputStream(path, NOFOLLOW_LINKS)).use { input ->
-            require(input.readInt() == MAGIC)
+        val bytes = Files.newInputStream(path, NOFOLLOW_LINKS).use { input ->
+            val out = ByteArrayOutputStream()
+            val block = ByteArray(4096)
+            while (true) {
+                val n = input.read(block)
+                if (n < 0) break
+                require(n > 0 && out.size() + n <= MAX_BYTES)
+                out.write(block, 0, n)
+            }
+            out.toByteArray()
+        }
+        val magic = DataInputStream(bytes.inputStream()).use { it.readInt() }
+        val body = when (magic) {
+            LEGACY_MAGIC -> bytes
+            MAGIC -> {
+                require(bytes.size > DIGEST_BYTES)
+                val end = bytes.size - DIGEST_BYTES
+                bytes.copyOfRange(0, end).also {
+                    require(MessageDigest.isEqual(digest(it), bytes.copyOfRange(end, bytes.size))) { "Damaged checkpoint" }
+                }
+            }
+            else -> error("Unsupported checkpoint format")
+        }
+        return DataInputStream(body.inputStream()).use { input ->
+            require(input.readInt() == magic)
             val saved = Saved(input.readUTF(), input.readUTF(), input.readInt(), input.readUTF())
             validate(saved); require(input.read() == -1)
             saved
@@ -65,7 +104,7 @@ internal object ExchangeCheckpoint {
 
     /** Explicit user discard only; never used for automatic response cleanup. */
     @Synchronized fun discard(file: File): Boolean {
-        require(!Files.isSymbolicLink(requireNotNull(file.parentFile).toPath()))
+        directory(file)
         val path = file.toPath()
         if (Files.notExists(path, NOFOLLOW_LINKS)) return false
         require(Files.isRegularFile(path, NOFOLLOW_LINKS)) { "Invalid checkpoint path" }
