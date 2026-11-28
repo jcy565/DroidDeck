@@ -389,6 +389,14 @@ android.sourceSets.main.jniLibs.srcDir(vkbridgeJniLibsDir)
 tasks.named('preBuild').configure { dependsOn(buildVkBridgeServer) }
 
 dependencies {
+    constraints {
+        implementation 'com.google.guava:guava:33.7.2-android'
+        implementation 'com.google.protobuf:protobuf-javalite:4.28.2'
+        implementation 'org.apache.commons:commons-lang3:3.18.0'
+        implementation 'org.bouncycastle:bcpkix-jdk18on:1.85'
+        implementation 'org.bouncycastle:bcprov-jdk18on:1.85'
+    }
+
     implementation project(':ai-core')
     if (experimentalImageOcr) {
         implementation 'com.google.mlkit:text-recognition:16.0.1'
