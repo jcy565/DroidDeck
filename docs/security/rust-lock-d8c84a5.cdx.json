@@ -1,0 +1,3761 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "library",
+      "bom-ref": "local:droiddeckstores@0.1.0",
+      "name": "droiddeckstores",
+      "version": "0.1.0",
+      "description": "Store engine; source lockfile snapshot, not an APK binary inventory."
+    },
+    "properties": [
+      {
+        "name": "droiddeck:source-commit",
+        "value": "d8c84a5faec188c4c3d2cbf61df8b234495a1668"
+      },
+      {
+        "name": "droiddeck:lockfile",
+        "value": "app/src/main/rust/stores/Cargo.lock"
+      },
+      {
+        "name": "droiddeck:lockfile-git-blob",
+        "value": "2fac37c5aa822698617c14fa23f2370249092258"
+      },
+      {
+        "name": "droiddeck:scope",
+        "value": "Cargo.lock all targets and dependency types; not Android runtime-only; excludes Gradle, vendored C and other native binaries"
+      },
+      {
+        "name": "droiddeck:hash-provenance",
+        "value": "SHA-256 checksums declared in Cargo.lock; crate archives not independently downloaded or verified"
+      },
+      {
+        "name": "droiddeck:vulnerability-scan",
+        "value": "not performed"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/adler2@2.0.1",
+      "name": "adler2",
+      "version": "2.0.1",
+      "purl": "pkg:cargo/adler2@2.0.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/async-compression@0.4.42",
+      "name": "async-compression",
+      "version": "0.4.42",
+      "purl": "pkg:cargo/async-compression@0.4.42",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e79b3f8a79cccc2898f31920fc69f304859b3bd567490f75ebf51ae1c792a9ac"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/atomic-waker@1.1.2",
+      "name": "atomic-waker",
+      "version": "1.1.2",
+      "purl": "pkg:cargo/atomic-waker@1.1.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/base64@0.22.1",
+      "name": "base64",
+      "version": "0.22.1",
+      "purl": "pkg:cargo/base64@0.22.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/bitflags@2.11.1",
+      "name": "bitflags",
+      "version": "2.11.1",
+      "purl": "pkg:cargo/bitflags@2.11.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/block-buffer@0.10.4",
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "purl": "pkg:cargo/block-buffer@0.10.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/bumpalo@3.20.3",
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "purl": "pkg:cargo/bumpalo@3.20.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/byteorder@1.5.0",
+      "name": "byteorder",
+      "version": "1.5.0",
+      "purl": "pkg:cargo/byteorder@1.5.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/bytes@1.11.1",
+      "name": "bytes",
+      "version": "1.11.1",
+      "purl": "pkg:cargo/bytes@1.11.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/cc@1.2.62",
+      "name": "cc",
+      "version": "1.2.62",
+      "purl": "pkg:cargo/cc@1.2.62",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a1dce859f0832a7d088c4f1119888ab94ef4b5d6795d1ce05afb7fe159d79f98"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/cesu8@1.1.0",
+      "name": "cesu8",
+      "version": "1.1.0",
+      "purl": "pkg:cargo/cesu8@1.1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/cfg-if@1.0.4",
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "purl": "pkg:cargo/cfg-if@1.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/cfg_aliases@0.2.1",
+      "name": "cfg_aliases",
+      "version": "0.2.1",
+      "purl": "pkg:cargo/cfg_aliases@0.2.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/combine@4.6.7",
+      "name": "combine",
+      "version": "4.6.7",
+      "purl": "pkg:cargo/combine@4.6.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/compression-codecs@0.4.38",
+      "name": "compression-codecs",
+      "version": "0.4.38",
+      "purl": "pkg:cargo/compression-codecs@0.4.38",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ce2548391e9c1929c21bf6aa2680af86fe4c1b33e6cea9ac1cfeec0bd11218cf"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/compression-core@0.4.32",
+      "name": "compression-core",
+      "version": "0.4.32",
+      "purl": "pkg:cargo/compression-core@0.4.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/cpufeatures@0.2.17",
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "purl": "pkg:cargo/cpufeatures@0.2.17",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/crc@3.4.0",
+      "name": "crc",
+      "version": "3.4.0",
+      "purl": "pkg:cargo/crc@3.4.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/crc-catalog@2.5.0",
+      "name": "crc-catalog",
+      "version": "2.5.0",
+      "purl": "pkg:cargo/crc-catalog@2.5.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/crc32fast@1.5.0",
+      "name": "crc32fast",
+      "version": "1.5.0",
+      "purl": "pkg:cargo/crc32fast@1.5.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/crypto-common@0.1.7",
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "purl": "pkg:cargo/crypto-common@0.1.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/digest@0.10.7",
+      "name": "digest",
+      "version": "0.10.7",
+      "purl": "pkg:cargo/digest@0.10.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/displaydoc@0.2.6",
+      "name": "displaydoc",
+      "version": "0.2.6",
+      "purl": "pkg:cargo/displaydoc@0.2.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1ac70aa55017e108007fbaf5aa0f54b021c98f92ff8af59d42eda9da96e3dd4f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/equivalent@1.0.2",
+      "name": "equivalent",
+      "version": "1.0.2",
+      "purl": "pkg:cargo/equivalent@1.0.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/find-msvc-tools@0.1.9",
+      "name": "find-msvc-tools",
+      "version": "0.1.9",
+      "purl": "pkg:cargo/find-msvc-tools@0.1.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/flate2@1.1.9",
+      "name": "flate2",
+      "version": "1.1.9",
+      "purl": "pkg:cargo/flate2@1.1.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/form_urlencoded@1.2.2",
+      "name": "form_urlencoded",
+      "version": "1.2.2",
+      "purl": "pkg:cargo/form_urlencoded@1.2.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/futures-channel@0.3.32",
+      "name": "futures-channel",
+      "version": "0.3.32",
+      "purl": "pkg:cargo/futures-channel@0.3.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "07bbe89c50d7a535e539b8c17bc0b49bdb77747034daa8087407d655f3f7cc1d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/futures-core@0.3.32",
+      "name": "futures-core",
+      "version": "0.3.32",
+      "purl": "pkg:cargo/futures-core@0.3.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/futures-sink@0.3.32",
+      "name": "futures-sink",
+      "version": "0.3.32",
+      "purl": "pkg:cargo/futures-sink@0.3.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c39754e157331b013978ec91992bde1ac089843443c49cbc7f46150b0fad0893"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/futures-task@0.3.32",
+      "name": "futures-task",
+      "version": "0.3.32",
+      "purl": "pkg:cargo/futures-task@0.3.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "037711b3d59c33004d3856fbdc83b99d4ff37a24768fa1be9ce3538a1cde4393"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/futures-util@0.3.32",
+      "name": "futures-util",
+      "version": "0.3.32",
+      "purl": "pkg:cargo/futures-util@0.3.32",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/generic-array@0.14.7",
+      "name": "generic-array",
+      "version": "0.14.7",
+      "purl": "pkg:cargo/generic-array@0.14.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/getrandom@0.2.17",
+      "name": "getrandom",
+      "version": "0.2.17",
+      "purl": "pkg:cargo/getrandom@0.2.17",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/getrandom@0.3.4",
+      "name": "getrandom",
+      "version": "0.3.4",
+      "purl": "pkg:cargo/getrandom@0.3.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/hashbrown@0.17.1",
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "purl": "pkg:cargo/hashbrown@0.17.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/http@1.4.1",
+      "name": "http",
+      "version": "1.4.1",
+      "purl": "pkg:cargo/http@1.4.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8be7462df143984c4598a256ef469b251d7d7f9e271135073e78fc535414f3d0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/http-body@1.0.1",
+      "name": "http-body",
+      "version": "1.0.1",
+      "purl": "pkg:cargo/http-body@1.0.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1efedce1fb8e6913f23e0c92de8e62cd5b772a67e7b3946df930a62566c93184"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/http-body-util@0.1.3",
+      "name": "http-body-util",
+      "version": "0.1.3",
+      "purl": "pkg:cargo/http-body-util@0.1.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b021d93e26becf5dc7e1b75b1bed1fd93124b374ceb73f43d4d4eafec896a64a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/httparse@1.10.1",
+      "name": "httparse",
+      "version": "1.10.1",
+      "purl": "pkg:cargo/httparse@1.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/hyper@1.10.0",
+      "name": "hyper",
+      "version": "1.10.0",
+      "purl": "pkg:cargo/hyper@1.10.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "eb92f162bf56536459fc83c79b974bb12837acfed43d6bc370a7916d0ae15ecc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/hyper-rustls@0.27.9",
+      "name": "hyper-rustls",
+      "version": "0.27.9",
+      "purl": "pkg:cargo/hyper-rustls@0.27.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "33ca68d021ef39cf6463ab54c1d0f5daf03377b70561305bb89a8f83aab66e0f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/hyper-util@0.1.20",
+      "name": "hyper-util",
+      "version": "0.1.20",
+      "purl": "pkg:cargo/hyper-util@0.1.20",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "96547c2556ec9d12fb1578c4eaf448b04993e7fb79cbaad930a656880a6bdfa0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_collections@2.2.0",
+      "name": "icu_collections",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_collections@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2984d1cd16c883d7935b9e07e44071dca8d917fd52ecc02c04d5fa0b5a3f191c"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_locale_core@2.2.0",
+      "name": "icu_locale_core",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_locale_core@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "92219b62b3e2b4d88ac5119f8904c10f8f61bf7e95b640d25ba3075e6cac2c29"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_normalizer@2.2.0",
+      "name": "icu_normalizer",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_normalizer@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c56e5ee99d6e3d33bd91c5d85458b6005a22140021cc324cea84dd0e72cff3b4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_normalizer_data@2.2.0",
+      "name": "icu_normalizer_data",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_normalizer_data@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "da3be0ae77ea334f4da67c12f149704f19f81d1adf7c51cf482943e84a2bad38"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_properties@2.2.0",
+      "name": "icu_properties",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_properties@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bee3b67d0ea5c2cca5003417989af8996f8604e34fb9ddf96208a033901e70de"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_properties_data@2.2.0",
+      "name": "icu_properties_data",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_properties_data@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8e2bbb201e0c04f7b4b3e14382af113e17ba4f63e2c9d2ee626b720cbce54a14"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/icu_provider@2.2.0",
+      "name": "icu_provider",
+      "version": "2.2.0",
+      "purl": "pkg:cargo/icu_provider@2.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "139c4cf31c8b5f33d7e199446eff9c1e02decfc2f0eec2c8d71f65befa45b421"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/idna@1.1.0",
+      "name": "idna",
+      "version": "1.1.0",
+      "purl": "pkg:cargo/idna@1.1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/idna_adapter@1.2.2",
+      "name": "idna_adapter",
+      "version": "1.2.2",
+      "purl": "pkg:cargo/idna_adapter@1.2.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/indexmap@2.14.0",
+      "name": "indexmap",
+      "version": "2.14.0",
+      "purl": "pkg:cargo/indexmap@2.14.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/ipnet@2.12.0",
+      "name": "ipnet",
+      "version": "2.12.0",
+      "purl": "pkg:cargo/ipnet@2.12.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/itoa@1.0.18",
+      "name": "itoa",
+      "version": "1.0.18",
+      "purl": "pkg:cargo/itoa@1.0.18",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/jni@0.21.1",
+      "name": "jni",
+      "version": "0.21.1",
+      "purl": "pkg:cargo/jni@0.21.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1a87aa2bb7d2af34197c04845522473242e1aa17c12f4935d5856491a7fb8c97"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/jni-sys@0.3.1",
+      "name": "jni-sys",
+      "version": "0.3.1",
+      "purl": "pkg:cargo/jni-sys@0.3.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "41a652e1f9b6e0275df1f15b32661cf0d4b78d4d87ddec5e0c3c20f097433258"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/jni-sys@0.4.1",
+      "name": "jni-sys",
+      "version": "0.4.1",
+      "purl": "pkg:cargo/jni-sys@0.4.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/jni-sys-macros@0.4.1",
+      "name": "jni-sys-macros",
+      "version": "0.4.1",
+      "purl": "pkg:cargo/jni-sys-macros@0.4.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/js-sys@0.3.99",
+      "name": "js-sys",
+      "version": "0.3.99",
+      "purl": "pkg:cargo/js-sys@0.3.99",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "142bc4740e452c1e57ade0cbc129f139c9093e354346f0872ef985f4f5cf5f11"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/libc@0.2.186",
+      "name": "libc",
+      "version": "0.2.186",
+      "purl": "pkg:cargo/libc@0.2.186",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/litemap@0.8.2",
+      "name": "litemap",
+      "version": "0.8.2",
+      "purl": "pkg:cargo/litemap@0.8.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/log@0.4.30",
+      "name": "log",
+      "version": "0.4.30",
+      "purl": "pkg:cargo/log@0.4.30",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "616ec5685824bcc94416c6d4a7a446eea774a31efd7062c8480ba6fd06d7a6e5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/lru-slab@0.1.2",
+      "name": "lru-slab",
+      "version": "0.1.2",
+      "purl": "pkg:cargo/lru-slab@0.1.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/lzma-rs@0.3.0",
+      "name": "lzma-rs",
+      "version": "0.3.0",
+      "purl": "pkg:cargo/lzma-rs@0.3.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/memchr@2.8.1",
+      "name": "memchr",
+      "version": "2.8.1",
+      "purl": "pkg:cargo/memchr@2.8.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6b947ae49db0d222b1dbc6b113ce7248a3fc3a6ca21b696717bfc000ba4484d8"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/miniz_oxide@0.8.9",
+      "name": "miniz_oxide",
+      "version": "0.8.9",
+      "purl": "pkg:cargo/miniz_oxide@0.8.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/mio@1.2.0",
+      "name": "mio",
+      "version": "1.2.0",
+      "purl": "pkg:cargo/mio@1.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/once_cell@1.21.4",
+      "name": "once_cell",
+      "version": "1.21.4",
+      "purl": "pkg:cargo/once_cell@1.21.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/percent-encoding@2.3.2",
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "purl": "pkg:cargo/percent-encoding@2.3.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/pin-project-lite@0.2.17",
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "purl": "pkg:cargo/pin-project-lite@0.2.17",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/potential_utf@0.1.5",
+      "name": "potential_utf",
+      "version": "0.1.5",
+      "purl": "pkg:cargo/potential_utf@0.1.5",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0103b1cef7ec0cf76490e969665504990193874ea05c85ff9bab8b911d0a0564"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/ppv-lite86@0.2.21",
+      "name": "ppv-lite86",
+      "version": "0.2.21",
+      "purl": "pkg:cargo/ppv-lite86@0.2.21",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/proc-macro2@1.0.106",
+      "name": "proc-macro2",
+      "version": "1.0.106",
+      "purl": "pkg:cargo/proc-macro2@1.0.106",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/quinn@0.11.9",
+      "name": "quinn",
+      "version": "0.11.9",
+      "purl": "pkg:cargo/quinn@0.11.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b9e20a958963c291dc322d98411f541009df2ced7b5a4f2bd52337638cfccf20"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/quinn-proto@0.11.14",
+      "name": "quinn-proto",
+      "version": "0.11.14",
+      "purl": "pkg:cargo/quinn-proto@0.11.14",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "434b42fec591c96ef50e21e886936e66d3cc3f737104fdb9b737c40ffb94c098"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/quinn-udp@0.5.14",
+      "name": "quinn-udp",
+      "version": "0.5.14",
+      "purl": "pkg:cargo/quinn-udp@0.5.14",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "addec6a0dcad8a8d96a771f815f0eaf55f9d1805756410b39f5fa81332574cbd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/quote@1.0.45",
+      "name": "quote",
+      "version": "1.0.45",
+      "purl": "pkg:cargo/quote@1.0.45",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/r-efi@5.3.0",
+      "name": "r-efi",
+      "version": "5.3.0",
+      "purl": "pkg:cargo/r-efi@5.3.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rand@0.9.4",
+      "name": "rand",
+      "version": "0.9.4",
+      "purl": "pkg:cargo/rand@0.9.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "44c5af06bb1b7d3216d91932aed5265164bf384dc89cd6ba05cf59a35f5f76ea"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rand_chacha@0.9.0",
+      "name": "rand_chacha",
+      "version": "0.9.0",
+      "purl": "pkg:cargo/rand_chacha@0.9.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rand_core@0.9.5",
+      "name": "rand_core",
+      "version": "0.9.5",
+      "purl": "pkg:cargo/rand_core@0.9.5",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/reqwest@0.12.28",
+      "name": "reqwest",
+      "version": "0.12.28",
+      "purl": "pkg:cargo/reqwest@0.12.28",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/ring@0.17.14",
+      "name": "ring",
+      "version": "0.17.14",
+      "purl": "pkg:cargo/ring@0.17.14",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rustc-hash@2.1.2",
+      "name": "rustc-hash",
+      "version": "2.1.2",
+      "purl": "pkg:cargo/rustc-hash@2.1.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rustls@0.23.40",
+      "name": "rustls",
+      "version": "0.23.40",
+      "purl": "pkg:cargo/rustls@0.23.40",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rustls-pki-types@1.14.1",
+      "name": "rustls-pki-types",
+      "version": "1.14.1",
+      "purl": "pkg:cargo/rustls-pki-types@1.14.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rustls-webpki@0.103.13",
+      "name": "rustls-webpki",
+      "version": "0.103.13",
+      "purl": "pkg:cargo/rustls-webpki@0.103.13",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/rustversion@1.0.22",
+      "name": "rustversion",
+      "version": "1.0.22",
+      "purl": "pkg:cargo/rustversion@1.0.22",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/ryu@1.0.23",
+      "name": "ryu",
+      "version": "1.0.23",
+      "purl": "pkg:cargo/ryu@1.0.23",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/same-file@1.0.6",
+      "name": "same-file",
+      "version": "1.0.6",
+      "purl": "pkg:cargo/same-file@1.0.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/serde@1.0.228",
+      "name": "serde",
+      "version": "1.0.228",
+      "purl": "pkg:cargo/serde@1.0.228",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/serde_core@1.0.228",
+      "name": "serde_core",
+      "version": "1.0.228",
+      "purl": "pkg:cargo/serde_core@1.0.228",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/serde_derive@1.0.228",
+      "name": "serde_derive",
+      "version": "1.0.228",
+      "purl": "pkg:cargo/serde_derive@1.0.228",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/serde_json@1.0.150",
+      "name": "serde_json",
+      "version": "1.0.150",
+      "purl": "pkg:cargo/serde_json@1.0.150",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/serde_urlencoded@0.7.1",
+      "name": "serde_urlencoded",
+      "version": "0.7.1",
+      "purl": "pkg:cargo/serde_urlencoded@0.7.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/sha1@0.10.6",
+      "name": "sha1",
+      "version": "0.10.6",
+      "purl": "pkg:cargo/sha1@0.10.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/sha2@0.10.9",
+      "name": "sha2",
+      "version": "0.10.9",
+      "purl": "pkg:cargo/sha2@0.10.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/shlex@1.3.0",
+      "name": "shlex",
+      "version": "1.3.0",
+      "purl": "pkg:cargo/shlex@1.3.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/simd-adler32@0.3.9",
+      "name": "simd-adler32",
+      "version": "0.3.9",
+      "purl": "pkg:cargo/simd-adler32@0.3.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/slab@0.4.12",
+      "name": "slab",
+      "version": "0.4.12",
+      "purl": "pkg:cargo/slab@0.4.12",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/smallvec@1.15.1",
+      "name": "smallvec",
+      "version": "1.15.1",
+      "purl": "pkg:cargo/smallvec@1.15.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/socket2@0.6.3",
+      "name": "socket2",
+      "version": "0.6.3",
+      "purl": "pkg:cargo/socket2@0.6.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/stable_deref_trait@1.2.1",
+      "name": "stable_deref_trait",
+      "version": "1.2.1",
+      "purl": "pkg:cargo/stable_deref_trait@1.2.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/subtle@2.6.1",
+      "name": "subtle",
+      "version": "2.6.1",
+      "purl": "pkg:cargo/subtle@2.6.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/syn@2.0.117",
+      "name": "syn",
+      "version": "2.0.117",
+      "purl": "pkg:cargo/syn@2.0.117",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/sync_wrapper@1.0.2",
+      "name": "sync_wrapper",
+      "version": "1.0.2",
+      "purl": "pkg:cargo/sync_wrapper@1.0.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/synstructure@0.13.2",
+      "name": "synstructure",
+      "version": "0.13.2",
+      "purl": "pkg:cargo/synstructure@0.13.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/thiserror@1.0.69",
+      "name": "thiserror",
+      "version": "1.0.69",
+      "purl": "pkg:cargo/thiserror@1.0.69",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/thiserror@2.0.18",
+      "name": "thiserror",
+      "version": "2.0.18",
+      "purl": "pkg:cargo/thiserror@2.0.18",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/thiserror-impl@1.0.69",
+      "name": "thiserror-impl",
+      "version": "1.0.69",
+      "purl": "pkg:cargo/thiserror-impl@1.0.69",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/thiserror-impl@2.0.18",
+      "name": "thiserror-impl",
+      "version": "2.0.18",
+      "purl": "pkg:cargo/thiserror-impl@2.0.18",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tinystr@0.8.3",
+      "name": "tinystr",
+      "version": "0.8.3",
+      "purl": "pkg:cargo/tinystr@0.8.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c8323304221c2a851516f22236c5722a72eaa19749016521d6dff0824447d96d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tinyvec@1.11.0",
+      "name": "tinyvec",
+      "version": "1.11.0",
+      "purl": "pkg:cargo/tinyvec@1.11.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3e61e67053d25a4e82c844e8424039d9745781b3fc4f32b8d55ed50f5f667ef3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tinyvec_macros@0.1.1",
+      "name": "tinyvec_macros",
+      "version": "0.1.1",
+      "purl": "pkg:cargo/tinyvec_macros@0.1.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tokio@1.52.3",
+      "name": "tokio",
+      "version": "1.52.3",
+      "purl": "pkg:cargo/tokio@1.52.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tokio-rustls@0.26.4",
+      "name": "tokio-rustls",
+      "version": "0.26.4",
+      "purl": "pkg:cargo/tokio-rustls@0.26.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tokio-util@0.7.18",
+      "name": "tokio-util",
+      "version": "0.7.18",
+      "purl": "pkg:cargo/tokio-util@0.7.18",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tower@0.5.3",
+      "name": "tower",
+      "version": "0.5.3",
+      "purl": "pkg:cargo/tower@0.5.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tower-http@0.6.11",
+      "name": "tower-http",
+      "version": "0.6.11",
+      "purl": "pkg:cargo/tower-http@0.6.11",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tower-layer@0.3.3",
+      "name": "tower-layer",
+      "version": "0.3.3",
+      "purl": "pkg:cargo/tower-layer@0.3.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tower-service@0.3.3",
+      "name": "tower-service",
+      "version": "0.3.3",
+      "purl": "pkg:cargo/tower-service@0.3.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tracing@0.1.44",
+      "name": "tracing",
+      "version": "0.1.44",
+      "purl": "pkg:cargo/tracing@0.1.44",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/tracing-core@0.1.36",
+      "name": "tracing-core",
+      "version": "0.1.36",
+      "purl": "pkg:cargo/tracing-core@0.1.36",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/try-lock@0.2.5",
+      "name": "try-lock",
+      "version": "0.2.5",
+      "purl": "pkg:cargo/try-lock@0.2.5",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/typenum@1.20.0",
+      "name": "typenum",
+      "version": "1.20.0",
+      "purl": "pkg:cargo/typenum@1.20.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/unicode-ident@1.0.24",
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "purl": "pkg:cargo/unicode-ident@1.0.24",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/untrusted@0.9.0",
+      "name": "untrusted",
+      "version": "0.9.0",
+      "purl": "pkg:cargo/untrusted@0.9.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/url@2.5.8",
+      "name": "url",
+      "version": "2.5.8",
+      "purl": "pkg:cargo/url@2.5.8",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/utf8_iter@1.0.4",
+      "name": "utf8_iter",
+      "version": "1.0.4",
+      "purl": "pkg:cargo/utf8_iter@1.0.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/version_check@0.9.5",
+      "name": "version_check",
+      "version": "0.9.5",
+      "purl": "pkg:cargo/version_check@0.9.5",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/walkdir@2.5.0",
+      "name": "walkdir",
+      "version": "2.5.0",
+      "purl": "pkg:cargo/walkdir@2.5.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/want@0.3.1",
+      "name": "want",
+      "version": "0.3.1",
+      "purl": "pkg:cargo/want@0.3.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+      "name": "wasi",
+      "version": "0.11.1+wasi-snapshot-preview1",
+      "purl": "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasip2@1.0.3+wasi-0.2.9",
+      "name": "wasip2",
+      "version": "1.0.3+wasi-0.2.9",
+      "purl": "pkg:cargo/wasip2@1.0.3+wasi-0.2.9",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "20064672db26d7cdc89c7798c48a0fdfac8213434a1186e5ef29fd560ae223d6"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasm-bindgen@0.2.122",
+      "name": "wasm-bindgen",
+      "version": "0.2.122",
+      "purl": "pkg:cargo/wasm-bindgen@0.2.122",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3ed04576f974d2b2fba0f38c51dbc5518011e38c36bf1143164be765528fd409"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasm-bindgen-futures@0.4.72",
+      "name": "wasm-bindgen-futures",
+      "version": "0.4.72",
+      "purl": "pkg:cargo/wasm-bindgen-futures@0.4.72",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9473dbd2991ae90b6291c3c32c30c6187ac49aa32f9905d1cce280ec1e110b0f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasm-bindgen-macro@0.2.122",
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.122",
+      "purl": "pkg:cargo/wasm-bindgen-macro@0.2.122",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "916151b09da36bd82f6615cbf3a419e2f0ba23a03c6160e8e92eb6bd4aa1dec6"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasm-bindgen-macro-support@0.2.122",
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.122",
+      "purl": "pkg:cargo/wasm-bindgen-macro-support@0.2.122",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "299047362ccbfce148b67ab7e73349f77748e00c8296f9542adfad2ad82c5c5e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasm-bindgen-shared@0.2.122",
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.122",
+      "purl": "pkg:cargo/wasm-bindgen-shared@0.2.122",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9a929b2c61f11ba3e9bc35b50c1f25cb38e0e892c0c231ae2b8cf78d5dad4437"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/web-sys@0.3.99",
+      "name": "web-sys",
+      "version": "0.3.99",
+      "purl": "pkg:cargo/web-sys@0.3.99",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6d621441cfc37b84979402712047321980c178f299193a3589d05b99e8763436"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/web-time@1.1.0",
+      "name": "web-time",
+      "version": "1.1.0",
+      "purl": "pkg:cargo/web-time@1.1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/webpki-roots@1.0.7",
+      "name": "webpki-roots",
+      "version": "1.0.7",
+      "purl": "pkg:cargo/webpki-roots@1.0.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52f5ee44c96cf55f1b349600768e3ece3a8f26010c05265ab73f945bb1a2eb9d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/winapi-util@0.1.11",
+      "name": "winapi-util",
+      "version": "0.1.11",
+      "purl": "pkg:cargo/winapi-util@0.1.11",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-link@0.2.1",
+      "name": "windows-link",
+      "version": "0.2.1",
+      "purl": "pkg:cargo/windows-link@0.2.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-sys@0.45.0",
+      "name": "windows-sys",
+      "version": "0.45.0",
+      "purl": "pkg:cargo/windows-sys@0.45.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "75283be5efb2831d37ea142365f009c02ec203cd29a3ebecbc093d52315b66d0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-sys@0.52.0",
+      "name": "windows-sys",
+      "version": "0.52.0",
+      "purl": "pkg:cargo/windows-sys@0.52.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-sys@0.60.2",
+      "name": "windows-sys",
+      "version": "0.60.2",
+      "purl": "pkg:cargo/windows-sys@0.60.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-sys@0.61.2",
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "purl": "pkg:cargo/windows-sys@0.61.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-targets@0.42.2",
+      "name": "windows-targets",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows-targets@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8e5180c00cd44c9b1c88adb3693291f1cd93605ded80c250a75d472756b4d071"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-targets@0.52.6",
+      "name": "windows-targets",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows-targets@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9b724f72796e036ab90c1021d4780d4d3d648aca59e491e6b98e725b84e99973"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-targets@0.53.5",
+      "name": "windows-targets",
+      "version": "0.53.5",
+      "purl": "pkg:cargo/windows-targets@0.53.5",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4945f9f551b88e0d65f3db0bc25c33b8acea4d9e41163edf90dcd0b19f9069f3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_gnullvm@0.42.2",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "597a5118570b68bc08d8d59125332c54f1ba9d9adeedeef5b99b02ba2b0698f8"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "32a4622180e7a0ec044bb555404c800bc9fd9ec262ec147edd5989ccd0c02cd3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_gnullvm@0.53.1",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a9d8416fa8b42f5c947f8482c43e7d89e73a173cead56d044f6a56104a6d1b53"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_msvc@0.42.2",
+      "name": "windows_aarch64_msvc",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_aarch64_msvc@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e08e8864a60f06ef0d0ff4ba04124db8b0fb3be5776a5cd47641e942e58c4d43"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_msvc@0.52.6",
+      "name": "windows_aarch64_msvc",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_aarch64_msvc@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "09ec2a7bb152e2252b53fa7803150007879548bc709c039df7627cabbd05d469"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_msvc@0.53.1",
+      "name": "windows_aarch64_msvc",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_aarch64_msvc@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b9d782e804c2f632e395708e99a94275910eb9100b2114651e04744e9b125006"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnu@0.42.2",
+      "name": "windows_i686_gnu",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_i686_gnu@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c61d927d8da41da96a81f029489353e68739737d3beca43145c8afec9a31a84f"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnu@0.52.6",
+      "name": "windows_i686_gnu",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_i686_gnu@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8e9b5ad5ab802e97eb8e295ac6720e509ee4c243f69d781394014ebfe8bbfa0b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnu@0.53.1",
+      "name": "windows_i686_gnu",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_i686_gnu@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "960e6da069d81e09becb0ca57a65220ddff016ff2d6af6a223cf372a506593a3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnullvm@0.52.6",
+      "name": "windows_i686_gnullvm",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_i686_gnullvm@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0eee52d38c090b3caa76c563b86c3a4bd71ef1a819287c19d586d7334ae8ed66"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnullvm@0.53.1",
+      "name": "windows_i686_gnullvm",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_i686_gnullvm@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fa7359d10048f68ab8b09fa71c3daccfb0e9b559aed648a8f95469c27057180c"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_msvc@0.42.2",
+      "name": "windows_i686_msvc",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_i686_msvc@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "44d840b6ec649f480a41c8d80f9c65108b92d89345dd94027bfe06ac444d1060"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_msvc@0.52.6",
+      "name": "windows_i686_msvc",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_i686_msvc@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "240948bc05c5e7c6dabba28bf89d89ffce3e303022809e73deaefe4f6ec56c66"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_msvc@0.53.1",
+      "name": "windows_i686_msvc",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_i686_msvc@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1e7ac75179f18232fe9c285163565a57ef8d3c89254a30685b57d83a38d326c2"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnu@0.42.2",
+      "name": "windows_x86_64_gnu",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_x86_64_gnu@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8de912b8b8feb55c064867cf047dda097f92d51efad5b491dfb98f6bbb70cb36"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnu@0.52.6",
+      "name": "windows_x86_64_gnu",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_x86_64_gnu@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "147a5c80aabfbf0c7d901cb5895d1de30ef2907eb21fbbab29ca94c5b08b1a78"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnu@0.53.1",
+      "name": "windows_x86_64_gnu",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_x86_64_gnu@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9c3842cdd74a865a8066ab39c8a7a473c0778a3f29370b5fd6b4b9aa7df4a499"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnullvm@0.42.2",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "26d41b46a36d453748aedef1486d5c7a85db22e56aff34643984ea85514e94a3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "24d5b23dc417412679681396f2b49f3de8c1473deb516bd34410872eff51ed0d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnullvm@0.53.1",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0ffa179e2d07eee8ad8f57493436566c7cc30ac536a3379fdf008f47f6bb7ae1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_msvc@0.42.2",
+      "name": "windows_x86_64_msvc",
+      "version": "0.42.2",
+      "purl": "pkg:cargo/windows_x86_64_msvc@0.42.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9aec5da331524158c6d1a4ac0ab1541149c0b9505fde06423b02f5ef0106b9f0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_msvc@0.52.6",
+      "name": "windows_x86_64_msvc",
+      "version": "0.52.6",
+      "purl": "pkg:cargo/windows_x86_64_msvc@0.52.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_msvc@0.53.1",
+      "name": "windows_x86_64_msvc",
+      "version": "0.53.1",
+      "purl": "pkg:cargo/windows_x86_64_msvc@0.53.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wit-bindgen@0.57.1",
+      "name": "wit-bindgen",
+      "version": "0.57.1",
+      "purl": "pkg:cargo/wit-bindgen@0.57.1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/writeable@0.6.3",
+      "name": "writeable",
+      "version": "0.6.3",
+      "purl": "pkg:cargo/writeable@0.6.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/yoke@0.8.2",
+      "name": "yoke",
+      "version": "0.8.2",
+      "purl": "pkg:cargo/yoke@0.8.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "abe8c5fda708d9ca3df187cae8bfb9ceda00dd96231bed36e445a1a48e66f9ca"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/yoke-derive@0.8.2",
+      "name": "yoke-derive",
+      "version": "0.8.2",
+      "purl": "pkg:cargo/yoke-derive@0.8.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerocopy@0.8.49",
+      "name": "zerocopy",
+      "version": "0.8.49",
+      "purl": "pkg:cargo/zerocopy@0.8.49",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bce33a6288fa3f072a8c2c7d0f2fdbb90e28298f0135c1f99b96c3db2efcc60b"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerocopy-derive@0.8.49",
+      "name": "zerocopy-derive",
+      "version": "0.8.49",
+      "purl": "pkg:cargo/zerocopy-derive@0.8.49",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8fd425244944f4ab65ccff928e7323354c5a018c75838362fdce749dfad2ee1e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerofrom@0.1.8",
+      "name": "zerofrom",
+      "version": "0.1.8",
+      "purl": "pkg:cargo/zerofrom@0.1.8",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerofrom-derive@0.1.7",
+      "name": "zerofrom-derive",
+      "version": "0.1.7",
+      "purl": "pkg:cargo/zerofrom-derive@0.1.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "11532158c46691caf0f2593ea8358fed6bbf68a0315e80aae9bd41fbade684a1"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zeroize@1.8.2",
+      "name": "zeroize",
+      "version": "1.8.2",
+      "purl": "pkg:cargo/zeroize@1.8.2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerotrie@0.2.4",
+      "name": "zerotrie",
+      "version": "0.2.4",
+      "purl": "pkg:cargo/zerotrie@0.2.4",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0f9152d31db0792fa83f70fb2f83148effb5c1f5b8c7686c3459e361d9bc20bf"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerovec@0.11.6",
+      "name": "zerovec",
+      "version": "0.11.6",
+      "purl": "pkg:cargo/zerovec@0.11.6",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "90f911cbc359ab6af17377d242225f4d75119aec87ea711a880987b18cd7b239"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zerovec-derive@0.11.3",
+      "name": "zerovec-derive",
+      "version": "0.11.3",
+      "purl": "pkg:cargo/zerovec-derive@0.11.3",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "625dc425cab0dca6dc3c3319506e6593dcb08a9f387ea3b284dbd52a92c40555"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/zmij@1.0.21",
+      "name": "zmij",
+      "version": "1.0.21",
+      "purl": "pkg:cargo/zmij@1.0.21",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:cargo/adler2@2.0.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/async-compression@0.4.42",
+      "dependsOn": [
+        "pkg:cargo/compression-codecs@0.4.38",
+        "pkg:cargo/compression-core@0.4.32",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/tokio@1.52.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/atomic-waker@1.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/base64@0.22.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/bitflags@2.11.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/block-buffer@0.10.4",
+      "dependsOn": [
+        "pkg:cargo/generic-array@0.14.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/bumpalo@3.20.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/byteorder@1.5.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/bytes@1.11.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/cc@1.2.62",
+      "dependsOn": [
+        "pkg:cargo/find-msvc-tools@0.1.9",
+        "pkg:cargo/shlex@1.3.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/cesu8@1.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/cfg-if@1.0.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/cfg_aliases@0.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/combine@4.6.7",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/memchr@2.8.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/compression-codecs@0.4.38",
+      "dependsOn": [
+        "pkg:cargo/compression-core@0.4.32",
+        "pkg:cargo/flate2@1.1.9",
+        "pkg:cargo/memchr@2.8.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/compression-core@0.4.32",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/cpufeatures@0.2.17",
+      "dependsOn": [
+        "pkg:cargo/libc@0.2.186"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/crc@3.4.0",
+      "dependsOn": [
+        "pkg:cargo/crc-catalog@2.5.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/crc-catalog@2.5.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/crc32fast@1.5.0",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/crypto-common@0.1.7",
+      "dependsOn": [
+        "pkg:cargo/generic-array@0.14.7",
+        "pkg:cargo/typenum@1.20.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/digest@0.10.7",
+      "dependsOn": [
+        "pkg:cargo/block-buffer@0.10.4",
+        "pkg:cargo/crypto-common@0.1.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/displaydoc@0.2.6",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "local:droiddeckstores@0.1.0",
+      "dependsOn": [
+        "pkg:cargo/cc@1.2.62",
+        "pkg:cargo/flate2@1.1.9",
+        "pkg:cargo/futures-util@0.3.32",
+        "pkg:cargo/jni@0.21.1",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/lzma-rs@0.3.0",
+        "pkg:cargo/reqwest@0.12.28",
+        "pkg:cargo/serde_json@1.0.150",
+        "pkg:cargo/sha1@0.10.6",
+        "pkg:cargo/sha2@0.10.9",
+        "pkg:cargo/tokio@1.52.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/equivalent@1.0.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/find-msvc-tools@0.1.9",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/flate2@1.1.9",
+      "dependsOn": [
+        "pkg:cargo/crc32fast@1.5.0",
+        "pkg:cargo/miniz_oxide@0.8.9"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/form_urlencoded@1.2.2",
+      "dependsOn": [
+        "pkg:cargo/percent-encoding@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/futures-channel@0.3.32",
+      "dependsOn": [
+        "pkg:cargo/futures-core@0.3.32"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/futures-core@0.3.32",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/futures-sink@0.3.32",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/futures-task@0.3.32",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/futures-util@0.3.32",
+      "dependsOn": [
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/futures-task@0.3.32",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/slab@0.4.12"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/generic-array@0.14.7",
+      "dependsOn": [
+        "pkg:cargo/typenum@1.20.0",
+        "pkg:cargo/version_check@0.9.5"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/getrandom@0.2.17",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/getrandom@0.3.4",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/r-efi@5.3.0",
+        "pkg:cargo/wasip2@1.0.3+wasi-0.2.9",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/hashbrown@0.17.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/http@1.4.1",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/itoa@1.0.18"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/http-body@1.0.1",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/http@1.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/http-body-util@0.1.3",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/http-body@1.0.1",
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/pin-project-lite@0.2.17"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/httparse@1.10.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/hyper@1.10.0",
+      "dependsOn": [
+        "pkg:cargo/atomic-waker@1.1.2",
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-channel@0.3.32",
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/http-body@1.0.1",
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/httparse@1.10.1",
+        "pkg:cargo/itoa@1.0.18",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/smallvec@1.15.1",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/want@0.3.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/hyper-rustls@0.27.9",
+      "dependsOn": [
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/hyper-util@0.1.20",
+        "pkg:cargo/hyper@1.10.0",
+        "pkg:cargo/rustls@0.23.40",
+        "pkg:cargo/tokio-rustls@0.26.4",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tower-service@0.3.3",
+        "pkg:cargo/webpki-roots@1.0.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/hyper-util@0.1.20",
+      "dependsOn": [
+        "pkg:cargo/base64@0.22.1",
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-channel@0.3.32",
+        "pkg:cargo/futures-util@0.3.32",
+        "pkg:cargo/http-body@1.0.1",
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/hyper@1.10.0",
+        "pkg:cargo/ipnet@2.12.0",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/percent-encoding@2.3.2",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/socket2@0.6.3",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tower-service@0.3.3",
+        "pkg:cargo/tracing@0.1.44"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/icu_collections@2.2.0",
+      "dependsOn": [
+        "pkg:cargo/displaydoc@0.2.6",
+        "pkg:cargo/potential_utf@0.1.5",
+        "pkg:cargo/utf8_iter@1.0.4",
+        "pkg:cargo/yoke@0.8.2",
+        "pkg:cargo/zerofrom@0.1.8",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/icu_locale_core@2.2.0",
+      "dependsOn": [
+        "pkg:cargo/displaydoc@0.2.6",
+        "pkg:cargo/litemap@0.8.2",
+        "pkg:cargo/tinystr@0.8.3",
+        "pkg:cargo/writeable@0.6.3",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/icu_normalizer@2.2.0",
+      "dependsOn": [
+        "pkg:cargo/icu_collections@2.2.0",
+        "pkg:cargo/icu_normalizer_data@2.2.0",
+        "pkg:cargo/icu_properties@2.2.0",
+        "pkg:cargo/icu_provider@2.2.0",
+        "pkg:cargo/smallvec@1.15.1",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/icu_normalizer_data@2.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/icu_properties@2.2.0",
+      "dependsOn": [
+        "pkg:cargo/icu_collections@2.2.0",
+        "pkg:cargo/icu_locale_core@2.2.0",
+        "pkg:cargo/icu_properties_data@2.2.0",
+        "pkg:cargo/icu_provider@2.2.0",
+        "pkg:cargo/zerotrie@0.2.4",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/icu_properties_data@2.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/icu_provider@2.2.0",
+      "dependsOn": [
+        "pkg:cargo/displaydoc@0.2.6",
+        "pkg:cargo/icu_locale_core@2.2.0",
+        "pkg:cargo/writeable@0.6.3",
+        "pkg:cargo/yoke@0.8.2",
+        "pkg:cargo/zerofrom@0.1.8",
+        "pkg:cargo/zerotrie@0.2.4",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/idna@1.1.0",
+      "dependsOn": [
+        "pkg:cargo/idna_adapter@1.2.2",
+        "pkg:cargo/smallvec@1.15.1",
+        "pkg:cargo/utf8_iter@1.0.4"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/idna_adapter@1.2.2",
+      "dependsOn": [
+        "pkg:cargo/icu_normalizer@2.2.0",
+        "pkg:cargo/icu_properties@2.2.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/indexmap@2.14.0",
+      "dependsOn": [
+        "pkg:cargo/equivalent@1.0.2",
+        "pkg:cargo/hashbrown@0.17.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/ipnet@2.12.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/itoa@1.0.18",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/jni@0.21.1",
+      "dependsOn": [
+        "pkg:cargo/cesu8@1.1.0",
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/combine@4.6.7",
+        "pkg:cargo/jni-sys@0.3.1",
+        "pkg:cargo/log@0.4.30",
+        "pkg:cargo/thiserror@1.0.69",
+        "pkg:cargo/walkdir@2.5.0",
+        "pkg:cargo/windows-sys@0.45.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/jni-sys@0.3.1",
+      "dependsOn": [
+        "pkg:cargo/jni-sys@0.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/jni-sys@0.4.1",
+      "dependsOn": [
+        "pkg:cargo/jni-sys-macros@0.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/jni-sys-macros@0.4.1",
+      "dependsOn": [
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/js-sys@0.3.99",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/futures-util@0.3.32",
+        "pkg:cargo/once_cell@1.21.4",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/libc@0.2.186",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/litemap@0.8.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/log@0.4.30",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/lru-slab@0.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/lzma-rs@0.3.0",
+      "dependsOn": [
+        "pkg:cargo/byteorder@1.5.0",
+        "pkg:cargo/crc@3.4.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/memchr@2.8.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/miniz_oxide@0.8.9",
+      "dependsOn": [
+        "pkg:cargo/adler2@2.0.1",
+        "pkg:cargo/simd-adler32@0.3.9"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/mio@1.2.0",
+      "dependsOn": [
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+        "pkg:cargo/windows-sys@0.61.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/once_cell@1.21.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/percent-encoding@2.3.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/pin-project-lite@0.2.17",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/potential_utf@0.1.5",
+      "dependsOn": [
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/ppv-lite86@0.2.21",
+      "dependsOn": [
+        "pkg:cargo/zerocopy@0.8.49"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/proc-macro2@1.0.106",
+      "dependsOn": [
+        "pkg:cargo/unicode-ident@1.0.24"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/quinn@0.11.9",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/cfg_aliases@0.2.1",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/quinn-proto@0.11.14",
+        "pkg:cargo/quinn-udp@0.5.14",
+        "pkg:cargo/rustc-hash@2.1.2",
+        "pkg:cargo/rustls@0.23.40",
+        "pkg:cargo/socket2@0.6.3",
+        "pkg:cargo/thiserror@2.0.18",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tracing@0.1.44",
+        "pkg:cargo/web-time@1.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/quinn-proto@0.11.14",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/getrandom@0.3.4",
+        "pkg:cargo/lru-slab@0.1.2",
+        "pkg:cargo/rand@0.9.4",
+        "pkg:cargo/ring@0.17.14",
+        "pkg:cargo/rustc-hash@2.1.2",
+        "pkg:cargo/rustls-pki-types@1.14.1",
+        "pkg:cargo/rustls@0.23.40",
+        "pkg:cargo/slab@0.4.12",
+        "pkg:cargo/thiserror@2.0.18",
+        "pkg:cargo/tinyvec@1.11.0",
+        "pkg:cargo/tracing@0.1.44",
+        "pkg:cargo/web-time@1.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/quinn-udp@0.5.14",
+      "dependsOn": [
+        "pkg:cargo/cfg_aliases@0.2.1",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/once_cell@1.21.4",
+        "pkg:cargo/socket2@0.6.3",
+        "pkg:cargo/tracing@0.1.44",
+        "pkg:cargo/windows-sys@0.60.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/quote@1.0.45",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/r-efi@5.3.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/rand@0.9.4",
+      "dependsOn": [
+        "pkg:cargo/rand_chacha@0.9.0",
+        "pkg:cargo/rand_core@0.9.5"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rand_chacha@0.9.0",
+      "dependsOn": [
+        "pkg:cargo/ppv-lite86@0.2.21",
+        "pkg:cargo/rand_core@0.9.5"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rand_core@0.9.5",
+      "dependsOn": [
+        "pkg:cargo/getrandom@0.3.4"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/reqwest@0.12.28",
+      "dependsOn": [
+        "pkg:cargo/base64@0.22.1",
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/http-body-util@0.1.3",
+        "pkg:cargo/http-body@1.0.1",
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/hyper-rustls@0.27.9",
+        "pkg:cargo/hyper-util@0.1.20",
+        "pkg:cargo/hyper@1.10.0",
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/log@0.4.30",
+        "pkg:cargo/percent-encoding@2.3.2",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/quinn@0.11.9",
+        "pkg:cargo/rustls-pki-types@1.14.1",
+        "pkg:cargo/rustls@0.23.40",
+        "pkg:cargo/serde@1.0.228",
+        "pkg:cargo/serde_json@1.0.150",
+        "pkg:cargo/serde_urlencoded@0.7.1",
+        "pkg:cargo/sync_wrapper@1.0.2",
+        "pkg:cargo/tokio-rustls@0.26.4",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tower-http@0.6.11",
+        "pkg:cargo/tower-service@0.3.3",
+        "pkg:cargo/tower@0.5.3",
+        "pkg:cargo/url@2.5.8",
+        "pkg:cargo/wasm-bindgen-futures@0.4.72",
+        "pkg:cargo/wasm-bindgen@0.2.122",
+        "pkg:cargo/web-sys@0.3.99",
+        "pkg:cargo/webpki-roots@1.0.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/ring@0.17.14",
+      "dependsOn": [
+        "pkg:cargo/cc@1.2.62",
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/getrandom@0.2.17",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/untrusted@0.9.0",
+        "pkg:cargo/windows-sys@0.52.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rustc-hash@2.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/rustls@0.23.40",
+      "dependsOn": [
+        "pkg:cargo/once_cell@1.21.4",
+        "pkg:cargo/ring@0.17.14",
+        "pkg:cargo/rustls-pki-types@1.14.1",
+        "pkg:cargo/rustls-webpki@0.103.13",
+        "pkg:cargo/subtle@2.6.1",
+        "pkg:cargo/zeroize@1.8.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rustls-pki-types@1.14.1",
+      "dependsOn": [
+        "pkg:cargo/web-time@1.1.0",
+        "pkg:cargo/zeroize@1.8.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rustls-webpki@0.103.13",
+      "dependsOn": [
+        "pkg:cargo/ring@0.17.14",
+        "pkg:cargo/rustls-pki-types@1.14.1",
+        "pkg:cargo/untrusted@0.9.0"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/rustversion@1.0.22",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/ryu@1.0.23",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/same-file@1.0.6",
+      "dependsOn": [
+        "pkg:cargo/winapi-util@0.1.11"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/serde@1.0.228",
+      "dependsOn": [
+        "pkg:cargo/serde_core@1.0.228"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/serde_core@1.0.228",
+      "dependsOn": [
+        "pkg:cargo/serde_derive@1.0.228"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/serde_derive@1.0.228",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/serde_json@1.0.150",
+      "dependsOn": [
+        "pkg:cargo/indexmap@2.14.0",
+        "pkg:cargo/itoa@1.0.18",
+        "pkg:cargo/memchr@2.8.1",
+        "pkg:cargo/serde@1.0.228",
+        "pkg:cargo/serde_core@1.0.228",
+        "pkg:cargo/zmij@1.0.21"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/serde_urlencoded@0.7.1",
+      "dependsOn": [
+        "pkg:cargo/form_urlencoded@1.2.2",
+        "pkg:cargo/itoa@1.0.18",
+        "pkg:cargo/ryu@1.0.23",
+        "pkg:cargo/serde@1.0.228"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/sha1@0.10.6",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/cpufeatures@0.2.17",
+        "pkg:cargo/digest@0.10.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/sha2@0.10.9",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/cpufeatures@0.2.17",
+        "pkg:cargo/digest@0.10.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/shlex@1.3.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/simd-adler32@0.3.9",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/slab@0.4.12",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/smallvec@1.15.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/socket2@0.6.3",
+      "dependsOn": [
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/windows-sys@0.61.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/stable_deref_trait@1.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/subtle@2.6.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/syn@2.0.117",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/unicode-ident@1.0.24"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/sync_wrapper@1.0.2",
+      "dependsOn": [
+        "pkg:cargo/futures-core@0.3.32"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/synstructure@0.13.2",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/thiserror@1.0.69",
+      "dependsOn": [
+        "pkg:cargo/thiserror-impl@1.0.69"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/thiserror@2.0.18",
+      "dependsOn": [
+        "pkg:cargo/thiserror-impl@2.0.18"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/thiserror-impl@1.0.69",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/thiserror-impl@2.0.18",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tinystr@0.8.3",
+      "dependsOn": [
+        "pkg:cargo/displaydoc@0.2.6",
+        "pkg:cargo/zerovec@0.11.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tinyvec@1.11.0",
+      "dependsOn": [
+        "pkg:cargo/tinyvec_macros@0.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tinyvec_macros@0.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/tokio@1.52.3",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/libc@0.2.186",
+        "pkg:cargo/mio@1.2.0",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/socket2@0.6.3",
+        "pkg:cargo/windows-sys@0.61.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tokio-rustls@0.26.4",
+      "dependsOn": [
+        "pkg:cargo/rustls@0.23.40",
+        "pkg:cargo/tokio@1.52.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tokio-util@0.7.18",
+      "dependsOn": [
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/futures-sink@0.3.32",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/tokio@1.52.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tower@0.5.3",
+      "dependsOn": [
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/futures-util@0.3.32",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/sync_wrapper@1.0.2",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tower-layer@0.3.3",
+        "pkg:cargo/tower-service@0.3.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tower-http@0.6.11",
+      "dependsOn": [
+        "pkg:cargo/async-compression@0.4.42",
+        "pkg:cargo/bitflags@2.11.1",
+        "pkg:cargo/bytes@1.11.1",
+        "pkg:cargo/futures-core@0.3.32",
+        "pkg:cargo/futures-util@0.3.32",
+        "pkg:cargo/http-body-util@0.1.3",
+        "pkg:cargo/http-body@1.0.1",
+        "pkg:cargo/http@1.4.1",
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/tokio-util@0.7.18",
+        "pkg:cargo/tokio@1.52.3",
+        "pkg:cargo/tower-layer@0.3.3",
+        "pkg:cargo/tower-service@0.3.3",
+        "pkg:cargo/tower@0.5.3",
+        "pkg:cargo/url@2.5.8"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tower-layer@0.3.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/tower-service@0.3.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/tracing@0.1.44",
+      "dependsOn": [
+        "pkg:cargo/pin-project-lite@0.2.17",
+        "pkg:cargo/tracing-core@0.1.36"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/tracing-core@0.1.36",
+      "dependsOn": [
+        "pkg:cargo/once_cell@1.21.4"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/try-lock@0.2.5",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/typenum@1.20.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/unicode-ident@1.0.24",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/untrusted@0.9.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/url@2.5.8",
+      "dependsOn": [
+        "pkg:cargo/form_urlencoded@1.2.2",
+        "pkg:cargo/idna@1.1.0",
+        "pkg:cargo/percent-encoding@2.3.2",
+        "pkg:cargo/serde@1.0.228"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/utf8_iter@1.0.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/version_check@0.9.5",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/walkdir@2.5.0",
+      "dependsOn": [
+        "pkg:cargo/same-file@1.0.6",
+        "pkg:cargo/winapi-util@0.1.11"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/want@0.3.1",
+      "dependsOn": [
+        "pkg:cargo/try-lock@0.2.5"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/wasip2@1.0.3+wasi-0.2.9",
+      "dependsOn": [
+        "pkg:cargo/wit-bindgen@0.57.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasm-bindgen@0.2.122",
+      "dependsOn": [
+        "pkg:cargo/cfg-if@1.0.4",
+        "pkg:cargo/once_cell@1.21.4",
+        "pkg:cargo/rustversion@1.0.22",
+        "pkg:cargo/wasm-bindgen-macro@0.2.122",
+        "pkg:cargo/wasm-bindgen-shared@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasm-bindgen-futures@0.4.72",
+      "dependsOn": [
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasm-bindgen-macro@0.2.122",
+      "dependsOn": [
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/wasm-bindgen-macro-support@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasm-bindgen-macro-support@0.2.122",
+      "dependsOn": [
+        "pkg:cargo/bumpalo@3.20.3",
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117",
+        "pkg:cargo/wasm-bindgen-shared@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/wasm-bindgen-shared@0.2.122",
+      "dependsOn": [
+        "pkg:cargo/unicode-ident@1.0.24"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/web-sys@0.3.99",
+      "dependsOn": [
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/web-time@1.1.0",
+      "dependsOn": [
+        "pkg:cargo/js-sys@0.3.99",
+        "pkg:cargo/wasm-bindgen@0.2.122"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/webpki-roots@1.0.7",
+      "dependsOn": [
+        "pkg:cargo/rustls-pki-types@1.14.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/winapi-util@0.1.11",
+      "dependsOn": [
+        "pkg:cargo/windows-sys@0.61.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-link@0.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows-sys@0.45.0",
+      "dependsOn": [
+        "pkg:cargo/windows-targets@0.42.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-sys@0.52.0",
+      "dependsOn": [
+        "pkg:cargo/windows-targets@0.52.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-sys@0.60.2",
+      "dependsOn": [
+        "pkg:cargo/windows-targets@0.53.5"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-sys@0.61.2",
+      "dependsOn": [
+        "pkg:cargo/windows-link@0.2.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-targets@0.42.2",
+      "dependsOn": [
+        "pkg:cargo/windows_aarch64_gnullvm@0.42.2",
+        "pkg:cargo/windows_aarch64_msvc@0.42.2",
+        "pkg:cargo/windows_i686_gnu@0.42.2",
+        "pkg:cargo/windows_i686_msvc@0.42.2",
+        "pkg:cargo/windows_x86_64_gnu@0.42.2",
+        "pkg:cargo/windows_x86_64_gnullvm@0.42.2",
+        "pkg:cargo/windows_x86_64_msvc@0.42.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-targets@0.52.6",
+      "dependsOn": [
+        "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+        "pkg:cargo/windows_aarch64_msvc@0.52.6",
+        "pkg:cargo/windows_i686_gnu@0.52.6",
+        "pkg:cargo/windows_i686_gnullvm@0.52.6",
+        "pkg:cargo/windows_i686_msvc@0.52.6",
+        "pkg:cargo/windows_x86_64_gnu@0.52.6",
+        "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+        "pkg:cargo/windows_x86_64_msvc@0.52.6"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows-targets@0.53.5",
+      "dependsOn": [
+        "pkg:cargo/windows-link@0.2.1",
+        "pkg:cargo/windows_aarch64_gnullvm@0.53.1",
+        "pkg:cargo/windows_aarch64_msvc@0.53.1",
+        "pkg:cargo/windows_i686_gnu@0.53.1",
+        "pkg:cargo/windows_i686_gnullvm@0.53.1",
+        "pkg:cargo/windows_i686_msvc@0.53.1",
+        "pkg:cargo/windows_x86_64_gnu@0.53.1",
+        "pkg:cargo/windows_x86_64_gnullvm@0.53.1",
+        "pkg:cargo/windows_x86_64_msvc@0.53.1"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_gnullvm@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_gnullvm@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_msvc@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_msvc@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_aarch64_msvc@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_gnu@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_gnu@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_gnu@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_gnullvm@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_gnullvm@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_msvc@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_msvc@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_i686_msvc@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnu@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnu@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnu@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnullvm@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_gnullvm@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_msvc@0.42.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_msvc@0.52.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/windows_x86_64_msvc@0.53.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/wit-bindgen@0.57.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/writeable@0.6.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/yoke@0.8.2",
+      "dependsOn": [
+        "pkg:cargo/stable_deref_trait@1.2.1",
+        "pkg:cargo/yoke-derive@0.8.2",
+        "pkg:cargo/zerofrom@0.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/yoke-derive@0.8.2",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117",
+        "pkg:cargo/synstructure@0.13.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerocopy@0.8.49",
+      "dependsOn": [
+        "pkg:cargo/zerocopy-derive@0.8.49"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerocopy-derive@0.8.49",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerofrom@0.1.8",
+      "dependsOn": [
+        "pkg:cargo/zerofrom-derive@0.1.7"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerofrom-derive@0.1.7",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117",
+        "pkg:cargo/synstructure@0.13.2"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zeroize@1.8.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:cargo/zerotrie@0.2.4",
+      "dependsOn": [
+        "pkg:cargo/displaydoc@0.2.6",
+        "pkg:cargo/yoke@0.8.2",
+        "pkg:cargo/zerofrom@0.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerovec@0.11.6",
+      "dependsOn": [
+        "pkg:cargo/yoke@0.8.2",
+        "pkg:cargo/zerofrom@0.1.8",
+        "pkg:cargo/zerovec-derive@0.11.3"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zerovec-derive@0.11.3",
+      "dependsOn": [
+        "pkg:cargo/proc-macro2@1.0.106",
+        "pkg:cargo/quote@1.0.45",
+        "pkg:cargo/syn@2.0.117"
+      ]
+    },
+    {
+      "ref": "pkg:cargo/zmij@1.0.21",
+      "dependsOn": []
+    }
+  ]
+}
