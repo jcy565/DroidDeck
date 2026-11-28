@@ -81,14 +81,33 @@ def summarize(directory, baseline, outcome):
                 note='Observed XML only; absent cases are not passes. Gradle outcome remains authoritative.')
 
 
+
+def compose_diagnostic_decision(result):
+    """Only skip optional probes when the observed evidence warrants it."""
+    if result['known_failures']:
+        return True, 'Known Compose failure observed'
+    if not result['report_files']:
+        return False, 'No JUnit XML; no Compose failure was observed'
+    if result['problems']:
+        return True, 'Incomplete or ambiguous XML; preserve diagnostics'
+    return False, 'No known Compose failure in validated XML'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', type=Path)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('outcome')
+    parser.add_argument('--github-output', type=Path)
     args = parser.parse_args()
     baseline = {line.strip() for line in args.baseline.read_text().splitlines() if line.strip()}
-    print(json.dumps(summarize(args.directory, baseline, args.outcome), indent=2, ensure_ascii=False))
+    result = summarize(args.directory, baseline, args.outcome)
+    run, reason = compose_diagnostic_decision(result)
+    result['compose_diagnostics'] = dict(run=run, reason=reason)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    if args.github_output is not None:
+        with args.github_output.open('a', encoding='utf-8') as output:
+            output.write(f'run_compose_diagnostics={str(run).lower()}\n')
 
 
 if __name__ == '__main__':
