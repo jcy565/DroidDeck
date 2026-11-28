@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.droiddeck.launcher.hud.FrameStats
 import com.droiddeck.launcher.hud.GameFrameFeed
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-trials.db", null, 3) {
+internal class TrialDatabase(context: Context, name: String = "game-trials.db") : SQLiteOpenHelper(context, name, null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE trial (id INTEGER PRIMARY KEY, game TEXT NOT NULL,
             model TEXT NOT NULL, scene TEXT, gpu TEXT, driver TEXT, proton TEXT, width INTEGER, height INTEGER,
@@ -37,23 +40,29 @@ private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-
     }
 
     fun record(values: ContentValues): String {
+        val stable = ContentValues(values)
+        val sample = OptimizationComparison.Sample(requireNotNull(stable.getAsString("game")),
+            requireNotNull(stable.getAsString("model")), requireNotNull(stable.getAsString("scene")),
+            requireNotNull(stable.getAsInteger("width")), requireNotNull(stable.getAsInteger("height")),
+            requireNotNull(stable.getAsDouble("fps")), requireNotNull(stable.getAsDouble("p95")))
+        require(OptimizationComparison.compare(sample, sample).verdict == OptimizationComparison.Verdict.INCONCLUSIVE)
+        require(stable.getAsInteger("coverage_version") == 1 &&
+            requireNotNull(stable.getAsInteger("frames")) in 2..20_000 &&
+            requireNotNull(stable.getAsLong("recorded")) > 0L)
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val sample = OptimizationComparison.Sample(values.getAsString("game"), values.getAsString("model"),
-                values.getAsString("scene"), values.getAsInteger("width"), values.getAsInteger("height"),
-                values.getAsDouble("fps"), values.getAsDouble("p95"))
             val previous = db.rawQuery("SELECT fps, p95, gpu, driver, proton FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? AND coverage_version=1 ORDER BY id DESC LIMIT 1",
                 arrayOf(sample.gameId, sample.deviceId, sample.scene, sample.outputWidth.toString(), sample.outputHeight.toString())).use {
                 if (it.moveToFirst()) sample.copy(fps = it.getDouble(0), p95Ms = it.getDouble(1)) to
                     runtimeLabel(it.getString(2), it.getString(3), it.getString(4)) else null
             }
-            db.insertOrThrow("trial", null, values)
+            db.insertOrThrow("trial", null, stable)
             db.execSQL("DELETE FROM trial WHERE id <= (SELECT id FROM trial ORDER BY id DESC LIMIT 1 OFFSET 500)")
             db.setTransactionSuccessful()
             return listOfNotNull(previous?.let { "이전  " + format(it.first.fps, it.first.p95Ms) + "\n" + it.second },
                 "이번  " + format(sample.fps, sample.p95Ms) + "\n" +
-                    runtimeLabel(values.getAsString("gpu"), values.getAsString("driver"), values.getAsString("proton")),
+                    runtimeLabel(stable.getAsString("gpu"), stable.getAsString("driver"), stable.getAsString("proton")),
                 previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it.first, sample)) } ?: "같은 장면과 출력 해상도의 첫 검증된 측정입니다.").joinToString("\n")
         } finally { db.endTransaction() }
     }
@@ -77,14 +86,20 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
         var job by remember { mutableStateOf<Job?>(null) }
         var message by remember { mutableStateOf("") }
         var scene by remember { mutableStateOf("") }
-        OutlinedTextField(scene, { scene = it.take(80) }, enabled = job?.isActive != true,
+        var saving by remember { mutableStateOf(false) }
+        var cancelling by remember { mutableStateOf(false) }
+        OutlinedTextField(scene, { scene = it.take(80) }, enabled = job == null,
             label = { Text("비교할 장면 이름") }, singleLine = true)
-        TextButton(enabled = scene.isNotBlank(), onClick = {
+        TextButton(enabled = scene.isNotBlank() && !saving && !cancelling, onClick = {
+            if (saving || cancelling) return@TextButton
             val current = job
-            if (current?.isActive == true) {
+            if (current != null) {
+                cancelling = true
+                message = "측정을 중단하는 중입니다."
                 current.cancel()
-                message = "측정을 중단했습니다."
-            } else job = scope.launch {
+                return@TextButton
+            }
+            val next = scope.launch(start = CoroutineStart.LAZY) {
                 try {
                     val measuredScene = scene.trim()
                     require(measuredScene.isNotBlank() && latestActiveGame() == game)
@@ -124,12 +139,29 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                         put("p95", metrics.p95Ms)
                         put("coverage_version", 1)
                     }
-                    message = withContext(Dispatchers.IO) { TrialDatabase(context).use { it.record(values) } }
-                } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { message = e.message ?: "측정 실패" }
-                finally { job = null }
+                    currentCoroutineContext().ensureActive()
+                    saving = true
+                    message = "검증된 측정값을 저장하는 중입니다."
+                    message = withContext(Dispatchers.IO) {
+                        TrialDatabase(context).use {
+                            currentCoroutineContext().ensureActive()
+                            it.record(values)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    if (!saving) message = "측정을 중단했습니다."
+                    throw e
+                } catch (e: Exception) { message = e.message ?: "측정 실패" }
+                finally { saving = false; cancelling = false; job = null }
             }
-        }) { Text(if (job?.isActive != true) "게임 성능 10초 측정" else "측정 중단") }
+            job = next
+            next.start()
+        }) { Text(when {
+            saving -> "저장 중"
+            cancelling -> "중단 중"
+            job != null -> "측정 중단"
+            else -> "게임 성능 10초 측정"
+        }) }
         if (message.isNotEmpty()) Text(message)
     }
 }
