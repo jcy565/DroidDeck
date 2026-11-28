@@ -32,6 +32,12 @@ internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
         var busy by remember { mutableStateOf(false) }
         var message by remember { mutableStateOf("") }
         var admission by remember { mutableStateOf<GameplayBudget.Admission?>(null) }
+        var exchangeStatus by remember { mutableStateOf<SharedAgentReply.Status?>(null) }
+        val inboxRevision by SharedAgentReply.revision.collectAsState()
+        LaunchedEffect(inboxRevision) {
+            // A previously inspected status is a snapshot; do not imply it is live.
+            exchangeStatus = null
+        }
         fun runTask(action: suspend () -> Unit) {
             if (busy) return
             busy = true
@@ -63,6 +69,16 @@ internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
                         }
                     }) { Text("집중 보호 및 메모리 상태 확인") }
                     admission?.let { Text("조회 시점: " + it.guidance) }
+                    TextButton(enabled = !busy && host.enabled, onClick = {
+                        runTask {
+                            exchangeStatus = null
+                            exchangeStatus = withContext(Dispatchers.IO) { SharedAgentReply.status(context) }
+                        }
+                    }) { Text("저장된 ChatGPT 작업 상태 확인") }
+                    exchangeStatus?.let {
+                        Text("기기 전체 · 조회 시점: " + it.label)
+                        Text("요청을 만든 원래 파일에서 재개하세요. 현재 폴더의 작업이라고 단정할 수 없습니다.")
+                    }
                     Text("저장한 작업 목록을 현재 폴더에서 다시 엽니다. 자동 탐색·전송·패치 적용은 하지 않습니다.")
                     TextButton(enabled = !busy, onClick = {
                         runTask {
