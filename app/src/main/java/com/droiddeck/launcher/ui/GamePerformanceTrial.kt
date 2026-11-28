@@ -43,17 +43,24 @@ private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-
             val sample = OptimizationComparison.Sample(values.getAsString("game"), values.getAsString("model"),
                 values.getAsString("scene"), values.getAsInteger("width"), values.getAsInteger("height"),
                 values.getAsDouble("fps"), values.getAsDouble("p95"))
-            val previous = db.rawQuery("SELECT fps, p95 FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? AND coverage_version=1 ORDER BY id DESC LIMIT 1",
+            val previous = db.rawQuery("SELECT fps, p95, gpu, driver, proton FROM trial WHERE game=? AND model=? AND scene=? AND width=? AND height=? AND coverage_version=1 ORDER BY id DESC LIMIT 1",
                 arrayOf(sample.gameId, sample.deviceId, sample.scene, sample.outputWidth.toString(), sample.outputHeight.toString())).use {
-                if (it.moveToFirst()) sample.copy(fps = it.getDouble(0), p95Ms = it.getDouble(1)) else null
+                if (it.moveToFirst()) sample.copy(fps = it.getDouble(0), p95Ms = it.getDouble(1)) to
+                    runtimeLabel(it.getString(2), it.getString(3), it.getString(4)) else null
             }
             db.insertOrThrow("trial", null, values)
             db.execSQL("DELETE FROM trial WHERE id <= (SELECT id FROM trial ORDER BY id DESC LIMIT 1 OFFSET 500)")
             db.setTransactionSuccessful()
-            return listOfNotNull(previous?.let { "이전  " + format(it.fps, it.p95Ms) },
-                "이번  " + format(sample.fps, sample.p95Ms),
-                previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it, sample)) } ?: "같은 장면과 출력 해상도의 첫 검증된 측정입니다.").joinToString("\n")
+            return listOfNotNull(previous?.let { "이전  " + format(it.first.fps, it.first.p95Ms) + "\n" + it.second },
+                "이번  " + format(sample.fps, sample.p95Ms) + "\n" +
+                    runtimeLabel(values.getAsString("gpu"), values.getAsString("driver"), values.getAsString("proton")),
+                previous?.let { OptimizationComparison.describe(OptimizationComparison.compare(it.first, sample)) } ?: "같은 장면과 출력 해상도의 첫 검증된 측정입니다.").joinToString("\n")
         } finally { db.endTransaction() }
+    }
+
+    private fun runtimeLabel(gpu: String?, driver: String?, proton: String?): String {
+        fun label(value: String?) = value?.takeIf { it.isNotBlank() } ?: "미확인"
+        return "GPU: ${label(gpu)} · 드라이버: ${label(driver)} · Proton: ${label(proton)}"
     }
 
     private fun format(fps: Double, p95: Double) = String.format(Locale.US, "%.1f FPS · P95 %.1f ms", fps, p95)
@@ -63,7 +70,8 @@ private class TrialDatabase(context: Context) : SQLiteOpenHelper(context, "game-
 internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed: GameFrameFeed,
                                  gpu: String, driver: String?, proton: String?) {
     if (game.isNullOrBlank()) return
-    key(game) {
+    key(game, feed, gpu, driver, proton) {
+        val latestActiveGame by rememberUpdatedState(activeGame)
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var job by remember { mutableStateOf<Job?>(null) }
@@ -79,7 +87,7 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
             } else job = scope.launch {
                 try {
                     val measuredScene = scene.trim()
-                    require(measuredScene.isNotBlank() && activeGame() == game)
+                    require(measuredScene.isNotBlank() && latestActiveGame() == game)
                     require(feed.live && !feed.steamFocused && feed.pid > 0) { "게임 프레임 측정값이 필요합니다." }
                     val pid = feed.pid
                     val width = feed.outputWidth
@@ -92,7 +100,7 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     val start = SystemClock.elapsedRealtime()
                     while (SystemClock.elapsedRealtime() - start < 10000) {
                         delay(150)
-                        require(activeGame() == game && feed.live && !feed.steamFocused && feed.pid == pid &&
+                        require(latestActiveGame() == game && feed.live && !feed.steamFocused && feed.pid == pid &&
                             feed.outputWidth == width && feed.outputHeight == height) { "게임 또는 출력이 바뀌어 측정을 중단했습니다." }
                         val total = feed.stats.graphSnapshot(ring)
                         val count = total.newFramesSince(seen)
