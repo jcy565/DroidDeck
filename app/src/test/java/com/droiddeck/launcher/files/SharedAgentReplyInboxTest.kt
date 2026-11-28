@@ -42,6 +42,12 @@ class SharedAgentReplyInboxTest {
             val changedRequest = requireNotNull(SharedAgentReply.receive(context, third))
             ExchangeCheckpoint.save(file, saved.copy(instruction = "Different instruction"))
             assertTrue(runCatching { SharedAgentReply.replace(context, changedRequest) }.isFailure)
+            assertNull(SharedAgentReply.load(context, saved.id))
+            assertEquals(SharedAgentReply.Status.WAITING, SharedAgentReply.status(context))
+            val rebind = requireNotNull(SharedAgentReply.receive(context, second))
+            assertEquals(second, rebind.previous)
+            assertNull(SharedAgentReply.load(context, saved.id))
+            SharedAgentReply.replace(context, rebind)
             assertEquals(second, SharedAgentReply.load(context, saved.id))
             assertTrue(ExchangeCheckpoint.clear(file, saved.id))
             assertTrue(runCatching { SharedAgentReply.replace(context, changedRequest) }.isFailure)
@@ -84,6 +90,31 @@ class SharedAgentReplyInboxTest {
             assertTrue(SharedAgentReply.discardSavedExchange(context))
             assertEquals(SharedAgentReply.Status.NO_REQUEST, SharedAgentReply.status(context))
             assertNull(SharedAgentReply.load(context, first.id))
+        } finally {
+            SharedAgentReply.discardSavedExchange(context)
+        }
+    }
+
+    @Test fun legacyReplyRequiresExplicitReviewWithoutSilentLoss() {
+        val context = RuntimeEnvironment.getApplication()
+        SharedAgentReply.discardSavedExchange(context)
+        val saved = ExchangeCheckpoint.Saved(UUID.randomUUID().toString(), "Translate", 0, "a".repeat(64))
+        val reply = """{"exchange_id":"${saved.id}","action":"advice","explanation":"legacy"}"""
+        val prefs = context.getSharedPreferences("ai_reply_inbox", android.content.Context.MODE_PRIVATE)
+        try {
+            SharedAgentReply.saveCheckpoint(context, saved, replaceExisting = false)
+            assertTrue(prefs.edit().putString("id", saved.id).putString("reply", reply).remove("binding").commit())
+            assertNull(SharedAgentReply.load(context, saved.id))
+            assertEquals(SharedAgentReply.Status.WAITING, SharedAgentReply.status(context))
+            assertEquals(reply, prefs.getString("reply", null))
+            val review = requireNotNull(SharedAgentReply.receive(context, reply))
+            assertNull(SharedAgentReply.load(context, saved.id))
+            SharedAgentReply.replace(context, review)
+            assertEquals(reply, SharedAgentReply.load(context, saved.id))
+            assertEquals(SharedAgentReply.Status.READY, SharedAgentReply.status(context))
+            assertTrue(runCatching { SharedAgentReply.replace(context, review) }.isFailure)
+            SharedAgentReply.completeSavedExchange(context, saved.id)
+            assertNull(prefs.getString("binding", null))
         } finally {
             SharedAgentReply.discardSavedExchange(context)
         }
