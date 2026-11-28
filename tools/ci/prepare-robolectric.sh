@@ -27,16 +27,27 @@ download() {
 
 verified() {
   local file="$1" checksum="$2" digest
-  [[ -s "$file" && -s "$checksum" ]] || return 1
+  [[ ! -L "$file" && ! -L "$checksum" && -f "$file" && -f "$checksum" &&
+     -s "$file" && -s "$checksum" ]] || return 1
   digest="$(cat "$checksum")"
   [[ "$digest" =~ ^[[:xdigit:]]{128}$ ]] || return 1
   printf '%s  %s\n' "$digest" "$file" | sha512sum -c --status
+}
+
+safe_destination() {
+  local path="$1"
+  if [[ -L "$path" || ( -e "$path" && ! -f "$path" ) ]]; then
+    echo "Unsafe Robolectric cache destination: $path" >&2
+    return 1
+  fi
 }
 
 prepare() (
   local artifact="$1" version="$2" ext="$3"
   local relative="org/robolectric/$artifact/$version/$artifact-$version.$ext"
   local file="$HOME/.m2/repository/$relative" tmp
+  safe_destination "$file"
+  safe_destination "$file.sha512"
   if verified "$file" "$file.sha512"; then return 0; fi
   mkdir -p "$(dirname "$file")"
   tmp="$(mktemp -d "$(dirname "$file")/.prefetch.XXXXXX")"
@@ -48,8 +59,11 @@ prepare() (
     echo "SHA-512 verification failed: $relative" >&2
     return 1
   fi
-  mv -- "$tmp/payload" "$file"
-  mv -- "$tmp/checksum" "$file.sha512"
+  safe_destination "$file"
+  safe_destination "$file.sha512"
+  mv -T -- "$tmp/payload" "$file"
+  mv -T -- "$tmp/checksum" "$file.sha512"
+  verified "$file" "$file.sha512"
 )
 
 for version in 9-robolectric-4913185-2-i7 13-robolectric-9030017-i7 14-robolectric-10818077-i7; do
