@@ -62,18 +62,27 @@ jobs:
           def permissions(xml):
               return sorted({e.attrib[ns+'name'] for e in ET.fromstring(xml)
                              if e.tag.startswith('uses-permission') and ns+'name' in e.attrib})
+          def declarations(xml):
+              return {(e.tag, tuple(sorted(e.attrib.items()))) for e in ET.fromstring(xml)
+                      if e.tag.startswith('uses-permission')}
           modules = {}
           for module in ('app', 'shortcuts'):
               gradle = Path(module+'/build.gradle').read_text()
               path = module+'/src/main/AndroidManifest.xml'
-              old = permissions(subprocess.check_output(['git','show',base+':'+path]))
-              now = permissions(Path(path).read_bytes())
+              old_xml = subprocess.check_output(['git','show',base+':'+path])
+              now_xml = Path(path).read_bytes()
+              old = permissions(old_xml)
+              now = permissions(now_xml)
+              added_declarations = declarations(now_xml) - declarations(old_xml)
               ids = re.findall(r"(?m)^\s*applicationId\s+['\"]([^'\"]+)['\"]", gradle)
               modules[module] = {
                   'declared_application_ids': ids,
                   'uses_testkey_signing_config': bool(re.search(r'signingConfig\s+signingConfigs\.testkey\b', gradle)),
                   'source_permissions': now,
                   'added_source_permissions': sorted(set(now)-set(old)),
+                  'new_or_changed_permission_declarations': [
+                      {'tag': tag, 'attributes': dict(attrs)} for tag, attrs in sorted(added_declarations)
+                  ],
                   'removed_source_permissions': sorted(set(old)-set(now))
               }
           report = {'source_sha': os.environ['GITHUB_SHA'], 'comparison_base': base,
@@ -84,8 +93,11 @@ jobs:
           out = Path(os.environ['RUNNER_TEMP'])/'ai-security-review.json'
           out.write_text(json.dumps(report, indent=2)+'\n')
           print(out.read_text())
+          if any(m['new_or_changed_permission_declarations'] for m in modules.values()):
+              raise SystemExit('Permission declaration changed: review required before proceeding')
           PY
       - name: Inventory potential shared storage and package references
+        if: always()
         run: python3 tools/ci/audit_app_paths.py > "$RUNNER_TEMP/ai-app-path-review.json"
       - uses: actions/upload-artifact@v4
         if: always()
