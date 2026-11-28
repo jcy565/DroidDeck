@@ -9,10 +9,12 @@ import java.security.MessageDigest
 
 internal object GamePatchStore {
     private const val LIMIT = 1024 * 1024
+    private const val BACKUP_LIMIT = LIMIT + 196608
+    private const val CHECKSUM_BYTES = 32
     val extensions = setOf("ini", "cfg", "json", "xml", "csv", "tsv", "txt", "po", "yaml", "yml")
     data class Backup(val relativePath: String, val original: ByteArray, val appliedHash: String)
-    private fun hash(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
-        .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+    private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
+    private fun hash(bytes: ByteArray) = digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
 
     private fun target(root: File, relative: String): File {
         require(root.isDirectory && !Files.isSymbolicLink(root.toPath()))
@@ -74,16 +76,21 @@ internal object GamePatchStore {
         require(!Files.isSymbolicLink(backupDir.toPath()))
         val backup = Files.createTempFile(backupDir.toPath(), "ddpatch-", ".bak").toFile()
         try {
+            val body = java.io.ByteArrayOutputStream().also { buffer ->
+                java.io.DataOutputStream(buffer).use { record ->
+                    record.writeUTF("DDPATCH3")
+                    record.writeUTF(hash(expected))
+                    record.writeUTF(root.canonicalPath)
+                    record.writeUTF(relative)
+                    record.writeUTF(hash(proposed))
+                    record.writeInt(expected.size)
+                    record.write(expected)
+                }
+            }.toByteArray()
+            require(body.size + CHECKSUM_BYTES <= BACKUP_LIMIT)
             backup.outputStream().use { raw ->
-                val record = java.io.DataOutputStream(raw)
-                record.writeUTF("DDPATCH2")
-                record.writeUTF(hash(expected))
-                record.writeUTF(root.canonicalPath)
-                record.writeUTF(relative)
-                record.writeUTF(hash(proposed))
-                record.writeInt(expected.size)
-                record.write(expected)
-                record.flush()
+                raw.write(body)
+                raw.write(digest(body))
                 raw.fd.sync()
             }
             require(readBackup(root, backup).original.contentEquals(expected)) { "Backup verification failed" }
@@ -107,7 +114,7 @@ internal object GamePatchStore {
         if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return History(null, "")
         val candidates = backupDir.listFiles().orEmpty()
             .filter { it.name.startsWith("ddpatch-") && it.extension == "bak" &&
-                Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= LIMIT + 196608 }
+                Files.isRegularFile(it.toPath(), NOFOLLOW_LINKS) && it.length() <= BACKUP_LIMIT }
             .sortedByDescending { it.lastModified() }
         var status = ""
         for (candidate in candidates) {
@@ -125,15 +132,37 @@ internal object GamePatchStore {
 
     private fun readBackup(root: File, backup: File): Backup {
         require(Files.isRegularFile(backup.toPath(), NOFOLLOW_LINKS)) { "Invalid backup file" }
-        require(backup.length() <= LIMIT + 196608)
-        return java.io.DataInputStream(Files.newInputStream(backup.toPath(), NOFOLLOW_LINKS)).use {
+        require(backup.length() in 1L..BACKUP_LIMIT.toLong())
+        val bytes = Files.newInputStream(backup.toPath(), NOFOLLOW_LINKS).use { input ->
+            val buffer = ByteArray(8192)
+            val out = java.io.ByteArrayOutputStream()
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                require(out.size() + count <= BACKUP_LIMIT)
+                out.write(buffer, 0, count)
+            }
+            out.toByteArray()
+        }
+        val marker = java.io.DataInputStream(bytes.inputStream()).use { it.readUTF() }
+        val body = if (marker == "DDPATCH3") {
+            require(bytes.size > CHECKSUM_BYTES)
+            val end = bytes.size - CHECKSUM_BYTES
+            bytes.copyOfRange(0, end).also {
+                require(MessageDigest.isEqual(digest(it), bytes.copyOfRange(end, bytes.size))) {
+                    "Damaged backup metadata or contents"
+                }
+            }
+        } else bytes
+        return java.io.DataInputStream(body.inputStream()).use {
             val first = it.readUTF()
-            val versioned = first == "DDPATCH2"
+            val versioned = first == "DDPATCH2" || first == "DDPATCH3"
             val digest = if (versioned) it.readUTF() else null
             val path = if (versioned) it.readUTF() else first
             require(path == root.canonicalPath)
             val relative = it.readUTF()
             val applied = it.readUTF()
+            require(applied.matches(Regex("[0-9a-f]{64}")))
             val size = it.readInt()
             require(size in 0..LIMIT)
             val original = ByteArray(size)
