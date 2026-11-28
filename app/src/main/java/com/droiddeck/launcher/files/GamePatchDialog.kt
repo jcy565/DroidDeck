@@ -67,6 +67,7 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
     var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
     var exchangeReply by remember(file) { mutableStateOf("") }
     var replyReview by remember(file) { mutableStateOf<SharedReplyFieldReview?>(null) }
+    var inboxReply by remember(file, exchange?.id) { mutableStateOf<String?>(null) }
     val sharedReplyRevision by SharedAgentReply.revision.collectAsState()
     var fallbackReview by remember(file) { mutableStateOf<LocalAgentFallback.Reason?>(null) }
     var modelDigest by remember(file) { mutableStateOf("") }
@@ -84,12 +85,11 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
             withContext(Dispatchers.IO) { SharedAgentReply.load(context, pendingId) }
         } catch (e: CancellationException) { throw e }
           catch (_: Exception) { null }
-        if (received != null && exchange?.id == pendingId && !busy) {
-            if (exchangeReply.isBlank()) {
+        if (exchange?.id == pendingId && !busy) {
+            inboxReply = received
+            if (received != null && exchangeReply.isBlank()) {
                 exchangeReply = received
                 message = "공유한 AI 응답을 받았습니다. 검증 후 초안에 반영하세요."
-            } else if (exchangeReply != received) {
-                message = "입력란과 다른 공유 응답이 있습니다. 다시 불러오기에서 비교할 수 있습니다."
             }
         }
     }
@@ -393,6 +393,8 @@ private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
                         sharePreparedRequest(pending)
                     } }) { Text("검토 후 요청 저장 및 ChatGPT 열기") }
                     Text("복사·붙여넣기 없이 응답 JSON 텍스트를 Android 공유 메뉴의 DroidDeck AI 응답으로 보낼 수 있습니다. 대화 링크는 지원하지 않습니다.")
+                    if (inboxReply != null && inboxReply != exchangeReply)
+                        Text("입력란과 다른 공유 응답이 있습니다. 다시 불러오기에서 비교할 수 있습니다.")
                     TextButton(enabled = !busy, onClick = { runAction {
                         val received = withContext(Dispatchers.IO) { SharedAgentReply.load(context, pending.id) }
                             ?: error("이 요청에 공유된 응답이 없습니다.")
