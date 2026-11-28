@@ -269,7 +269,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         val expected = translationSource
                         val restored = withContext(Dispatchers.IO) {
                             check(GameplayBudget.allowsOptionalAnalysis(context))
-                            val saved = ExchangeCheckpoint.load(exchangeCheckpointFile) ?: error("저장된 AI 요청이 없습니다.")
+                            val saved = ExchangeCheckpoint.load(exchangeCheckpointFile) {
+                                ensureActive()
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                            } ?: error("저장된 AI 요청이 없습니다.")
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                             if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
                             ChatGptExchange.restore(saved, file.canonicalPath, file.extension, source, edits)
@@ -294,7 +297,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
                             val saved = ChatGptExchange.checkpoint(pending, file.canonicalPath, source, edits)
                             check(GameplayBudget.allowsOptionalAnalysis(context))
-                            ExchangeCheckpoint.save(exchangeCheckpointFile, saved)
+                            ExchangeCheckpoint.save(exchangeCheckpointFile, saved) {
+                                ensureActive()
+                                check(GameplayBudget.allowsOptionalAnalysis(context))
+                            }
                         }
                         message = "현재 요청의 재개 정보를 저장했습니다. 이전 저장 요청은 교체됐습니다."
                     } }) { Text("현재 요청 저장 (이전 저장 요청 교체)") }

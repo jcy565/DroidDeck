@@ -47,7 +47,8 @@ internal object ExchangeCheckpoint {
 
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
 
-    @Synchronized fun save(file: File, saved: Saved) {
+    @Synchronized fun save(file: File, saved: Saved, checkpoint: () -> Unit = {}) {
+        checkpoint()
         validate(saved)
         val directory = directory(file)
         require(Files.notExists(file.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
@@ -66,11 +67,13 @@ internal object ExchangeCheckpoint {
                 stream.write(body); stream.write(digest(body)); stream.fd.sync()
             }
             require(Files.size(temp) <= MAX_BYTES)
+            checkpoint()
             Files.move(temp, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
         } finally { Files.deleteIfExists(temp) }
     }
 
-    @Synchronized fun load(file: File): Saved? {
+    @Synchronized fun load(file: File, checkpoint: () -> Unit = {}): Saved? {
+        checkpoint()
         directory(file)
         val path = file.toPath()
         if (Files.notExists(path, NOFOLLOW_LINKS)) return null
@@ -79,7 +82,9 @@ internal object ExchangeCheckpoint {
             val out = ByteArrayOutputStream()
             val block = ByteArray(4096)
             while (true) {
+                checkpoint()
                 val n = input.read(block)
+                checkpoint()
                 if (n < 0) break
                 require(n > 0 && out.size() + n <= MAX_BYTES)
                 out.write(block, 0, n)
@@ -102,6 +107,7 @@ internal object ExchangeCheckpoint {
             require(input.readInt() == magic)
             val saved = Saved(input.readUTF(), input.readUTF(), input.readInt(), input.readUTF())
             validate(saved); require(input.read() == -1)
+            checkpoint()
             saved
         }
     }

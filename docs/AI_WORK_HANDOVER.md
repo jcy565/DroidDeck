@@ -190,3 +190,8 @@
 - GamePatchStore의 파일/백업 읽기 중 및 EOF 후 checkpoint를 확인한다. 이력 조회에서 checkpoint 예외(취소/게임 상태 변경)를 손상 백업으로 오인해 삼키지 않는다. 복원 후보 반환 직전 현재 파일 해시를 재확인한다. 실제 복원 전 검사도 기존대로 유지. 조회와 외부 파일 변경은 원자적이지 않다.
 - TranslationDraftStore는 잘못된 UTF-16 surrogate가 해시/저장 과정에서 다른 문자로 바뀌지 않도록 대상/원본/초안 값을 검사한다. 불완전하지만 유효한 Unicode 번역 초안은 계속 저장 가능하다. 저장소 테스트를 JVM CI에 추가.
 - 신규 테스트 및 최신 Android 컴파일 미확인, 실제 기기 0/8, APK/키/배포 없음. 할당량 조회 불가, 코드와 인계 동시 저장. 다음: 양쪽 CI 확인 후 비강제 통합, 최신 소스 Android 검증.
+
+### ChatGPT 교환 체크포인트 취소 및 UUID/Unicode 검사
+- 기준 632f8a1028028193e1d4bd99cff80003af2f7e09, staging 46116709235 / job 140892067915 실제 JUnit 로그 OK (93 tests). 통합 Android 46116662577 in_progress/미정; 원래 브랜치는 변경하지 않고 staging에서 후속 작업.
+- ExchangeCheckpoint 저장의 최종 이동 전 및 읽기 도중 취소 확인, GamePatchDialog의 코루틴/게임 예산과 연결. 저장 취소 시 기존 재개 정보 보존, 신규 임시 파일만 정리. 자동 공유/전송 없음. GameAgent 외부 교환의 UUID 형식 정규 검증, 잘못된 UTF-16 거부, 로그 꼬리 경계의 surrogate 분리 방지. 경계가 달라진 이전 요청은 fingerprint 불일치 시 새 요청 필요.
+- ChatGPT 교환 및 체크포인트 기존/신규 JVM 테스트 연결, Android workflow 경로 보완. 신규 테스트 및 Android 소스 컴파일 미확인. 기기 0/8, APK/키/배포 없음. 공식 할당량 조회 불가로 코드와 인계 동시 저장. 다음: CI 결과 및 ancestry 확인 후 통합, 최신 Android 컴파일.

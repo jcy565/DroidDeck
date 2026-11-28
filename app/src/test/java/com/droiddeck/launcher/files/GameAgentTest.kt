@@ -17,6 +17,18 @@ class GameAgentTest {
         override fun close() { closed = true }
     }
 
+    @Test fun externalIdsMustBeCanonicalAndLogExcerptPreservesUnicode() {
+        val invalid = "-".repeat(36)
+        assertTrue(runCatching { GameAgent.externalPrompt(config, invalid) }.isFailure)
+        val response = mod.dropLast(1) + ",\"exchange_id\":\"$invalid\"}"
+        assertTrue(runCatching { GameAgent.acceptExternal(config, response, invalid) }.isFailure)
+        val id = java.util.UUID.randomUUID().toString()
+        val log = GameAgent.Request("분석", "log", "😀" + "x".repeat(GameAgent.MAX_LOG_CHARS - 1))
+        val prompt = GameAgent.externalPrompt(log, id)
+        assertTrue(Charsets.UTF_8.newEncoder().canEncode(prompt))
+        assertTrue(runCatching { GameAgent.externalPrompt(config.copy(instruction = "bad" + 0xd800.toChar()), id) }.isFailure)
+    }
+
     @Test fun configProposalOnlyUsesExistingSetting() = runBlocking {
         val model = Model { mod }
         val result = GameAgent.run(config, { true }, { model }) as GameAgent.Result.Patch

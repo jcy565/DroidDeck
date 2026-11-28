@@ -74,6 +74,28 @@ class ExchangeCheckpointIntegrityTest {
         assertEquals(saved, ExchangeCheckpoint.load(file))
     }
 
+    @Test fun cancelledCheckpointSavePreservesPreviousRecordAndReadCanStop() {
+        val file = File(temp.root, "request")
+        val original = saved()
+        ExchangeCheckpoint.save(file, original)
+        val bytes = file.readBytes()
+        var checks = 0
+        assertTrue(runCatching {
+            ExchangeCheckpoint.save(file, saved()) {
+                if (++checks == 2) throw java.util.concurrent.CancellationException()
+            }
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+        assertArrayEquals(bytes, file.readBytes())
+        assertEquals(listOf(file), temp.root.listFiles()!!.toList())
+        checks = 0
+        assertTrue(runCatching {
+            ExchangeCheckpoint.load(file) {
+                if (++checks == 3) throw java.util.concurrent.CancellationException()
+            }
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+        assertEquals(original, ExchangeCheckpoint.load(file))
+    }
+
     @Test fun invalidParentAndLeafAreNotTreatedAsMissingOrOverwritten() {
         val invalid = temp.newFile().apply { writeText("keep") }
         val saved = saved()

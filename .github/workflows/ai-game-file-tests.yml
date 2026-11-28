@@ -12,6 +12,10 @@ on:
       - 'app/src/test/java/com/droiddeck/launcher/files/GamePatch*.kt'
       - 'app/src/test/java/com/droiddeck/launcher/files/TranslationDraftStoreTest.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/GameAgent.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/ChatGptExchange.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/ExchangeCheckpoint.kt'
+      - 'app/src/test/java/com/droiddeck/launcher/files/ChatGptExchangeTest.kt'
+      - 'app/src/test/java/com/droiddeck/launcher/files/ExchangeCheckpoint*Test.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/LocalModelStore.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/ImagePatch*.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/Dds*.kt'
@@ -45,7 +49,7 @@ jobs:
           cp="$cp:$RUNNER_TEMP/ai-core:$deps/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.7.3/kotlinx-coroutines-core-jvm-1.7.3.jar"
           src=app/src/main/java/com/droiddeck/launcher/files
           tests=app/src/test/java/com/droiddeck/launcher/files
-          kotlinc "$src"/{GameConfigPreview,GamePatchStore,GamePatchAuthor,LocalGameAdvisor,FolderUsage,GameAgent,LocalModelStore,ImagePatchArchive,ImagePatchImport,ImagePatchBackup,ImagePatchTransaction,ImagePatchReview,ImagePatchPngCheck,ImagePatchPngStream,ImagePatchStorageCheck,DdsImage,DdsCopyEncoder,DdsCopyReview,TgaImage,ImageTranslationInput,AiHostBridge,TranslationAgentWindow,TranslationJson,TranslationLimits,TranslationTable,TranslationDraftStore}.kt \
-            "$tests"/{GamePatchTest,GamePatchAuthorTest,GameAgentTest,LocalModelStoreTest,ImagePatchArchiveTest,ImagePatchTransactionTest,ImagePatchPngCheckTest,ImagePatchStorageCheckTest,DdsImageTest,DdsCopyEncoderTest,TgaImageTest,TranslationDraftStoreTest}.kt -classpath "$cp" -d "$RUNNER_TEMP/game-files.jar"
+          kotlinc "$src"/{GameConfigPreview,GamePatchStore,GamePatchAuthor,LocalGameAdvisor,FolderUsage,GameAgent,LocalModelStore,ImagePatchArchive,ImagePatchImport,ImagePatchBackup,ImagePatchTransaction,ImagePatchReview,ImagePatchPngCheck,ImagePatchPngStream,ImagePatchStorageCheck,DdsImage,DdsCopyEncoder,DdsCopyReview,TgaImage,ImageTranslationInput,AiHostBridge,TranslationAgentWindow,TranslationJson,TranslationLimits,TranslationTable,TranslationDraftStore,ChatGptExchange,ExchangeCheckpoint}.kt \
+            "$tests"/{GamePatchTest,GamePatchAuthorTest,GameAgentTest,LocalModelStoreTest,ImagePatchArchiveTest,ImagePatchTransactionTest,ImagePatchPngCheckTest,ImagePatchStorageCheckTest,DdsImageTest,DdsCopyEncoderTest,TgaImageTest,TranslationDraftStoreTest,ChatGptExchangeTest,ExchangeCheckpointDiscardTest,ExchangeCheckpointIntegrityTest}.kt -classpath "$cp" -d "$RUNNER_TEMP/game-files.jar"
           kotlin -classpath "$RUNNER_TEMP/game-files.jar:$cp" org.junit.runner.JUnitCore \
-            com.droiddeck.launcher.files.GamePatchTest com.droiddeck.launcher.files.GamePatchAuthorTest com.droiddeck.launcher.files.GameAgentTest com.droiddeck.launcher.files.LocalModelStoreTest com.droiddeck.launcher.files.ImagePatchArchiveTest com.droiddeck.launcher.files.ImagePatchTransactionTest com.droiddeck.launcher.files.ImagePatchPngCheckTest com.droiddeck.launcher.files.ImagePatchStorageCheckTest com.droiddeck.launcher.files.DdsImageTest com.droiddeck.launcher.files.DdsCopyEncoderTest com.droiddeck.launcher.files.TgaImageTest com.droiddeck.launcher.files.TranslationDraftStoreTest
+            com.droiddeck.launcher.files.GamePatchTest com.droiddeck.launcher.files.GamePatchAuthorTest com.droiddeck.launcher.files.GameAgentTest com.droiddeck.launcher.files.LocalModelStoreTest com.droiddeck.launcher.files.ImagePatchArchiveTest com.droiddeck.launcher.files.ImagePatchTransactionTest com.droiddeck.launcher.files.ImagePatchPngCheckTest com.droiddeck.launcher.files.ImagePatchStorageCheckTest com.droiddeck.launcher.files.DdsImageTest com.droiddeck.launcher.files.DdsCopyEncoderTest com.droiddeck.launcher.files.TgaImageTest com.droiddeck.launcher.files.TranslationDraftStoreTest com.droiddeck.launcher.files.ChatGptExchangeTest com.droiddeck.launcher.files.ExchangeCheckpointDiscardTest com.droiddeck.launcher.files.ExchangeCheckpointIntegrityTest
