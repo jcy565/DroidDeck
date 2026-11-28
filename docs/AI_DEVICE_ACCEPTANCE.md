@@ -85,3 +85,13 @@ D01~D03 통과 후 소유한 게임에서만 시험한다. 최초 실행은 설�
 | D14 | duplicate.tsv, nested.json | 지원하지 않는 입력 거부 |
 
 모든 시험은 미검증 상태다. 실제 게임 파일 대신 별도 복사본으로 시행한다. 신뢰 가능한 독립 서명과 전체 CI 성공 확인 전에는 설치를 권하지 않는다. 기존 빌드 브랜치와 코드에는 변경을 가하지 않는다. GitHub 연결 도구의 combined status와 PR 전용 실행 조회, 공개 웹 조회에서도 f30d1dc push 실행 번호를 확보하지 못했다. 실행 성공·실패 여부는 아직 모른다.
+
+
+## 7. 합성 파일 기반 실제 Kotlin 엔진 검증
+
+검증 기준 소스: `f30d1dccaa2acd140590a0321e2c5bdd0a6c01c8`. 로컬 JDK 21 및 kotlinc에서 실제 제품 소스 7개와 독립 KitCheck.kt를 함께 컴파일하고, ZIP에서 꺼낸 합성 테스트 입력 및 예상 결과를 사용했다. Git blob SHA가 기준 소스와 일치함을 확인했다. Android 테스트 대역 없이 실제 JVM 파일과 ZIP 처리 사용. 실제 게임 파일은 변경하지 않았다.
+
+- 결과: 85/85 검사 통과. INI 최적화 후보 3개 및 720p 예상 결과, TSV/CSV/JSON 행 ID와 변수 보존 및 변수 누락 차단, 네 파일 모두 원본 유지·ZIP 단일 항목/바이트/재가져오기·패치 적용·백업 검색·오래된 미리보기 거부·외부 변경 후 복원 거부·손상 백업과 잘못된 대상 거부·바이트 단위 원본 복원 확인. 중복 TSV와 중첩 JSON 거부, 합성 Android/GPU 메모리 신호와 장치 손실 분리 및 알 수 없는 로그 처리 확인.
+- 소스 blob: GameConfigPreview 7f7adfce8f72acf04fda8571398727e0f3bb5fc1; GamePatchAuthor 84a3c21b377fe8351d8f89b36a4b7e50de3e5dca; GamePatchStore 41bfa1b43d9b505c142e7a725336bda3290ec1b4; LocalGameAdvisor 5215b096fb45b2e402c0a1ac5430785ab13f59b4; TranslationJson 935bbc68d039daabbb13eff34f654d90e542d5ef; TranslationLimits 34c8befcc6266a0dbb8a20f88a31a441ce012030; TranslationTable 01868fff6a572ceba4d98a688febd56879b4fe02.
+- 실행 명령: `kotlinc GameConfigPreview.kt GamePatchAuthor.kt GamePatchStore.kt LocalGameAdvisor.kt TranslationJson.kt TranslationLimits.kt TranslationTable.kt KitCheck.kt -include-runtime -d kitcheck.jar && java -jar kitcheck.jar fixtures`. 출력 마지막 줄: `TOTAL PASS 85`. 이번 검사는 D09/D10/D12/D14의 호스트 엔진 범위 일부에 해당한다. Android UI, 저장소 권한, OCR, ChatGPT 앱 공유, 로컬 AI, 실제 게임 실행 및 실제 기기 시험은 모두 미검증 상태 유지. 성능 향상이나 RE7 오류 해결을 주장하지 않는다.
+- 최신 빌드의 combined status 및 PR 기반 실행 목록은 비어 있고, 컨테이너의 공개 GitHub API 요청은 DNS 오류로 실패했다. 빌드 상태 미확인. 기존 CI 실행에 영향을 주지 않기 위해 제품 코드와 워크플로는 변경하지 않았다.
