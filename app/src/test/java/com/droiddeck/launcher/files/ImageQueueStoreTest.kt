@@ -136,6 +136,36 @@ class ImageQueueStoreTest {
         assertTrue(root.listFiles()!!.isEmpty())
     }
 
+    @Test fun discoveryAndStorageUseTheSameSafeRelativePaths() {
+        val root = temp.newFolder("game")
+        val storage = temp.newFolder("storage")
+        File(root, "bad\nname.png").writeBytes(byteArrayOf(1))
+        File(root, "bad\\name.png").writeBytes(byteArrayOf(2))
+        val normal = File(root, "menu.png").apply { writeBytes(byteArrayOf(3)) }
+        val report = ImageAssetDiscovery.inspect(root, probe = { _, _ -> ImageAssetDiscovery.Size(32, 16) })
+        assertTrue(report.partial)
+        assertEquals(listOf("menu.png"), report.candidates.map { it.relative })
+        val queue = ImageAssetDiscovery.Queue(root, report.candidates)
+        ImageQueueStore.save(storage, queue)
+        assertEquals(queue.copy(root = root.canonicalFile), ImageQueueStore.load(storage, root))
+        assertEquals(normal.canonicalFile, ImageAssetDiscovery.open(root, queue.candidates.single()))
+        val invalid = queue.candidates.single().copy(relative = "bad\nname.png")
+        assertTrue(runCatching { ImageAssetDiscovery.open(root, invalid) }.isFailure)
+    }
+
+    @Test fun discoveryUsesOriginalSkipSnapshotAcrossCheckpoints() {
+        val root = temp.newFolder("game")
+        File(root, "a.png").writeBytes(byteArrayOf(1))
+        File(root, "b.png").writeBytes(byteArrayOf(2))
+        val skip = mutableSetOf("a.png")
+        val report = ImageAssetDiscovery.inspect(root,
+            probe = { _, _ -> ImageAssetDiscovery.Size(32, 16) },
+            skip = skip, checkpoint = { skip.clear(); skip.add("b.png") })
+        assertEquals(setOf("b.png"), skip)
+        assertEquals(listOf("b.png"), report.candidates.map { it.relative })
+        assertEquals(setOf("b.png"), report.examinedPaths)
+    }
+
     @Test fun continuesWithoutReprobingExaminedFiles() {
         val root = temp.newFolder()
         repeat(13) { File(root, "$it.png").writeBytes(byteArrayOf(1)) }
