@@ -71,3 +71,28 @@ fi
             self.assertEqual(run().returncode, 0)
             self.assertEqual(hashlib.sha512(f.read_bytes()).hexdigest(),
                              f.with_name(f.name + '.sha512').read_text())
+            # Refuse nonregular cache destinations rather than moving files into
+            # a directory or treating a symlink as an already verified artifact.
+            checksum = f.with_name(f.name + '.sha512')
+            for destination in (f, checksum):
+                original = destination.read_bytes()
+                destination.unlink()
+                destination.mkdir()
+                before = log.read_text()
+                result = run()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('Unsafe Robolectric cache destination', result.stderr)
+                self.assertEqual(list(destination.iterdir()), [])
+                self.assertEqual(log.read_text(), before)
+                destination.rmdir()
+                target = root / 'external'
+                target.write_bytes(original)
+                destination.symlink_to(target)
+                result = run()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertTrue(destination.is_symlink())
+                self.assertEqual(target.read_bytes(), original)
+                self.assertEqual(log.read_text(), before)
+                destination.unlink()
+                destination.write_bytes(original)
+            self.assertEqual(run().returncode, 0)
