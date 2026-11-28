@@ -268,3 +268,7 @@
 ### 전체 APK 빌드 Python 회귀 실패 수정
 - 46121382760 / Python job 140906518436 실패. 실제 로그 test_ci_checks.CiChecksTest.test_ocr_variant_is_shared_by_build_tests_and_isolated_diagnostics 의 OCR 브랜치 고정 목록 불일치 1건. 838/723/651개 시험 보고, 723개 그룹 실패 1 skip 6. 나머지 그룹 세부 skip/집계는 로그 확인 후 기록. 신규 OCR 허용 브랜치를 기대값에 반영하되 기존 공통 플래그/정식 배포/실패 진단 가드를 유지. 기존 test_ci_checks 12개 전체를 release 도구 CI에 연결하여 다음 전체 빌드 전 선행 검증. 추가 테스트는 독립 브랜치 자동 push 미허용 및 실패 진단 포함을 확인한다.
 - 기존 빌드 Android job 140907126730 진행 중, 컴포넌트 준비 성공. 실행 중 빌드 브랜치 변경 금지. 수정은 staging에만 저장; 신규 CI 및 기존 APK/Android 종료 확인 전 재빌드하지 않는다. 사용자 상시 승인에 따라 성공한 수정 통합 후 필요시 자동 재빌드. 기존 실패 실행은 성공판으로 간주하지 않는다. 공식 main/키/데이터 변경 없음. 할당량 조회 불가로 코드와 인계 동시 저장.
+
+### OCR 회귀 수정 사전 검증 성공
+- staging 46121727140 / job 140907508557 실제 로그 5+3+6+3+13+12=42/42 통과, 기존 test_ci_checks 전체 통과. 작업 브랜치 14c38d6 대비 ahead 1/behind 0 확인 후 37dba4bab658a74ad28e5eb0b9652a0143c41969 비강제 통합. 원래 빌드 46121382760은 조회 시 in_progress/미정; Android job 140907126730 in_progress, 기존 Python 실패 유지. 빌드 종료 전 브랜치를 변경하지 않는다.
+- 현재 작업 브랜치 통합 release CI 상태는 별도로 확인한다. 할당량 조회 불가로 staging에 검증 기록을 저장. 다음: 기존 전체 빌드 종료 및 Android 로그 확인, 수정판 통합 CI 성공 및 ancestry 확인 후 [build apk] 경로를 자동 재실행. 원래 실패 실행 APK는 설치 후보가 아니다. 기기/키/배포 없음.
