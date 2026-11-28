@@ -34,13 +34,20 @@ with open("calls.jsonl", "a") as f:
 results = Path("app/build/test-results/testReleaseUnitTest")
 results.mkdir(parents=True)
 (results / "TEST.xml").write_text(json.dumps(selectors))
-print("diagnostic selectors:", selectors)
+import xml.etree.ElementTree as ET
 group_exit = int(os.environ["GROUP_EXIT"])
-if len(selectors) == 5:
-    sys.exit(group_exit)
-if len(selectors) == 4:
-    sys.exit(23 if selectors[-1].endswith("ComponentsPageProfileTest") else 17)
-sys.exit(0)
+code = group_exit if len(selectors) == 5 else (
+    23 if selectors[-1].endswith("ComponentsPageProfileTest") else 17
+) if len(selectors) == 4 else 0
+suite = ET.Element("testsuite", tests=str(len(selectors)), failures=str(int(code != 0)))
+for i, selector in enumerate(selectors):
+    cls, method = (selector, "example") if selector.endswith("Test") else selector.rsplit(".", 1)
+    case = ET.SubElement(suite, "testcase", classname=cls, name=method)
+    if code and i == len(selectors) - 1:
+        ET.SubElement(case, "failure").text = "synthetic diagnostic failure"
+ET.ElementTree(suite).write(results / "TEST-probe.xml", encoding="utf-8")
+print("diagnostic selectors:", selectors)
+sys.exit(code)
 ''')
                 gradle.chmod(0o755)
                 out = root / "app/build/compose-idle-diagnostics"
@@ -87,6 +94,32 @@ sys.exit(0)
                     self.assertTrue(all(row.endswith("\t0") for row in rows))
                 self.assertEqual(GROUP[-2:], [selectors[0] for selectors in calls[-2:]])
                 self.assertIn("diagnostic selectors", (out / "component-navigation/run.log").read_text())
+                # Verify actual per-probe evidence, including mixed exit status,
+                # rather than trusting invocation count or a zero exit alone.
+                probes = [("component-navigation", GROUP, group_exit)]
+                probes += [(name, selectors, code) for name, selectors, code in
+                           zip(names, subsets, (0, 17, 23))]
+                for filename, offset in (("summary.tsv", 1 + len(subsets)),
+                                         ("class-summary.tsv", 12 + len(subsets))):
+                    for i, row in enumerate((out / filename).read_text().splitlines()[1:]):
+                        selector = calls[offset + i][0]
+                        name = selector.rsplit(".", 1)[-1]
+                        if filename == "class-summary.tsv":
+                            name = "class-" + name
+                        probes.append((name, [selector], int(row.split("\t")[1])))
+                self.assertEqual(len(calls), len(probes))
+                for name, selectors, code in probes:
+                    with self.subTest(probe=name):
+                        evidence = json.loads((out / name / "evidence.json").read_text())
+                        self.assertEqual(code, evidence["gradle_exit_code"])
+                        self.assertEqual(set(selectors), set(evidence["selectors"]))
+                        self.assertEqual([], evidence["missing_selectors"])
+                        self.assertEqual([], evidence["unexpected_cases"])
+                        self.assertEqual([], evidence["problems"])
+                        self.assertEqual(len(selectors) - int(code != 0), evidence["counts"]["passed"])
+                        self.assertEqual(int(code != 0), evidence["counts"]["failed"])
+                        self.assertEqual(code == 0, evidence["all_selectors_observed_passing"])
+
 
 
 if __name__ == "__main__":
