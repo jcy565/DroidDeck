@@ -3,6 +3,9 @@
 set -euo pipefail
 : "${NDK_VERSION:?NDK version required}"
 out=app/build/compose-idle-diagnostics
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# An interrupted prior invocation must not appear to have executed a later probe.
+rm -rf "$out"
 mkdir -p "$out"
 tests=(
     'com.droiddeck.launcher.ui.ComponentDownloadsDrawerTest.controllerPicksNightlyOnItsTabThenDownloadsItFromTheRow'
@@ -35,6 +38,12 @@ run_case() {
     printf '%s\t%s\n' "$test" "$code" >> "$summary"
     if [ -d app/build/test-results/testReleaseUnitTest ]; then
         cp -a app/build/test-results/testReleaseUnitTest "$dest/results"
+    fi
+    # An exit status is not evidence that the requested cases actually ran.
+    # Keep diagnostics going even when a report cannot be summarized.
+    if ! python3 "$script_dir/compose_probe_summary.py" "$dest" "$code" "$@" > "$dest/evidence.json"; then
+        rm -f "$dest/evidence.json"
+        printf '%s\n' 'Unable to summarize probe XML' > "$dest/evidence-error.txt"
     fi
     last_case_exit=$code
 }
