@@ -29,6 +29,48 @@ class GamePatchTest {
         }
     }
 
+    @Test fun configPreviewUsesTheSameValidatedValuesForRewriting() {
+        val source = "[Render]\r\nResolution=1920x1080\r\nName=old\r\n[Other]\nResolution=800x600\n"
+        val reviewed = linkedMapOf("Resolution" to "1280x720", "Name" to "한글 😀")
+        val inconsistent = object : Map<String, String> by reviewed {
+            override fun get(key: String): String? = "unsafe\nExtra=1"
+        }
+        val preview = GameConfigPreview.preview(source, "Render", inconsistent)
+        assertEquals(source.replace("1920x1080", "1280x720").replace("Name=old", "Name=한글 😀"), preview.proposed)
+        assertEquals(reviewed.values.toList(), preview.changes.map { it.after })
+        val invalid = object : Map<String, String> by reviewed {
+            override val entries get() = mapOf("Resolution" to "720\nExtra=1", "Name" to "x").entries
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            GameConfigPreview.preview(source, "Render", invalid)
+        }
+    }
+
+    @Test fun configAndZipRejectMalformedUnicodeBeforeEncoding() {
+        val source = "[Render]\nName=old"
+        val preview = GameConfigPreview.preview(source, "Render", mapOf("Name" to "한글 😀"))
+        for (code in 0xD800..0xDFFF) {
+            val bad = "bad" + code.toChar()
+            assertThrows(IllegalArgumentException::class.java) {
+                GameConfigPreview.preview(source, "Render", mapOf("Name" to bad))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                GameConfigPreview.preview(source + bad, "Render", mapOf("Name" to "new"))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                GamePatchAuthor.zip("$bad.ini", preview)
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                GamePatchAuthor.zip("menu.ini", preview.copy(proposed = bad))
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                GamePatchAuthor.zip("menu.ini", preview.copy(original = bad))
+            }
+        }
+        val zip = GamePatchAuthor.zip("한글😀.ini", preview)
+        assertEquals(preview.proposed, LocalGameAdvisor.replacement("한글😀.ini", "patch.zip", zip.inputStream()))
+    }
+
     @Test fun backupAndRestoreRoundTrip() {
         val root = temp.newFolder()
         val backups = temp.newFolder()
