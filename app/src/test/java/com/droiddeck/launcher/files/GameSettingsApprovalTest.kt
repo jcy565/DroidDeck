@@ -68,6 +68,16 @@ class GameSettingsApprovalTest {
         assertEquals(original, file.readText())
     }
 
+    @Test fun dotSegmentsRejectedBeforeResolving() {
+        val root = temp.newFolder("game")
+        root.resolve("sub").mkdir()
+        val file = root.resolve("settings.ini").apply { writeText(original) }
+        assertThrows(IllegalArgumentException::class.java) {
+            GameSettingsApproval.prepare(root, root.resolve("sub/../settings.ini"), mode)
+        }
+        assertEquals(original, file.readText())
+    }
+
     @Test fun budgetDenialPreventsWriting() {
         val root = temp.newFolder("game")
         val backupDir = temp.newFolder("backup")
