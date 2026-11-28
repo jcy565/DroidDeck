@@ -11,6 +11,9 @@ on:
       - 'app/src/main/AndroidManifest.xml'
       - 'shortcuts/src/main/AndroidManifest.xml'
       - 'app/src/main/res/xml/network_security_config.xml'
+      - 'tools/ci/audit_app_paths.py'
+      - 'app/src/main/java/com/droiddeck/launcher/input/ShortcutsRelay.kt'
+      - 'shortcuts/src/**'
 permissions:
   contents: read
 jobs:
@@ -77,10 +80,14 @@ jobs:
           out.write_text(json.dumps(report, indent=2)+'\n')
           print(out.read_text())
           PY
+      - name: Inventory potential shared storage and package references
+        run: python3 tools/ci/audit_app_paths.py > "$RUNNER_TEMP/ai-app-path-review.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ai-security-source-review
-          path: ${{ runner.temp }}/ai-security-review.json
+          path: |
+            ${{ runner.temp }}/ai-security-review.json
+            ${{ runner.temp }}/ai-app-path-review.json
           if-no-files-found: error
           retention-days: 30
