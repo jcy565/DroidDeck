@@ -117,7 +117,9 @@ object GameFiles {
         require(!java.nio.file.Files.isSymbolicLink(folder.toPath()))
         check(folder.isDirectory || folder.mkdir()) { context.getString(R.string.gfiles_folder_unavailable) }
         // Do not adopt an official export folder even if it has the AI directory name.
-        require(!java.nio.file.Files.exists(File(folder, ".droiddeck-sync.json").toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+        require(listOf(".droiddeck-sync.json", ".droiddeck-sync.json.bak", ".droiddeck-sync.json.new").none {
+            java.nio.file.Files.exists(File(folder, it).toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)
+        }) {
             context.getString(R.string.gfiles_unrelated_inventory)
         }
         return folder
@@ -211,7 +213,9 @@ object GameFiles {
     private fun child(context: Context, folder: File, name: String): File {
         require(name.isNotEmpty() && '/' !in name && '\\' !in name && name != "." && name != "..")
         val file = File(folder, name)
-        require(!java.nio.file.Files.isSymbolicLink(file.toPath()))
+        require(listOf(file, File(folder, "$name.bak"), File(folder, "$name.new")).none {
+            java.nio.file.Files.isSymbolicLink(it.toPath())
+        })
         require(file.canonicalFile.parentFile == folder.canonicalFile) { context.getString(R.string.gfiles_outside_folder) }
         return file
     }
