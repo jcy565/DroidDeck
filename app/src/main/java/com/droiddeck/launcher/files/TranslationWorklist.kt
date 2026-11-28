@@ -29,9 +29,11 @@ internal object TranslationWorklist {
       catch (_: SecurityException) { null }
 
     fun review(queue: Queue, drafts: File, checkpoint: () -> Unit = {}): Report {
-        val entries = queue.files.map { candidate ->
+        // Keep review order and membership stable across cancellation callbacks.
+        val stable = queue.copy(files = queue.files.toList())
+        val entries = stable.files.map { candidate ->
             checkpoint()
-            val snapshot = readable { TranslationDiscovery.snapshot(queue.root, candidate) }
+            val snapshot = readable { TranslationDiscovery.snapshot(stable.root, candidate) }
             if (snapshot == null) Entry(candidate, State.SOURCE_CHANGED)
             else {
                 checkpoint()
