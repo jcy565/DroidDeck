@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from android_test_summary import validated_cases
+
 
 def read_reports(directory):
     files = sorted(Path(directory).glob('TEST-*.xml'))
@@ -13,12 +15,7 @@ def read_reports(directory):
     cases = {}
     for file in files:
         root = ET.parse(file).getroot()
-        if root.tag != 'testsuite':
-            raise ValueError(f'Unexpected report root: {file.name}')
-        rows = root.findall('testcase')
-        if int(root.attrib['tests']) != len(rows):
-            raise ValueError(f'Incomplete testcase count: {file.name}')
-        for row in rows:
+        for row in validated_cases(root):
             key = (row.attrib['classname'], row.attrib['name'])
             if key in cases:
                 raise ValueError(f'Duplicate testcase: {key!r}')
