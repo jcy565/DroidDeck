@@ -56,7 +56,9 @@ internal object TranslationDraftStore {
         val body = buffer.toByteArray()
         require(body.size + 32 <= LIMIT)
         require(directory.isDirectory || directory.mkdirs())
-        require(!Files.isSymbolicLink(directory.toPath()))
+        require(Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
+        require(Files.notExists(file.toPath(), NOFOLLOW_LINKS) ||
+            Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS)) { "기존 번역 초안 경로가 안전하지 않습니다." }
         val temporary = Files.createTempFile(directory.toPath(), ".draft-", ".tmp")
         try {
             temporary.toFile().outputStream().use {
@@ -73,7 +75,7 @@ internal object TranslationDraftStore {
     @Synchronized
     fun load(directory: File, target: String, source: String): Map<String, String>? {
         val file = location(directory, target, source)
-        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null
+        if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         require(file.length() in 33L..LIMIT.toLong())
         val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { input ->

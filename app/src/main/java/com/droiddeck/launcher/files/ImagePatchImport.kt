@@ -10,7 +10,7 @@ import java.util.concurrent.CancellationException
 
 /** Read-only inspection against a selected game root. No archive extraction. */
 internal object ImagePatchImport {
-    enum class State { READY, ALREADY_APPLIED, MISSING, UNSAFE, MISMATCH, INVALID_OUTPUT, READ_FAILED }
+    enum class State { READY, ALREADY_APPLIED, UNCHANGED, MISSING, UNSAFE, MISMATCH, INVALID_OUTPUT, READ_FAILED }
     data class Entry(val row: ImagePatchArchive.Row, val state: State)
     data class Report(val root: String, val file: File, val digest: String, val entries: List<Entry>)
 
@@ -49,6 +49,8 @@ internal object ImagePatchImport {
             }
             val digest = hash(bytes)
             when {
+                digest == row.outputHash && length == row.outputBytes.toLong() &&
+                    digest == row.source.originalHash && length == row.source.originalBytes -> State.UNCHANGED
                 digest == row.outputHash && length == row.outputBytes.toLong() -> State.ALREADY_APPLIED
                 digest == row.source.originalHash && length == row.source.originalBytes -> {
                     verify(bytes, row.source)
