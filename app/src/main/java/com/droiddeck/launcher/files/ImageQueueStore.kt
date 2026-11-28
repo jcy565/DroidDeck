@@ -19,6 +19,9 @@ internal object ImageQueueStore {
 
     private fun location(directory: File, root: String): File {
         require(!Files.isSymbolicLink(directory.toPath()))
+        val game = File(root).toPath()
+        val storage = directory.canonicalFile.toPath()
+        require(!game.startsWith(storage) && !storage.startsWith(game)) { "작업 목록은 게임 폴더와 분리된 저장소에 보관해야 합니다." }
         val key = MessageDigest.getInstance("SHA-256").digest(root.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 255) }
         return File(directory, "$key.queue")
@@ -26,7 +29,7 @@ internal object ImageQueueStore {
 
     private fun validate(c: ImageAssetDiscovery.Candidate) {
         require(c.relative.length in 1..4096 && c.relative.split('/').all {
-            it.isNotBlank() && it != "." && it != ".." && '\\' !in it
+            it.isNotBlank() && it != "." && it != ".." && it.none { ch -> ch.isISOControl() || ch == '\\' }
         })
         require(File(c.relative).extension.lowercase() in ImageTranslationInput.extensions)
         require(!File(c.relative).name.startsWith("dd-translated-", ignoreCase = true))
@@ -38,14 +41,16 @@ internal object ImageQueueStore {
     @Synchronized
     fun save(directory: File, queue: ImageAssetDiscovery.Queue) {
         val root = rootPath(queue.root)
-        require(queue.candidates.size in 1..20 && queue.candidates.map { it.relative }.distinct().size == queue.candidates.size)
-        queue.candidates.forEach(::validate)
+        val candidates = queue.candidates.toList()
+        require(candidates.size in 1..20 && candidates.map { it.relative }.distinct().size == candidates.size)
+        candidates.forEach(::validate)
+        val destination = location(directory, root)
         val body = ByteArrayOutputStream().also { bytes ->
             DataOutputStream(bytes).use { out ->
                 out.writeUTF(MAGIC)
                 out.writeUTF(root)
-                out.writeInt(queue.candidates.size)
-                queue.candidates.forEach { c ->
+                out.writeInt(candidates.size)
+                candidates.forEach { c ->
                     out.writeUTF(c.relative); out.writeInt(c.width); out.writeInt(c.height)
                     out.writeLong(c.bytes); out.writeUTF(c.digest)
                 }
@@ -53,8 +58,8 @@ internal object ImageQueueStore {
         }.toByteArray()
         require(body.size <= LIMIT)
         require(directory.isDirectory || directory.mkdirs())
-        val destination = location(directory, root)
-        require(!Files.exists(destination.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(destination.toPath(), NOFOLLOW_LINKS))
+        require(Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS))
+        require(Files.notExists(destination.toPath(), NOFOLLOW_LINKS) || Files.isRegularFile(destination.toPath(), NOFOLLOW_LINKS))
         val temp = Files.createTempFile(directory.toPath(), "queue-", ".tmp").toFile()
         try {
             FileOutputStream(temp).use { it.write(body); it.fd.sync() }
@@ -91,7 +96,7 @@ internal object ImageQueueStore {
     fun load(directory: File, root: File): ImageAssetDiscovery.Queue? {
         val path = rootPath(root)
         val file = location(directory, path)
-        if (!Files.exists(file.toPath(), NOFOLLOW_LINKS)) return null
+        if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS))
         require(file.length() in 1L..LIMIT.toLong())
         val bytes = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { stream ->
