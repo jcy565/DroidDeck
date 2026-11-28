@@ -24,6 +24,13 @@ import java.io.File
 
 @Composable
 internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
+    key(file) {
+        GamePatchContent(file, onDismiss)
+    }
+}
+
+@Composable
+private fun GamePatchContent(file: File, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val aiAvailability = remember { AiHostBridge.availability() }
     val scope = rememberCoroutineScope()
@@ -59,6 +66,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var exchangeInstruction by remember(file) { mutableStateOf("") }
     var exchange by remember(file) { mutableStateOf<ChatGptExchange.Pending?>(null) }
     var exchangeReply by remember(file) { mutableStateOf("") }
+    var replyReview by remember(file) { mutableStateOf<SharedReplyFieldReview?>(null) }
     val sharedReplyRevision by SharedAgentReply.revision.collectAsState()
     var fallbackReview by remember(file) { mutableStateOf<LocalAgentFallback.Reason?>(null) }
     var modelDigest by remember(file) { mutableStateOf("") }
@@ -69,15 +77,20 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     val managedModels = AiGlossaryUpdates.configured
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
-    LaunchedEffect(exchange?.id, sharedReplyRevision) {
+    LaunchedEffect(exchange?.id, sharedReplyRevision, busy) {
+        if (busy) return@LaunchedEffect
         val pendingId = exchange?.id ?: return@LaunchedEffect
         val received = try {
             withContext(Dispatchers.IO) { SharedAgentReply.load(context, pendingId) }
         } catch (e: CancellationException) { throw e }
           catch (_: Exception) { null }
-        if (received != null && exchange?.id == pendingId && exchangeReply.isBlank()) {
-            exchangeReply = received
-            message = "공유한 AI 응답을 받았습니다. 검증 후 초안에 반영하세요."
+        if (received != null && exchange?.id == pendingId && !busy) {
+            if (exchangeReply.isBlank()) {
+                exchangeReply = received
+                message = "공유한 AI 응답을 받았습니다. 검증 후 초안에 반영하세요."
+            } else if (exchangeReply != received) {
+                message = "입력란과 다른 공유 응답이 있습니다. 다시 불러오기에서 비교할 수 있습니다."
+            }
         }
     }
 
@@ -383,11 +396,13 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     TextButton(enabled = !busy, onClick = { runAction {
                         val received = withContext(Dispatchers.IO) { SharedAgentReply.load(context, pending.id) }
                             ?: error("이 요청에 공유된 응답이 없습니다.")
-                        require(exchangeReply.isBlank() || exchangeReply == received) {
-                            "입력란에 다른 응답이 있습니다. 직접 비운 뒤 다시 불러오세요."
+                        require(exchange?.id == pending.id) { "현재 AI 요청이 변경되었습니다." }
+                        val review = SharedReplyFieldReview.create(pending.id, exchangeReply, received)
+                        if (review != null) replyReview = review
+                        else {
+                            exchangeReply = received
+                            message = "공유 응답을 불러왔습니다. 검증 후 반영하세요."
                         }
-                        exchangeReply = received
-                        message = "공유 응답을 불러왔습니다. 검증 후 반영하세요."
                     } }) { Text("공유 응답 다시 불러오기") }
                     OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
                         enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
@@ -930,6 +945,36 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                 runAction { sharePreparedRequest(pending) }
             }) { Text("검토 후 저장 및 ChatGPT 열기") } },
             dismissButton = { TextButton(onClick = { fallbackReview = null }) { Text("나중에 공유") } }
+        )
+    }
+    replyReview?.let { review ->
+        AlertDialog(
+            onDismissRequest = { if (!busy) replyReview = null },
+            title = { Text("편집기 응답 교체 검토") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    Text("현재 입력 내용은 교체 승인 전까지 유지됩니다. 게임이나 초안에는 아직 반영되지 않습니다.")
+                    Text("현재 응답")
+                    Text(review.previous)
+                    Text("공유 응답")
+                    Text(review.incoming)
+                }
+            },
+            confirmButton = { TextButton(enabled = !busy, onClick = {
+                runAction {
+                    try {
+                        val received = withContext(Dispatchers.IO) { SharedAgentReply.load(context, review.requestId) }
+                        require(review.matches(exchange?.id, exchangeReply, received)) {
+                            "요청 또는 응답이 변경되었습니다. 다시 불러와 검토하세요."
+                        }
+                        exchangeReply = review.incoming
+                        message = "검토한 공유 응답으로 교체했습니다. 별도 검증 후 반영하세요."
+                    } finally {
+                        replyReview = null
+                    }
+                }
+            }) { Text("공유 응답 사용") } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { replyReview = null }) { Text("현재 입력 유지") } },
         )
     }
     if (confirmDiscard) AlertDialog(
