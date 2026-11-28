@@ -1,0 +1,65 @@
+name: AI Gradle runtime audit
+on:
+  push:
+    branches: [ai-independent-apk-verification-next]
+    paths:
+      - '.github/workflows/ai-gradle-runtime-audit.yml'
+      - 'tools/ci/gradle-runtime-inventory.init.gradle'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Recover pinned successful build packs without executing them
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
+          gh api repos/jcy565/DroidDeck/actions/runs/46124010382 | jq -e '.status == "completed" and .conclusion == "success" and .head_sha == "d8c84a5faec188c4c3d2cbf61df8b234495a1668"'
+          gh api repos/jcy565/DroidDeck/actions/artifacts/15255309103/zip > "$RUNNER_TEMP/reviewed-packs.zip"
+          echo "6fea4d5864fda57b2a2470bccb5436115206d37f1768a5cdc8ee64377d1bffd3  $RUNNER_TEMP/reviewed-packs.zip" | sha256sum -c -
+          python3 - <<'PY'
+          import os, shutil, zipfile
+          from pathlib import Path
+          expected = {f'{name}.tar.zst' for name in ('proot','directaudio','tracking','xbox','comet','butler','powervr')}
+          dest = Path('app/build/packs')
+          dest.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(Path(os.environ['RUNNER_TEMP']) / 'reviewed-packs.zip') as z:
+              if len(z.namelist()) != len(expected) or set(z.namelist()) != expected or z.testzip() is not None:
+                  raise ValueError('Unexpected pack archive')
+              for name in sorted(expected):
+                  with z.open(name) as src, (dest / name).open('xb') as out:
+                      shutil.copyfileobj(src, out)
+          PY
+      - name: Resolve runtime dependencies only
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_17_X64:?JDK 17 required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          test -d "$ANDROID_HOME/platforms/android-34"
+          ./gradlew --no-daemon --no-configuration-cache --console=plain -I tools/ci/gradle-runtime-inventory.init.gradle -PexperimentalImageOcr=true -PexperimentalLocalAi=false -PskipRust=true :app:auditReleaseRuntimeInventory
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path('app/build/reports/security/release-runtime-inventory.json')
+          r = json.loads(p.read_text())
+          assert r['sourceCommit'] == os.environ['GITHUB_SHA']
+          assert r['trackedTreeClean'] is True
+          assert r['configuration'] == 'releaseRuntimeClasspath'
+          assert r['profile'] == {'experimentalImageOcr': True, 'experimentalLocalAi': False}
+          print(f"Components: {len(r['components'])}; dependencies: {len(r['dependencies'])}; artifacts: {len(r['artifacts'])}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-gradle-runtime-inventory
+          path: app/build/reports/security/release-runtime-inventory.json
+          if-no-files-found: error
+          retention-days: 30
