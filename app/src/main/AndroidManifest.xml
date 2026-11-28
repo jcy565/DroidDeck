@@ -29,6 +29,8 @@
         </intent>
     </queries>
 
+    <permission android:name="com.droiddeck.launcher.ai.permission.SHORTCUTS_RELAY" android:protectionLevel="signature" />
+    <uses-permission android:name="com.droiddeck.launcher.ai.permission.SHORTCUTS_RELAY" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -99,7 +101,8 @@
             android:label="@string/steam_wall_label"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:exported="true" />
-        <service android:name=".input.ShortcutsRelay" android:exported="true">
+        <service android:name=".input.ShortcutsRelay" android:exported="true"
+            android:permission="com.droiddeck.launcher.ai.permission.SHORTCUTS_RELAY">
             <intent-filter>
                 <action android:name="com.droiddeck.shortcuts.ai.RELAY" />
             </intent-filter>
