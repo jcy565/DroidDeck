@@ -61,6 +61,7 @@ internal object TranslationQueueStore {
 
     @Synchronized
     fun load(directory: File, root: File, checkpoint: () -> Unit = {}): TranslationWorklist.Queue? {
+        checkpoint()
         val (path, file) = location(directory, root)
         if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return null
         require(Files.isRegularFile(file.toPath(), NOFOLLOW_LINKS) && file.length() in 33L..(MAX + 32L))
