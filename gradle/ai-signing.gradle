@@ -1,0 +1,41 @@
+// Shared by the AI host and companion. No public/debug key fallback.
+def signingVariables = ['DD_AI_KEYSTORE', 'DD_AI_KEY_ALIAS', 'DD_AI_STORE_PASSWORD',
+                        'DD_AI_KEY_PASSWORD', 'DD_AI_CERT_SHA256']
+def credentials = signingVariables.collectEntries { name -> [(name): System.getenv(name)] }
+def configured = signingVariables.every { credentials[it] != null && !credentials[it].trim().isEmpty() }
+def verify = tasks.register('verifyAiSigning', Exec) {
+    group = 'verification'
+    description = 'Validate the external AI signing key and expected certificate before packaging.'
+    commandLine new File(System.getProperty('java.home'), 'bin/java').absolutePath,
+        rootProject.file('tools/ci/AiSigningPolicy.java').absolutePath,
+        rootProject.projectDir.absolutePath
+    // Never declare password values as task inputs or print them.
+}
+
+android {
+    signingConfigs {
+        aiPrivate {
+            if (configured) {
+                storeFile file(credentials.DD_AI_KEYSTORE)
+                storeType 'PKCS12'
+                storePassword credentials.DD_AI_STORE_PASSWORD
+                keyAlias credentials.DD_AI_KEY_ALIAS
+                keyPassword credentials.DD_AI_KEY_PASSWORD
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+    buildTypes {
+        debug { signingConfig configured ? signingConfigs.aiPrivate : null }
+        release { signingConfig configured ? signingConfigs.aiPrivate : null }
+    }
+}
+
+tasks.configureEach {
+    if (name in ['validateSigningDebug', 'validateSigningRelease', 'packageDebug',
+                 'packageRelease', 'bundleDebug', 'bundleRelease', 'signDebugBundle', 'signReleaseBundle']) {
+        dependsOn verify
+    }
+}
