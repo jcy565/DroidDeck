@@ -101,7 +101,7 @@
             android:exported="true" />
         <service android:name=".input.ShortcutsRelay" android:exported="true">
             <intent-filter>
-                <action android:name="com.droiddeck.shortcuts.RELAY" />
+                <action android:name="com.droiddeck.shortcuts.ai.RELAY" />
             </intent-filter>
         </service>
         <meta-data android:name="com.oculus.supportedDevices" android:value="quest2|quest3|quest3s" />
@@ -151,16 +151,16 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.CAR_LAUNCHER" />
-                <data android:scheme="droiddeck" android:host="game" />
-                <data android:scheme="droiddeck" android:host="soundtrack" />
-                <data android:scheme="droiddeck" android:host="settings" />
+                <data android:scheme="droiddeck-ai" android:host="game" />
+                <data android:scheme="droiddeck-ai" android:host="soundtrack" />
+                <data android:scheme="droiddeck-ai" android:host="settings" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.CREATE_SHORTCUT" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.droiddeck.launcher.LAUNCH_GAME" />
+                <action android:name="com.droiddeck.launcher.ai.LAUNCH_GAME" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.CAR_LAUNCHER" />
             </intent-filter>
