@@ -6,7 +6,7 @@ internal object TranslationReuse {
     data class Review(val statuses: Map<String, Status>) {
         fun count(status: Status): Int = statuses.values.count { it == status }
         fun nextUnfinished(ids: List<String>, current: Int): Int? {
-            require(current in ids.indices && ids.toSet() == statuses.keys)
+            require(current in ids.indices && ids.size == statuses.size && ids.toSet() == statuses.keys)
             return (1..ids.size).map { (current + it) % ids.size }
                 .firstOrNull { statuses[ids[it]] != Status.READY }
         }
@@ -21,21 +21,27 @@ internal object TranslationReuse {
     }
 
     fun review(source: String, edits: Map<String, String>): Review {
+        require(edits.size <= TranslationLimits.MAX_ROWS)
+        val stable = edits.toMap()
         val rows = GamePatchAuthor.extract(source)
-        require(edits.keys.all { id -> rows.any { it.id == id } })
-        return Review(rows.associate { it.id to status(it, edits[it.id]) })
+        val ids = rows.map { it.id }.toSet()
+        require(stable.keys.all { it in ids })
+        return Review(rows.associate { it.id to status(it, stable[it.id]) })
     }
 
     fun fill(source: String, edits: Map<String, String>): Result {
+        require(edits.size <= TranslationLimits.MAX_ROWS)
+        val stable = edits.toMap()
         val rows = GamePatchAuthor.extract(source)
-        require(edits.keys.all { id -> rows.any { it.id == id } })
-        val result = edits.toMutableMap()
+        val ids = rows.map { it.id }.toSet()
+        require(stable.keys.all { it in ids })
+        val result = stable.toMutableMap()
         var added = 0
         var conflicts = 0
         for (group in rows.groupBy { it.text }.values) {
-            val missing = group.filter { it.id !in edits }
+            val missing = group.filter { it.id !in stable }
             if (missing.isEmpty()) continue
-            val supplied = group.mapNotNull { edits[it.id] }.distinct()
+            val supplied = group.mapNotNull { stable[it.id] }.distinct()
             if (supplied.isEmpty()) continue
             if (supplied.size != 1 || status(group.first(), supplied.single()) != Status.READY) {
                 conflicts += missing.size
