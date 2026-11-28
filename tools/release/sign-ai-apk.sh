@@ -31,10 +31,7 @@ check_package() {
 check_signer() {
   local apk=$1 cert=$2 report=$3
   apksigner verify --verbose --print-certs "$apk" > "$report"
-  grep -Eq '^Verified using v2 scheme .*: true$' "$report" || fail "APK v2 signature verification required."
-  local -a signers=()
-  mapfile -t signers < <(grep -Ei '^Signer #[0-9]+ certificate SHA-256 digest:' "$report" || true)
-  [[ ${#signers[@]} == 1 && "${signers[0],,}" == "signer #1 certificate sha-256 digest: $cert" ]] || fail "Unexpected signing certificate or signer count."
+  python3 "$(dirname "${BASH_SOURCE[0]}")/../ci/apk_signer_report.py" "$report" "$cert"
 }
 check_package "$work/input.apk"
 check_signer "$work/input.apk" "$test_cert" "$work/input-signer"
