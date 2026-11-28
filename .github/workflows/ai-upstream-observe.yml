@@ -17,14 +17,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Test observation rules
-        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p test_ai_upstream_observe.py -v
+      - name: Verify compiler and test update pipeline
+        run: |
+          javac -version
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p 'test_ai_upstream_*.py' -v
       - name: Observe canonical upstream main without advancing the integration baseline
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
           out="$RUNNER_TEMP/upstream-observation"
-          mkdir -p "$out"
           baseline=c6169cba808d82f4d247b00bf01827506c1db54d
           ai="$GITHUB_SHA"
           upstream_url=https://github.com/Droid-Deck/DroidDeck.git
@@ -34,9 +35,11 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "$upstream"
           policy="$(sha256sum tools/ci/ai_upstream_*.py | sha256sum | cut -d' ' -f1)"
           status=0
-          PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_observe.py --baseline "$baseline" --ai "$ai" --upstream "$upstream" --policy "$policy" > "$out/observation.json" || status=$?
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_pipeline.py --baseline "$baseline" --ai "$ai" --upstream "$upstream" --policy "$policy" --output "$out" || status=$?
           jq -e --arg upstream "$upstream" --arg baseline "$baseline" '.upstream == $upstream and .baseline == $baseline and .last_good_changed == false and .release_approved == false' "$out/observation.json"
-          jq '{baseline,upstream,status,observation_key,requires_preview}' "$out/observation.json"
+          jq -e --arg ai "$ai" --arg upstream "$upstream" '.ai == $ai and .upstream == $upstream and .android_build_verified == false and .last_good_changed == false and .release_approved == false' "$out/pipeline.json"
+          jq '{ai,upstream,status,candidate_tree}' "$out/pipeline.json"
+          test "$status" -eq "$(jq 'if (.status == "unchanged" or .status == "no_change" or .status == "android_regression_required") then 0 else 1 end' "$out/pipeline.json")"
           test -z "$(git status --porcelain)"
           exit "$status"
       - uses: actions/upload-artifact@v4
