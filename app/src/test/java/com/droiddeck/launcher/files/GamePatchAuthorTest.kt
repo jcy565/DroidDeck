@@ -4,6 +4,28 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class GamePatchAuthorTest {
+    @Test fun bomTranslationFilesRoundTripThroughDiscoveryPreviewAndZip() {
+        val inputs = mapOf("csv" to "\"id\",text\r\na,\"Hello {name}\"\r\nb,Bye",
+            "tsv" to "id\ttext\na\tHello {name}\nb\tBye",
+            "json" to """{ "a" : "Hello {name}", "b": "Bye" }""")
+        for ((extension, body) in inputs) {
+            val source = "\uFEFF\r\n" + body
+            val name = "menu.$extension"
+            assertTrue(GamePatchAuthor.matchesTranslationExtension(source, extension))
+            assertEquals(listOf("a", "b"), GamePatchAuthor.extract(source).map { it.id })
+            val edits = mapOf("a" to "안녕 {name}")
+            val plan = GamePatchAuthor.translation(source, edits)
+            val expected = source.replace("Hello {name}", "안녕 {name}")
+            assertEquals(source, plan.original)
+            assertEquals(expected, plan.proposed)
+            assertEquals(expected, LocalGameAdvisor.replacement(name, "patch.zip",
+                GamePatchAuthor.zip(name, plan).inputStream()))
+            assertThrows(IllegalArgumentException::class.java) {
+                GamePatchAuthor.translation(source, mapOf("a" to "안녕"))
+            }
+        }
+    }
+
     @Test fun numericModChangesExistingKeyOnly() {
         val source = "[Game]\r\nSpeed=1.0\r\nOther=7\r\n"
         assertEquals("[Game]\r\nSpeed=1.5\r\nOther=7\r\n",

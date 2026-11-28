@@ -48,12 +48,18 @@ internal object GamePatchAuthor {
             false
         }
 
-    fun matchesTranslationExtension(source: String, extension: String): Boolean =
-        if (TranslationJson.isCandidate(source)) extension.equals("json", ignoreCase = true)
-        else TranslationTable.matchesExtension(source, extension)
+    fun matchesTranslationExtension(source: String, extension: String): Boolean {
+        val body = source.removePrefix("\uFEFF")
+        return if (TranslationJson.isCandidate(body)) extension.equals("json", ignoreCase = true)
+            else TranslationTable.matchesExtension(body, extension)
+    }
 
     fun extract(source: String): List<Row> {
         require(source.length <= TranslationLimits.MAX_SOURCE_CHARS)
+        return extractRows(source.removePrefix("\uFEFF"))
+    }
+
+    private fun extractRows(source: String): List<Row> {
         if (TranslationJson.isCandidate(source)) {
             return TranslationJson.entries(source).map { entry ->
                 require(keyPattern.matches(entry.id)) { "지원하지 않는 JSON 키입니다." }
@@ -82,31 +88,34 @@ internal object GamePatchAuthor {
     fun translation(source: String, edits: Map<String, String>): GameConfigPreview.Preview {
         require(edits.size in 1..TranslationLimits.MAX_ROWS)
         val stable = edits.toMap()
-        val rows = extract(source).associateBy { it.id }
+        require(source.length <= TranslationLimits.MAX_SOURCE_CHARS)
+        val body = source.removePrefix("\uFEFF")
+        val rows = extractRows(body).associateBy { it.id }
         require(stable.isNotEmpty() && stable.keys.all { it in rows })
         for ((id, translated) in stable) {
             require(validTranslation(rows.getValue(id).text, translated)) {
                 "변수와 이스케이프의 종류·개수·순서를 유지하세요: $id"
             }
         }
-        if (TranslationJson.isCandidate(source)) {
-            val proposed = TranslationJson.rewrite(source, stable)
-            require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
-            return GameConfigPreview.Preview(source, proposed, emptyList())
-        }
+        val edited = if (TranslationJson.isCandidate(body)) TranslationJson.rewrite(body, stable)
+            else rewriteTable(body, stable)
+        val proposed = if (source.startsWith('\uFEFF')) "\uFEFF" + edited else edited
+        require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
+        return GameConfigPreview.Preview(source, proposed, emptyList())
+    }
+
+    private fun rewriteTable(source: String, edits: Map<String, String>): String {
         val format = TranslationTable.format(source)
         var header = true
-        val proposed = Regex("[^\\r\\n]+|\\r\\n|\\r|\\n").replace(source) { match ->
+        return Regex("[^\\r\\n]+|\\r\\n|\\r|\\n").replace(source) { match ->
             val line = match.value
             if (line == "\r" || line == "\n" || line == "\r\n") line
             else if (header) { header = false; line }
             else {
                 val row = TranslationTable.row(line, format)
-                stable[row.id]?.let { if (it == row.text) line else TranslationTable.replace(row, it, format) } ?: line
+                edits[row.id]?.let { if (it == row.text) line else TranslationTable.replace(row, it, format) } ?: line
             }
         }
-        require(proposed.toByteArray(Charsets.UTF_8).size <= LIMIT)
-        return GameConfigPreview.Preview(source, proposed, emptyList())
     }
 
     fun zip(targetName: String, preview: GameConfigPreview.Preview): ByteArray {
