@@ -38,6 +38,38 @@ internal object LocalGameAdvisor {
 
     private const val UNREAL = "/Script/Engine.GameUserSettings"
 
+    data class Preset(val title: String, val description: String, val preview: GameConfigPreview.Preview)
+
+    /** Offer only supported, non-noop reductions against the exact current file. */
+    fun presets(original: String): List<Preset> {
+        val options = listOf("900p 균형" to "900p 해상도", "720p" to "720p 해상도", "배터리 30 FPS" to "30 FPS 제한")
+        return options.mapNotNull { (command, title) ->
+            val plan = try { optimize(original, command) }
+                catch (_: IllegalArgumentException) { return@mapNotNull null }
+            if (plan.changes.isEmpty()) return@mapNotNull null
+            val description = if (command.contains("30")) {
+                val before = plan.changes.single().before
+                "프레임 제한: " + (if (before.toDoubleOrNull() == 0.0) "무제한" else before) + " → 30 FPS"
+            } else {
+                val height = if (command.contains("900")) 900 else 720
+                val width = height * 16 / 9
+                val single = plan.changes.firstOrNull { it.key == "Resolution" }
+                val old = if (single != null) {
+                    val parts = single.before.split('x')
+                    parts[0].toLong() * parts[1].toLong()
+                } else {
+                    val w = plan.changes.firstOrNull { it.key == "ResolutionSizeX" }?.before?.toLong() ?: width.toLong()
+                    val h = plan.changes.firstOrNull { it.key == "ResolutionSizeY" }?.before?.toLong() ?: height.toLong()
+                    w * h
+                }
+                val reduction = (1.0 - width.toLong() * height / old.toDouble()) * 100
+                java.lang.String.format(java.util.Locale.ROOT,
+                    "%dx%d · 설정상 픽셀 수 %.1f%% 감소 (FPS 예측 아님)", width, height, reduction)
+            }
+            Preset(title, description, plan)
+        }
+    }
+
     fun optimize(original: String, command: String = ""): GameConfigPreview.Preview {
         val unreal = original.lineSequence().any { it.trim() == "[$UNREAL]" }
         if (command.contains("30") || command.contains("배터리")) {

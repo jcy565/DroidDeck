@@ -42,6 +42,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var value by remember(file) { mutableStateOf("") }
     var command by remember(file) { mutableStateOf("") }
     var preview by remember(file) { mutableStateOf<GameConfigPreview.Preview?>(null) }
+    var optimizationPresets by remember(file) { mutableStateOf<List<LocalGameAdvisor.Preset>?>(null) }
     var message by remember(file) { mutableStateOf("") }
     var busy by remember(file) { mutableStateOf(false) }
     var backup by remember(file) { mutableStateOf<File?>(null) }
@@ -525,6 +526,34 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                         message = "설정 한 그룹의 비교 계획입니다. 적용 후 같은 장면에서 측정하세요."
                     } else message = "이 파일에서 지원하는 명령 예시를 확인하세요."
                 } }) { Text(if (log) "로그 분석" else "최적화 계획") }
+            }
+            if (config) {
+                Text("게임 설정 최적화 후보 · 기존 키만 변경")
+                TextButton(enabled = !busy && pendingExport == null && exchange == null, onClick = { runAction {
+                    preview = null
+                    optimizationPresets = null
+                    optimizationPresets = withContext(Dispatchers.IO) {
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        val source = original()
+                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                        LocalGameAdvisor.presets(source)
+                    }
+                    message = if (optimizationPresets.isNullOrEmpty()) "지원하는 하향 설정 후보가 없습니다."
+                        else "후보 하나를 골라 변경 내용을 확인하세요."
+                } }) { Text("현재 설정에서 최적화 후보 찾기") }
+                optimizationPresets?.let { options ->
+                    options.forEach { preset ->
+                        Text(preset.title + " · " + preset.description)
+                        TextButton(enabled = !busy && pendingExport == null && exchange == null, onClick = { runAction {
+                            preview = null
+                            require(original() == preset.preview.original) { "원본이 변경됐습니다. 후보를 다시 찾으세요." }
+                            preview = preset.preview
+                            optimizationPresets = null
+                            message = "변경 내용 확인 후 백업·적용하고 동일 장면에서 성능을 측정하세요. 실제 해상도와 FPS는 게임에서 확인해야 합니다."
+                        } }) { Text(preset.title + " 미리보기") }
+                    }
+                    TextButton(enabled = !busy, onClick = { optimizationPresets = null }) { Text("후보 닫기") }
+                }
             }
             if (config) {
                 Text("간단한 설정형 모드: 모드: Speed=1.5 (실제 존재하는 키만 지원)")

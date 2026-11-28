@@ -244,6 +244,17 @@ class GamePatchTest {
         assertTrue(LocalGameAdvisor.diagnose("black screen").contains("확정하기 어렵"))
     }
 
+    @Test fun optimizationPresetsShowOnlyActualSupportedReductions() {
+        val source = "[Render]\nResolution=1920x1080"
+        val options = LocalGameAdvisor.presets(source)
+        assertEquals(listOf("900p 해상도", "720p 해상도"), options.map { it.title })
+        assertTrue(options[1].description.contains("55.6%"))
+        assertTrue(options.all { it.preview.original == source })
+        assertTrue(LocalGameAdvisor.presets("[Render]\nResolution=1280x720").isEmpty())
+        val unreal = "[/Script/Engine.GameUserSettings]\nResolutionSizeX=1280\nResolutionSizeY=720\nFrameRateLimit=0.0"
+        assertEquals(listOf("30 FPS 제한"), LocalGameAdvisor.presets(unreal).map { it.title })
+    }
+
     @Test fun proposesOnlyOneLowerResolutionWithTheSameAspectRatio() {
         assertEquals("1280x720", LocalGameAdvisor.optimize("[Render]\nResolution=1920x1080").changes.single().after)
         assertThrows(IllegalArgumentException::class.java) { LocalGameAdvisor.optimize("[Render]\nResolution=800x600") }
