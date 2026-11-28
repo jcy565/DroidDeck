@@ -675,7 +675,10 @@ jobs:
             robolectric-prefetch-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Prepare Robolectric runtime dependencies
-        run: bash tools/ci/prepare-robolectric.sh
+        run: |
+          set -euo pipefail
+          bash tools/ci/prepare-robolectric.sh
+          echo "DROIDDECK_VERIFIED_ROBOLECTRIC_REPO=true" >> "$GITHUB_ENV"
 
       - name: Save prepared Robolectric dependencies
         if: steps.robolectric-cache.outputs.cache-hit != 'true'
