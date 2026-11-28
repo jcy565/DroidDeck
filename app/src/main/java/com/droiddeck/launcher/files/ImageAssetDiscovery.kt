@@ -16,10 +16,15 @@ internal object ImageAssetDiscovery {
         init { require(candidates.size in 1..20 && candidates.map { it.relative }.distinct().size == candidates.size) }
     }
 
+    internal fun validRelative(relative: String): Boolean =
+        relative.length in 1..4096 && relative.split('/').all {
+            it.isNotBlank() && it != "." && it != ".." && it.none { ch -> ch.isISOControl() || ch == '\\' }
+        }
+
     private fun resolve(root: File, relative: String): File {
         require(Files.isDirectory(root.toPath(), NOFOLLOW_LINKS))
+        require(validRelative(relative))
         val parts = relative.split('/')
-        require(parts.all { it.isNotBlank() && it != "." && it != ".." && '\\' !in it })
         var file = root.canonicalFile
         for (part in parts) {
             file = File(file, part)
@@ -52,7 +57,8 @@ internal object ImageAssetDiscovery {
         var rejected = 0
         var partial = false
         var bytesBudget = 64L * 1024 * 1024
-        require(skip.size <= 5000 && skip.all { it.length <= 4096 })
+        val skipped = skip.toSet()
+        require(skipped.size <= 5000 && skipped.all { it.length <= 4096 })
         val seen = mutableSetOf<String>()
         var canContinue = false
         val results = mutableListOf<Candidate>()
@@ -72,8 +78,8 @@ internal object ImageAssetDiscovery {
                 if (!attrs.isRegularFile || file.extension.lowercase() !in ImageTranslationInput.extensions ||
                     file.name.startsWith("dd-translated-", ignoreCase = true)) return step
                 val relative = start.relativize(path).toString()
-                if (relative in skip) return step
-                if (relative.length > 4096) { partial = true; return step }
+                if (relative in skipped) return step
+                if (!validRelative(relative)) { partial = true; return step }
                 // Reserve a full per-file cap: concurrent growth cannot exceed the aggregate budget.
                 if (examined >= probeLimit || results.size >= resultLimit ||
                     bytesBudget < ImageTranslationInput.MAX_BYTES) {
