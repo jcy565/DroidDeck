@@ -37,6 +37,39 @@ class GamePatchAuthorTest {
         assertTrue(runCatching { GamePatchAuthor.translation(source, mapOf("missing" to "안녕")) }.isFailure)
     }
 
+    @Test fun malformedUnicodeIsRejectedAcrossAllTranslationFormats() {
+        val sources = listOf("id,text\na,Hello {name}\nb,Bye", "id\ttext\na\tHello {name}\nb\tBye",
+            """{"a":"Hello {name}","b":"Bye"}""")
+        for (source in sources) {
+            val valid = "안녕 😀 {name}"
+            val preview = GamePatchAuthor.translation(source, mapOf("a" to valid))
+            assertEquals(valid, GamePatchAuthor.extract(preview.proposed).first().text)
+            for (c in listOf('\uD800', '\uDBFF', '\uDC00', '\uDFFF')) {
+                val invalid = "안녕 $c {name}"
+                assertFalse(GamePatchAuthor.validTranslation("Hello {name}", invalid))
+                assertTrue(runCatching {
+                    GamePatchAuthor.translation(source, mapOf("a" to invalid))
+                }.isFailure)
+                assertTrue(runCatching {
+                    GamePatchAuthor.extract(source.replace("Hello {name}", invalid))
+                }.isFailure)
+            }
+        }
+    }
+
+    @Test fun authoringUsesTheSameEditSnapshotAsValidation() {
+        val sources = listOf("id,text\na,Hello {name}\nb,Bye", "id\ttext\na\tHello {name}\nb\tBye",
+            """{"a":"Hello {name}","b":"Bye"}""")
+        val reviewed = mapOf("a" to "안녕 {name}", "b" to "잘 가")
+        val inconsistent = object : Map<String, String> by reviewed {
+            override fun get(key: String): String? = if (key == "a") "missing token" else reviewed[key]
+        }
+        for (source in sources) {
+            val preview = GamePatchAuthor.translation(source, inconsistent)
+            assertEquals(reviewed, GamePatchAuthor.extract(preview.proposed).associate { it.id to it.text })
+        }
+    }
+
     @Test fun exportedZipRoundTripsThroughExistingImporter() {
         val source = "id\ttext\nhello\tHello"
         val preview = GamePatchAuthor.translation(source, mapOf("hello" to "안녕"))
