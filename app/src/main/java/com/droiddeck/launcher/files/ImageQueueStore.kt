@@ -31,9 +31,7 @@ internal object ImageQueueStore {
     }
 
     private fun validate(c: ImageAssetDiscovery.Candidate) {
-        require(c.relative.length in 1..4096 && c.relative.split('/').all {
-            it.isNotBlank() && it != "." && it != ".." && it.none { ch -> ch.isISOControl() || ch == '\\' }
-        })
+        require(ImageAssetDiscovery.validRelative(c.relative))
         require(File(c.relative).extension.lowercase() in ImageTranslationInput.extensions)
         require(!File(c.relative).name.startsWith("dd-translated-", ignoreCase = true))
         require(c.bytes in 1L..ImageTranslationInput.MAX_BYTES.toLong())
