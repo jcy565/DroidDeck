@@ -290,3 +290,5 @@
 - 후속 조회: 46124010382 스토어 엔진 job 140914507592 completed/success. Python 140914507622 Steam import and game environment tests 진행 중, 컴포넌트 140914527791 x86 preloads FEX guests (glibc 2.31) 진행 중. 현재 6개 조회 작업 중 4개 성공. 전체 APK 결과 미확인. 빌드 브랜치 변경 없음, 할당량 조회 불가로 단계 기록.
 
 - 46124010382 후속 조회: Prepare verified components 140914527791 및 build-runner 140915078226 성공. Compile APK and Android tests 140915109409 queued, Python/native 140914507622 in_progress. 조회 작업 8개 중 6개 성공. 전체 결과 및 신규 APK 미확인. 빌드 브랜치 변경 없음. 할당량 조회 불가로 주요 단계 기록.
+
+- 46124010382 Python/native job 140914507622 completed/success (job 상태 확인, 상세 테스트 집계 미확인). Android 140915109409 in_progress / Build the add-on packs. 조회 8개 작업 중 7개 성공. 신규 APK/전체 실행 결과 미확인. 빌드 브랜치 변경 없음, 할당량 조회 불가로 주요 단계 저장.
