@@ -35,20 +35,23 @@ internal object TranslationDraftStore {
     }
 
     private fun location(directory: File, target: String, source: String): File {
-        require(!Files.isSymbolicLink(directory.toPath()))
+        require(Files.notExists(directory.toPath(), NOFOLLOW_LINKS) ||
+            Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS)) { "번역 초안 저장 경로가 안전하지 않습니다." }
         return File(directory, identity(target, source) + ".draft")
     }
 
     @Synchronized
     fun save(directory: File, target: String, source: String, edits: Map<String, String>) {
-        validate(source, edits)
+        require(edits.size in 1..TranslationLimits.MAX_ROWS)
+        val stable = edits.toMap()
+        validate(source, stable)
         val file = location(directory, target, source)
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use {
             it.writeUTF(MAGIC)
             it.writeUTF(identity(target, source))
-            it.writeInt(edits.size)
-            for ((id, value) in edits.toSortedMap()) {
+            it.writeInt(stable.size)
+            for ((id, value) in stable.toSortedMap()) {
                 it.writeUTF(id)
                 it.writeUTF(value)
             }
