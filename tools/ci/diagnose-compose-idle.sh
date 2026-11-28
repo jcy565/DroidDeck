@@ -65,3 +65,18 @@ for test in "${classes[@]}"; do
     run_case "$test" "$out/class-${test##*.}" "$out/class-summary.tsv" "$test"
 done
 cat "$out/class-summary.tsv"
+
+# Build 69 reproduced both timeouts only in a grouped invocation.
+# Preserve the original group, method and class diagnostics independently.
+split_names=(navigation-pair predecessors-and-drawer predecessors-and-profile)
+printf 'test\texit_code\n' > "$out/split-summary.tsv"
+for name in "${split_names[@]}"; do
+    rm -rf "$out/$name"
+done
+if ! grep -Fxq $'component-navigation\t0' "$out/group-summary.tsv"; then
+    predecessors=("$prefix.BottomScreenBarTest" "$prefix.BottomScreenTypingTest" "$prefix.CloudMessageTest")
+    run_case navigation-pair "$out/navigation-pair" "$out/split-summary.tsv" "${classes[@]}"
+    run_case predecessors-and-drawer "$out/predecessors-and-drawer" "$out/split-summary.tsv" "${predecessors[@]}" "${classes[0]}"
+    run_case predecessors-and-profile "$out/predecessors-and-profile" "$out/split-summary.tsv" "${predecessors[@]}" "${classes[1]}"
+fi
+cat "$out/split-summary.tsv"
