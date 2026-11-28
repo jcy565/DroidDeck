@@ -10,7 +10,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+// Resource formatting only: do not start launcher-wide servers in this fixture.
+@Config(sdk = [33], application = android.app.Application::class)
 class CloudMessageTest {
     private val ctx get() = RuntimeEnvironment.getApplication()
     private fun msg(result: String, files: Int, conflicts: Int, reason: String) =
