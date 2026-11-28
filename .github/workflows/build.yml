@@ -808,6 +808,8 @@ jobs:
           python3 tools/ci/android_test_summary.py app/build/test-results/testReleaseUnitTest \
             tools/ci/compose-idle-baseline.txt "$UNIT_TEST_OUTCOME" --github-output "$GITHUB_OUTPUT" > app/build/android-test-summary.json
           cat app/build/android-test-summary.json
+          python3 tools/ci/gradle_log_evidence.py app/build/unit-tests.log > app/build/gradle-log-evidence.json
+          cat app/build/gradle-log-evidence.json
 
       - name: Upload unit test diagnostics
         id: unit-test-diagnostics
@@ -818,6 +820,7 @@ jobs:
           path: |
             app/build/unit-tests.log
             app/build/android-test-summary.json
+            app/build/gradle-log-evidence.json
             app/build/test-results/testReleaseUnitTest/
             app/build/reports/tests/testReleaseUnitTest/
           if-no-files-found: ignore
