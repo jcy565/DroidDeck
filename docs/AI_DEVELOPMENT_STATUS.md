@@ -71,3 +71,10 @@ Steam, Epic, GOG 소스가 있다. Ubisoft와 EA의 전용 스토어 통합은 �
 - 후속 ai-integrated-ci-diagnostic-next에는 CI 진단 생략 판단, 다운로드 무결성 재시도, 텍스트 패치/초안/재사용/작업 목록 및 이미지 초안/목록/문자 검증을 반영. 345dc6d와 79bf438은 게임 경로와 백업 저장소의 겹침 방지. 정확한 소스 및 독립 Kotlin 검사 결과는 AI_HANDOVER.md 참고. 독립 검사는 Android 전체 테스트가 아님.
 - 구현률 약 85%는 기존 주관적 추정치를 유지하며 새로 정량 산출하지 않았다. 텍스트와 이미지 검증 완료 범위는 실제 파일을 사용한 독립 검사; Android OCR, 공유, 설치, 실행, 성능 및 AI 모델 추론은 여전히 실기 미검증. 이미지 실제 적용/복구 UI는 비활성 유지.
 - 다음 최우선: 신규 실행 번호 확보 및 종료 결과/XML 확인, 후속 브랜치 비교 및 비강제 통합, 전체 필수 CI, 신뢰 가능한 서명 및 실기 설치, RE7 등 게임별 오류/성능 측정 및 복구 검증. Ubisoft/EA 통합 및 범용 바이너리 번역은 미완료. 실행 목록: https://github.com/jcy565/DroidDeck/actions?query=branch%3Aai-png-compose-integration-next
+
+
+## 최신 통합 성공 및 후속 성능 측정 검증 (2026-11-28)
+- [실행 46096539410](https://github.com/jcy565/DroidDeck/actions/runs/46096539410), ai-integrated-ci-diagnostic-next / 292e853b11ffc5640e2f77effa0b0430515dc85c: 종료(success). 필수 작업 9개 전부 성공, main 전용 배포 작업은 건너뜀. APK 컴파일, 테스트 키 서명 및 서명 검사, 인벤토리 및 공식 0.7.1 비교 성공. APK 아티팩트 15243749411(105529931바이트 ZIP, 개발 테스트 키 서명, 공식 배포 아님).
+- Android 결과 아티팩트 15243868773을 직접 내려받아 SHA-256 9eda2965d1f2a76f8df10b7696e2815debfe8bcceb1c9ad9b24d7ea9cee2bc34 일치 확인. XML 588개에서 4,263건 통과, 실패/오류/건너뜀 0. 전체 11개 기존 Compose 기준 사례 통과, 진단 작업은 계획대로 생략. 이전 Python prefetch 회귀 실패도 이번 필수 작업에서 해소. 이 결과는 해당 커밋의 검증이며 향후 재발 불가능함을 보장하지 않음.
+- 성능 측정 후속 ai-performance-coverage-next / 698e553은 검증된 표본·DB 마이그레이션·프레임 초기화 및 시간 역행 감지·실행 환경 표시·측정 취소 상태·비교 경계 보정 및 재현 가능한 host 검사 포함. 호스트 독립 58,601개 반복 검증 항목과 SQLite 4개 검사 통과 기록은 AI_HANDOVER.md 참조. 아직 이 변경이 포함된 Android 전체 검증과 실기 성능은 미확인.
+- 기능 구현률 약 85~90%는 주관적 추정이며 공식 완성률 아님. 실제 독립 배포 서명, S23+ 설치/게임 실행, ChatGPT 공유/OCR, 이미지 적용·복구 UI 활성화 및 로컬 AI 실기 추론은 남아 있음. main 변경 또는 공식 릴리스 없이 후속 통합 검증부터 수행.
