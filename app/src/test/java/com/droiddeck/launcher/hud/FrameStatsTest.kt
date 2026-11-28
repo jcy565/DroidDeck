@@ -165,6 +165,34 @@ class FrameStatsTest {
         assertArrayEquals(legacy, ring, 0f)
     }
 
+    @Test fun trialCursorRejectsInvalidIntervalsAndNonmonotonicTimestamps() {
+        val stats = FrameStats()
+        val ring = FloatArray(FrameStats.GRAPH_FRAMES)
+        var now = 1_000_000_000L
+        fun add() { now += 10_000_000L; stats.add(10_000_000L, now) }
+        repeat(3) { add() }
+        for (invalid in listOf(0L, -1L, Long.MIN_VALUE)) {
+            val before = stats.graphSnapshot(ring)
+            stats.add(invalid, now)
+            val after = stats.graphSnapshot(ring)
+            assertEquals(before.frames, after.frames)
+            assertTrue(runCatching { after.newFramesSince(before) }.isFailure)
+            add()
+            assertEquals(1, stats.graphSnapshot(ring).newFramesSince(after))
+        }
+        for (timestamp in listOf(now, now - 1L, 0L, -1L)) {
+            val before = stats.graphSnapshot(ring)
+            stats.add(10_000_000L, timestamp)
+            val after = stats.graphSnapshot(ring)
+            assertTrue(runCatching { after.newFramesSince(before) }.isFailure)
+            add()
+            assertTrue(stats.graphSnapshot(ring).newFramesSince(after) in 0..1)
+        }
+        val legacy = FloatArray(FrameStats.GRAPH_FRAMES)
+        assertEquals(stats.graph(legacy), stats.graphSnapshot(ring).frames)
+        assertArrayEquals(legacy, ring, 0f)
+    }
+
     @Test fun resetStartsOver() {
         val stats = FrameStats()
         var now = 1_000_000_000L
