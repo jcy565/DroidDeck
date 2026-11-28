@@ -50,7 +50,7 @@ class CiChecksTest(unittest.TestCase):
         build = yaml.safe_load((ROOT / '.github/workflows/build.yml').read_text())['jobs']['build']
         flag = 'ORG_GRADLE_PROJECT_experimentalImageOcr'
         self.assertEqual(build['env'][flag],
-                         "${{ github.ref_name == 'ai-chatgpt-exchange-next' && 'true' || 'false' }}")
+                         "${{ contains(fromJSON('[\"ai-chatgpt-exchange-next\",\"ai-png-compose-integration-next\"]'), github.ref_name) && 'true' || 'false' }}")
         steps = {step.get('id'): step for step in build['steps']}
         for name in ('build', 'unit-tests', 'compose-idle-diagnostics'):
             self.assertNotIn(flag, steps[name].get('env', {}))
@@ -141,7 +141,11 @@ set -eu
 mkdir -p app/build/test-results/testReleaseUnitTest
 printf '%s\\n' "$3" > app/build/test-results/testReleaseUnitTest/test.xml
 if [[ "$3" == *.BottomScreenBarTest ]]; then
-    printf '%s\\n' "$@" > group-arguments
+    # Subset probes also start with BottomScreenBarTest. Preserve only the
+    # initial five-class invocation rather than replacing it with a subset.
+    if [[ ! -e group-arguments ]]; then
+        printf '%s\\n' "$@" > group-arguments
+    fi
     exit 7
 fi
 case "$3" in
@@ -192,15 +196,18 @@ esac
         # PyYAML YAML 1.1 treats the unquoted GitHub Actions "on" key as True.
         triggers = workflow.get('on', workflow.get(True))
         self.assertIn('ai-recovery-review-next', triggers['push']['branches'])
+        self.assertIn('ai-png-compose-integration-next', triggers['push']['branches'])
         gate = workflow['jobs']['source']['if']
         self.assertIn('ai-compatibility-history', gate)
         self.assertIn('ai-recovery-review-next', gate)
+        self.assertIn('ai-png-compose-integration-next', gate)
         self.assertIn("contains(github.event.head_commit.message, '[build apk]')", gate)
         self.assertIn('github.ref_name', workflow['concurrency']['group'])
         self.assertIn("github.event_name == 'push'", workflow['concurrency']['group'])
         steps = workflow['jobs']['build']['steps']
         diagnostic = next(s for s in steps if s.get('name') == 'Retain checked APK for failed test investigation')
         self.assertIn('ai-recovery-review-next', diagnostic['if'])
+        self.assertIn('ai-png-compose-integration-next', diagnostic['if'])
         self.assertIn("steps.unit-tests.outcome == 'failure'", diagnostic['if'])
         self.assertNotIn('continue-on-error', next(s for s in steps if s.get('id') == 'unit-tests'))
         for name in ('sign', 'packs'):

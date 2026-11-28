@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'pull_request' && format('building pr {0} on 
 
 on:
   push:
-    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next, ai-chatgpt-exchange-next ]
+    branches: [ main, ai-assistant-stable, ai-compatibility-history, ai-recovery-review-next, ai-version-integration-next, ai-chatgpt-exchange-next, ai-png-compose-integration-next ]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   source:
     name: Pin source tree
-    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name != 'push' || !contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next"]'), github.ref_name) || contains(github.event.head_commit.message, '[build apk]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -341,7 +341,7 @@ jobs:
     needs: [source, components, xbox, build-runner]
     name: Compile APK and Android tests
     env:
-      ORG_GRADLE_PROJECT_experimentalImageOcr: ${{ github.ref_name == 'ai-chatgpt-exchange-next' && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_experimentalImageOcr: ${{ contains(fromJSON('["ai-chatgpt-exchange-next","ai-png-compose-integration-next"]'), github.ref_name) && 'true' || 'false' }}
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ${{ fromJSON(needs.build-runner.outputs.labels) }}
     timeout-minutes: 45
@@ -817,7 +817,7 @@ jobs:
           retention-days: 14
 
       - name: Retain checked APK for failed test investigation
-        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next"]'), github.ref_name)
+        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next"]'), github.ref_name)
         uses: actions/upload-artifact@v4
         with:
           name: diagnostic-apk-tests-failed

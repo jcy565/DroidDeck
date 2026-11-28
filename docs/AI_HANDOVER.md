@@ -527,3 +527,7 @@ Actual standalone Kotlin compilation and execution in /tmp/dd-txn-next of seven 
 
 ## PNG and text worklist integration candidate
 Reconcile ai-png-stream-next 57e9de6 with ai-component-navigation-ci 9b972ee on a separate candidate. Three-way changed-path comparison found only docs/AI_HANDOVER.md overlaps; preserve both append-only histories. Existing CI branch untouched. Exact staged source and test blobs reused; no new tests executed, no Android or device verification. Keep image apply/recover UI disabled. Next verify candidate diff and full CI; inspect active subset diagnostics before moving the active branch.
+
+
+## Integrated candidate CI activation
+Rechecked all 27 non-overlapping changed paths against both exact parent revisions; all blob SHAs match. The combined handover preserves both histories. Candidate branch was missing from build.yml push triggers, explicit build marker gate, OCR enablement and failed-test APK retention. Add it only to these development policies; preserve mandatory unfiltered Android and host tests and main-only release publishing. Fix fake Gradle group argument recording so smaller probes cannot overwrite the five-class selector record. Add corresponding policy assertions. No local execution yet, new build requested with [build apk]; check Actions run and results before claiming success.
