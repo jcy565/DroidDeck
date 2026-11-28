@@ -20,10 +20,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
-          gh api repos/jcy565/DroidDeck/actions/runs/46111306535 > run.json
-          jq -e '.status == "completed" and .conclusion == "success" and .head_sha == "3f3eaab6920c8f149dd5bd9ad34a77962b6baeb8"' run.json
-          gh api repos/jcy565/DroidDeck/actions/artifacts/15250811269/zip > reviewed.zip
-          echo '9bcb719ddcad35148d90ffed0da6494d4fc9bb2e0339c70d3448a6223b630616  reviewed.zip' | sha256sum -c -
+          gh api repos/jcy565/DroidDeck/actions/runs/46139567549 > run.json
+          jq -e '.status == "completed" and .conclusion == "success" and .head_sha == "fc57f72eca36b3930177bc521b752dfeca230044"' run.json
+          gh api repos/jcy565/DroidDeck/actions/artifacts/15262040627/zip > reviewed.zip
+          echo '025601fc7965048da4f658f9ecf76c58b3cb89b80a8061a400d177d127a7245f  reviewed.zip' | sha256sum -c -
           python3 - <<'PY'
           from pathlib import Path
           import zipfile
@@ -32,7 +32,7 @@ jobs:
                   raise ValueError('Unexpected APK archive')
               Path('reviewed.apk').write_bytes(archive.read('app-release.apk'))
           PY
-          echo 'a2b72cf82e4bdad9dd264c4bcc7774658ce7e8fdbf1c2b8dc2111f9da4fb1eaf  reviewed.apk' | sha256sum -c -
+          echo '8c10d68b3a9e9e48b1caab45299ffda436f2cb18a03577f82ff6e959b10889b6  reviewed.apk' | sha256sum -c -
       - name: Independently verify Android signature and package
         run: |
           set -euo pipefail
