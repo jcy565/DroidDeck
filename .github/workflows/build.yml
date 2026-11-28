@@ -973,6 +973,11 @@ jobs:
         env:
           XBOX_SOURCE_TREE: ${{ needs.source.outputs.tree-sha }}
         run: test "$(git rev-parse 'HEAD^{tree}')" = "$XBOX_SOURCE_TREE"
+      - name: Check independent APK signing guard
+        timeout-minutes: 2
+        run: |
+          bash -n tools/release/sign-ai-apk.sh
+          python3 -m unittest discover -s tools/release -p test_sign_ai_apk.py -v
       - name: Install Python test dependencies
         timeout-minutes: 7
         run: bash tools/ci/install-ubuntu-packages.sh python3-yaml gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user libvulkan-dev mesa-vulkan-drivers
