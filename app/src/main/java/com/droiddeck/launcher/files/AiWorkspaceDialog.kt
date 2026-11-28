@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -22,7 +23,8 @@ import java.io.File
 
 /** Explicit, folder-scoped entry point to the existing AI workflows. */
 @Composable
-internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
+internal fun AiWorkspaceDialog(folder: File, listed: List<File>, onResumeFile: (File) -> Unit,
+    onFolderTools: () -> Unit,
     onTextQueue: (TranslationWorklist.Queue) -> Unit,
     onImageQueue: (ImageAssetDiscovery.Queue) -> Unit, onDismiss: () -> Unit) {
     key(folder) {
@@ -33,10 +35,13 @@ internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
         var message by remember { mutableStateOf("") }
         var admission by remember { mutableStateOf<GameplayBudget.Admission?>(null) }
         var exchangeStatus by remember { mutableStateOf<SharedAgentReply.Status?>(null) }
+        var choosingResumeFile by remember { mutableStateOf(false) }
+        var resumeFilter by remember { mutableStateOf("") }
         val inboxRevision by SharedAgentReply.revision.collectAsState()
         LaunchedEffect(inboxRevision) {
             // A previously inspected status is a snapshot; do not imply it is live.
             exchangeStatus = null
+            choosingResumeFile = false
         }
         fun runTask(action: suspend () -> Unit) {
             if (busy) return
@@ -78,6 +83,30 @@ internal fun AiWorkspaceDialog(folder: File, onFolderTools: () -> Unit,
                     exchangeStatus?.let {
                         Text("기기 전체 · 조회 시점: " + it.label)
                         Text("요청을 만든 원래 파일에서 재개하세요. 현재 폴더의 작업이라고 단정할 수 없습니다.")
+                        if (it != SharedAgentReply.Status.NO_REQUEST) {
+                            TextButton(enabled = !busy, onClick = {
+                                choosingResumeFile = !choosingResumeFile
+                            }) { Text("현재 폴더에서 원래 파일 선택 및 재개") }
+                        }
+                    }
+                    if (choosingResumeFile) {
+                        Text("파일명을 고르면 기존 요청과 원본·초안의 일치 여부를 편집기에서 확인합니다.")
+                        OutlinedTextField(resumeFilter, { resumeFilter = it.take(256) },
+                            enabled = !busy, singleLine = true, label = { Text("파일명 검색") })
+                        val page = SavedExchangeFiles.candidates(folder, listed, resumeFilter)
+                        if (page.files.isEmpty()) Text("표시할 지원 파일이 없습니다.")
+                        if (page.more) Text("30개까지만 표시합니다. 파일명 검색으로 범위를 좁히세요.")
+                        page.files.forEach { candidate ->
+                            TextButton(enabled = !busy, onClick = {
+                                runTask {
+                                    val selected = withContext(Dispatchers.IO) {
+                                        check(GameplayBudget.allowsOptionalAnalysis(context))
+                                        SavedExchangeFiles.selected(folder, candidate)
+                                    }
+                                    onResumeFile(selected)
+                                }
+                            }) { Text(candidate.name) }
+                        }
                     }
                     Text("저장한 작업 목록을 현재 폴더에서 다시 엽니다. 자동 탐색·전송·패치 적용은 하지 않습니다.")
                     TextButton(enabled = !busy, onClick = {
