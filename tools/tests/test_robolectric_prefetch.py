@@ -17,27 +17,29 @@ class RobolectricPrefetchTest(unittest.TestCase):
             bin_dir = root / "bin"
             bin_dir.mkdir()
             curl = bin_dir / "curl"
-            curl.write_text("""#!/usr/bin/env python3
-import hashlib, os, pathlib, sys
-args = sys.argv[1:]
-url = next(a for a in args if a.startswith('https://'))
-out = pathlib.Path(args[args.index('-o') + 1])
-log = pathlib.Path(os.environ['MOCK_LOG'])
-seen = log.read_text().splitlines() if log.exists() else []
-with log.open('a') as f:
-    f.write(url + '\\n')
-mirror = 'maven-central.storage-download.googleapis.com' in url
-if url.endswith('.sha512'):
-    if mirror or url not in seen:
-        sys.exit(22)
-elif not mirror:
-    sys.exit(22)
-payload = b'verified fixture'
-if url.endswith('.sha512'):
-    out.write_text(hashlib.sha512(payload).hexdigest())
-else:
-    out.write_bytes(b'bad' if os.environ.get('MOCK_BAD') == '1' else payload)
-""")
+            curl.write_text(r'''#!/usr/bin/env bash
+set -euo pipefail
+while (($#)); do
+    case "$1" in
+        https://*) url="$1" ;;
+        -o) shift; dest="$1" ;;
+    esac
+    shift
+done
+seen=0
+if [[ -f "$MOCK_LOG" ]] && grep -Fxq -- "$url" "$MOCK_LOG"; then seen=1; fi
+printf '%s\n' "$url" >> "$MOCK_LOG"
+mirror=0
+if [[ "$url" == *maven-central.storage-download.googleapis.com* ]]; then mirror=1; fi
+if [[ "$url" == *.sha512 ]]; then
+    (( mirror == 0 && seen == 1 )) || exit 22
+    digest="$(printf '%s' 'verified fixture' | sha512sum)"
+    printf '%s' "${digest%% *}" > "$dest"
+else
+    (( mirror == 1 )) || exit 22
+    if [[ "${MOCK_BAD:-0}" == 1 ]]; then printf 'bad' > "$dest"; else printf 'verified fixture' > "$dest"; fi
+fi
+''')
             curl.chmod(0o755)
             sleep = bin_dir / "sleep"
             sleep.write_text("#!/bin/sh\nexit 0\n")
@@ -51,14 +53,28 @@ else:
             first = run()
             self.assertEqual(first.returncode, 0, first.stderr)
             requests = log.read_text().splitlines()
-            self.assertEqual(36, len(requests))
-            mirrors = [url for url in requests if 'maven-central.storage-download.googleapis.com' in url]
-            self.assertEqual(6, len(mirrors))
-            self.assertFalse(any(url.endswith('.sha512') for url in mirrors))
-            files = list((root / ".m2").rglob("*.jar"))
-            self.assertEqual(3, len(files))
+            versions = [("android-all-instrumented", version) for version in (
+                "9-robolectric-4913185-2-i7", "13-robolectric-9030017-i7", "14-robolectric-10818077-i7")]
+            versions.append(("nativeruntime-dist-compat", "1.0.18"))
+            artifacts = [f"org/robolectric/{name}/{version}/{name}-{version}.{ext}"
+                         for name, version in versions for ext in ("pom", "jar")]
+            primary = "https://repo.maven.apache.org/maven2/"
+            secondary = "https://repo1.maven.org/maven2/"
+            mirror = "https://maven-central.storage-download.googleapis.com/maven2/"
+            expected = [url for path in artifacts for url in (
+                primary + path + ".sha512", secondary + path + ".sha512", primary + path + ".sha512",
+                primary + path, secondary + path, mirror + path)]
+            self.assertEqual(expected, requests)
+            repo = root / ".m2/repository"
+            for path in artifacts:
+                payload = repo / path
+                self.assertEqual(b"verified fixture", payload.read_bytes())
+                self.assertEqual(hashlib.sha512(payload.read_bytes()).hexdigest(),
+                                 payload.with_name(payload.name + ".sha512").read_text())
+            files = sorted(repo.rglob("*.jar"))
+            self.assertEqual(len(versions), len(files))
             self.assertEqual(0, run().returncode)
-            self.assertEqual(36, len(log.read_text().splitlines()))
+            self.assertEqual(requests, log.read_text().splitlines())
             files[0].write_bytes(b"corrupted cached file")
             failed = run(MOCK_BAD="1")
             self.assertNotEqual(0, failed.returncode)
