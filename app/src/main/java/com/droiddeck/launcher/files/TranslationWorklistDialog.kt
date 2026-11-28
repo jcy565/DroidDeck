@@ -20,12 +20,20 @@ import java.io.File
 @Composable
 internal fun TranslationWorklistDialog(queue: TranslationWorklist.Queue, onOpen: (File) -> Unit,
     onDismiss: () -> Unit) {
+    key(queue) { TranslationWorklistContent(queue, onOpen, onDismiss) }
+}
+
+@Composable
+private fun TranslationWorklistContent(queue: TranslationWorklist.Queue, onOpen: (File) -> Unit,
+    onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drafts = File(context.filesDir, "translation-drafts")
     var report by remember(queue) { mutableStateOf<TranslationWorklist.Report?>(null) }
     var busy by remember(queue) { mutableStateOf(false) }
     var message by remember(queue) { mutableStateOf("") }
+    val storage = File(context.noBackupFilesDir, "translation-queues")
+    var reviewed by remember(queue) { mutableStateOf<TranslationWorklist.Queue?>(null) }
 
     fun runTask(action: suspend () -> Unit) {
         if (busy) return
@@ -60,6 +68,18 @@ internal fun TranslationWorklistDialog(queue: TranslationWorklist.Queue, onOpen:
         onOpen(selected)
     }
 
+    suspend fun saveReviewed(previous: TranslationWorklist.Queue?) {
+        val saved = withContext(Dispatchers.IO) {
+            val coroutine = kotlinx.coroutines.currentCoroutineContext()
+            TranslationQueueStore.saveIfUnchanged(storage, queue, previous) {
+                coroutine.ensureActive()
+                check(GameplayBudget.allowsOptionalAnalysis(context))
+            }
+        }
+        reviewed = null
+        message = if (saved) "작업 목록 저장 완료" else "저장된 목록이 변경되었습니다. 다시 확인해 주세요."
+    }
+
     LaunchedEffect(queue) { refresh() }
 
     AlertDialog(
@@ -69,18 +89,30 @@ internal fun TranslationWorklistDialog(queue: TranslationWorklist.Queue, onOpen:
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("선택한 ${queue.files.size}개 파일 · 목록을 명시적으로 저장하면 다음에 같은 폴더에서 열 수 있습니다. 각 편집기에서 초안은 따로 저장하세요.")
                 Text("저장 버튼은 이 폴더의 기존 작업 목록을 교체합니다. 게임 파일과 번역 초안은 변경하지 않습니다.")
-                TextButton(enabled = !busy, onClick = {
+                TextButton(enabled = !busy && reviewed == null, onClick = {
                     runTask {
-                        withContext(Dispatchers.IO) {
+                        val previous = withContext(Dispatchers.IO) {
                             val coroutine = kotlinx.coroutines.currentCoroutineContext()
-                            TranslationQueueStore.save(File(context.noBackupFilesDir, "translation-queues"), queue) {
+                            TranslationQueueStore.load(storage, queue.root) {
                                 coroutine.ensureActive()
                                 check(GameplayBudget.allowsOptionalAnalysis(context))
                             }
                         }
-                        message = "작업 목록 저장 완료"
+                        when {
+                            previous == null -> saveReviewed(null)
+                            previous.files == queue.files -> message = "이미 같은 작업 목록이 저장되어 있습니다."
+                            else -> reviewed = previous
+                        }
                     }
-                }) { Text("현재 작업 목록 저장 / 기존 목록 교체") }
+                }) { Text("현재 작업 목록 저장 / 기존 목록 확인") }
+                reviewed?.let { previous ->
+                    Text("기존 목록 ${previous.files.size}개 파일을 교체하시겠습니까?")
+                    previous.files.forEach { Text(it.relative) }
+                    TextButton(enabled = !busy, onClick = {
+                        runTask { saveReviewed(previous) }
+                    }) { Text("확인 후 목록 교체") }
+                    TextButton(enabled = !busy, onClick = { reviewed = null }) { Text("교체 취소") }
+                }
                 Text("저장된 초안만 집계합니다. 형식 통과는 실제 번역 품질이나 적용 완료를 뜻하지 않습니다.")
                 if (busy) Text("파일 및 초안 확인 중…")
                 if (message.isNotEmpty()) Text(message)
