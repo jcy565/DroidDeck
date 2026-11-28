@@ -12,6 +12,14 @@ class ImageTranslationInputTest {
         assertTrue(runCatching { input.read(ByteArray(input.MAX_BYTES + 1).inputStream()) }.isFailure)
     }
 
+    @Test fun rejectsStalledImageInput() {
+        val stalled = object : java.io.InputStream() {
+            override fun read(): Int = 0
+            override fun read(b: ByteArray, off: Int, len: Int): Int = 0
+        }
+        assertTrue(runCatching { ImageTranslationInput.read(stalled) }.exceptionOrNull() is IllegalArgumentException)
+    }
+
     @Test fun sampleSizeLimitsDecodedPixels() {
         val input = ImageTranslationInput
         assertEquals(1, input.sampleSize(2048, 2048))
