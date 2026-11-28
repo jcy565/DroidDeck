@@ -29,8 +29,42 @@ internal object SharedAgentReply {
 
     data class Replacement(val checkpoint: ExchangeCheckpoint.Saved, val previous: String, val incoming: String)
 
-    private fun checkpoint(context: Context) =
-        ExchangeCheckpoint.load(File(context.noBackupFilesDir, "ai-exchange/checkpoint.bin"))
+    private fun checkpointFile(context: Context) = File(context.noBackupFilesDir, "ai-exchange/checkpoint.bin")
+
+    private fun checkpoint(context: Context) = ExchangeCheckpoint.load(checkpointFile(context))
+
+    enum class Status(val label: String) {
+        NO_REQUEST("저장된 ChatGPT 요청 없음"),
+        WAITING("저장된 ChatGPT 요청 있음 · 공유 응답 대기"),
+        READY("공유 응답 수신 완료 · 원래 파일에서 재개 및 검증 필요"),
+    }
+
+    /** Device-wide status only; no request instruction, file path or response is exposed. */
+    @Synchronized fun status(context: Context): Status = synchronized(ExchangeCheckpoint) {
+        val saved = checkpoint(context) ?: return@synchronized Status.NO_REQUEST
+        if (load(context, saved.id) == null) Status.WAITING else Status.READY
+    }
+
+    // Serialize checkpoint and inbox operations in this process. Disk writes to the
+    // two stores remain separate; a mismatched inbox is never exposed as current.
+    @Synchronized fun saveCheckpoint(context: Context, saved: ExchangeCheckpoint.Saved,
+        replaceExisting: Boolean) = synchronized(ExchangeCheckpoint) {
+        val file = checkpointFile(context)
+        if (replaceExisting) ExchangeCheckpoint.save(file, saved)
+        else ExchangeCheckpoint.saveForHandoff(file, saved)
+        clearOtherRequests(context, saved.id)
+    }
+
+    @Synchronized fun discardSavedExchange(context: Context): Boolean = synchronized(ExchangeCheckpoint) {
+        val removed = ExchangeCheckpoint.discard(checkpointFile(context))
+        discard(context)
+        removed
+    }
+
+    @Synchronized fun completeSavedExchange(context: Context, id: String) = synchronized(ExchangeCheckpoint) {
+        ExchangeCheckpoint.clear(checkpointFile(context), id)
+        clear(context, id)
+    }
 
     private fun publish(context: Context, id: String, response: String) {
         check(prefs(context).edit().putString("id", id).putString("reply", response).commit())
@@ -38,21 +72,21 @@ internal object SharedAgentReply {
     }
 
     /** A distinct reply for the same request needs explicit replacement approval. */
-    @Synchronized fun receive(context: Context, text: CharSequence): Replacement? {
+    @Synchronized fun receive(context: Context, text: CharSequence): Replacement? = synchronized(ExchangeCheckpoint) {
         val saved = checkpoint(context) ?: error("저장된 AI 요청이 없습니다.")
         val response = normalize(text, saved.id)
         val store = prefs(context)
         if (store.getString("id", null) == saved.id) {
             val previous = requireNotNull(store.getString("reply", null))
-            if (previous == response) return null
-            return Replacement(saved, previous, response)
+            if (previous == response) return@synchronized null
+            return@synchronized Replacement(saved, previous, response)
         }
         publish(context, saved.id, response)
-        return null
+        null
     }
 
     /** Compare the reviewed checkpoint and inbox again; never apply the reply here. */
-    @Synchronized fun replace(context: Context, reviewed: Replacement) {
+    @Synchronized fun replace(context: Context, reviewed: Replacement) = synchronized(ExchangeCheckpoint) {
         require(checkpoint(context) == reviewed.checkpoint) { "저장된 AI 요청이 변경되었습니다." }
         val store = prefs(context)
         require(store.getString("id", null) == reviewed.checkpoint.id &&
@@ -60,12 +94,12 @@ internal object SharedAgentReply {
         publish(context, reviewed.checkpoint.id, normalize(reviewed.incoming, reviewed.checkpoint.id))
     }
 
-    @Synchronized fun load(context: Context, id: String): String? {
+    @Synchronized fun load(context: Context, id: String): String? = synchronized(ExchangeCheckpoint) {
         val store = prefs(context)
-        if (store.getString("id", null) != id) return null
-        val saved = ExchangeCheckpoint.load(File(context.noBackupFilesDir, "ai-exchange/checkpoint.bin"))
-        if (saved?.id != id) return null
-        return store.getString("reply", null)?.let { normalize(it, id) }
+        if (store.getString("id", null) != id) return@synchronized null
+        val saved = checkpoint(context)
+        if (saved?.id != id) return@synchronized null
+        requireNotNull(store.getString("reply", null)).let { normalize(it, id) }
     }
 
     /** Explicit discard from the editor also removes the unaccepted response. */
