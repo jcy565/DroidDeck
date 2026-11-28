@@ -48,6 +48,32 @@ class ExchangeCheckpointIntegrityTest {
         assertFalse(file.exists())
     }
 
+    @Test fun fingerprintsRejectMalformedUnicodeAndPreserveExistingValidHashes() {
+        val file = File(temp.root, "request")
+        val reviewed = linkedMapOf("b" to "둘", "a" to "하나")
+        val expected = "1e037d93efca4f334b045acdcf25713c26551564e299c7cdfa9d61fcafc88e63"
+        assertEquals(expected, ExchangeCheckpoint.fingerprint("target", "source", reviewed, "prompt"))
+        assertEquals(expected, ExchangeCheckpoint.fingerprint("target", "source", reviewed.toSortedMap(), "prompt"))
+        val inconsistent = object : Map<String, String> by reviewed {
+            override fun get(key: String): String? = "unchecked"
+        }
+        assertEquals(expected, ExchangeCheckpoint.fingerprint("target", "source", inconsistent, "prompt"))
+        val saved = saved()
+        ExchangeCheckpoint.save(file, saved)
+        val original = file.readBytes()
+        for (code in 0xD800..0xDFFF) {
+            val bad = "bad" + code.toChar()
+            assertTrue(runCatching { ExchangeCheckpoint.fingerprint(bad, "source", reviewed, "prompt") }.isFailure)
+            assertTrue(runCatching { ExchangeCheckpoint.fingerprint("target", bad, reviewed, "prompt") }.isFailure)
+            assertTrue(runCatching { ExchangeCheckpoint.fingerprint("target", "source", reviewed, bad) }.isFailure)
+            assertTrue(runCatching { ExchangeCheckpoint.fingerprint("target", "source", mapOf(bad to "x"), "prompt") }.isFailure)
+            assertTrue(runCatching { ExchangeCheckpoint.fingerprint("target", "source", mapOf("x" to bad), "prompt") }.isFailure)
+            assertTrue(runCatching { ExchangeCheckpoint.save(file, saved.copy(instruction = bad)) }.isFailure)
+            assertArrayEquals(original, file.readBytes())
+        }
+        assertEquals(saved, ExchangeCheckpoint.load(file))
+    }
+
     @Test fun invalidParentAndLeafAreNotTreatedAsMissingOrOverwritten() {
         val invalid = temp.newFile().apply { writeText("keep") }
         val saved = saved()
