@@ -57,3 +57,9 @@ Steam, Epic, GOG 소스가 있다. Ubisoft와 EA의 전용 스토어 통합은 �
 - 독립 설치/모듈: 별도 패키지와 :ai-core 계약, 서명된 AI 데이터 업데이트 기반. 실제 독립 배포 인증서, 설치/업데이트 및 S23+ 게임 실행 미검증.
 - 플랫폼: Steam/Epic/GOG 소스 존재, 실제 게임별 실행 보장 없음. Ubisoft/EA 별도 통합 미확인.
 - 우선순위: 통합 CI 성공 → staging 통합 재검증 → 신뢰 가능한 독립 서명 및 설치 → ChatGPT 공유/OCR/게임 실행/복구 및 성능 실측 → 로컬 모델 검증. 실기 검증 전 위험한 자동 적용 비활성 유지.
+
+
+## 최신 통합 현황 (2026-11-28)
+- 통합 후보 ai-png-compose-integration-next, 소스 cb1b98a, Actions 46089730585: [{"name":"Pin source tree","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"Xbox ARM64 backend","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"Store engines host tests","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"Python and native regression tests","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"components-runner / Pick runner","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"Prepare verified components","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"build-runner / Pick runner","status":"completed","conclusion":"success","active":[],"failed":[]},{"name":"Compile APK and Android tests","status":"in_progress","conclusion":null,"active":["Build"],"failed":[]}]. 7개 사전 작업 성공, 최종 Android 결과 미확정. 직전 교환 브랜치 빌드 70: APK 컴파일 성공, Android 4,228건 중 4,226 통과, Compose idle timeout 2건. 이전 성공 빌드는 최신 소스 검증이 아님.
+- 후속 브랜치 ai-integrated-fixture-queue-next에 작업 목록 동시 변경 방지, 화면별 작업 취소, 이미지 목록 SHA-256 및 구형 호환성, 이미지 초안 경로 보호, 이미지/텍스트 탐색·목록 검증 일치 반영. 7313693, 6de08ca, cfb6bf3의 텍스트 검증 개선은 실제 독립 Kotlin 35개 검사 통과(파서 등 일부 테스트 대역 사용). 전체 Android 테스트 미실행.
+- 구현 수준과 출시 준비도를 구분한다. 기능 구현 기준 약 85%는 주관적 추정이며 가중치가 정의된 공식 지표가 아니다. 실기 검증은 0건 확인. 실제 게임 적용·복원 및 자동 드라이버 변경은 검증된 범위 밖에서는 계속 제한한다. 최신 통합 빌드 완료 전 실행 중인 브랜치 변경 금지. 다음은 전체 XML 및 Compose 부분집합 결과 분석, 후속 통합, 신뢰 가능한 서명·설치 및 Galaxy S23+ 실측.
