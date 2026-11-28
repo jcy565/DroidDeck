@@ -131,6 +131,37 @@ class GamePatchTest {
         assertArrayEquals(original, file.readBytes())
     }
 
+    @Test fun invalidBackupDestinationLeavesSourceAndExistingDataUntouched() {
+        val root = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val invalid = temp.newFile().apply { writeText("preserve") }
+        val original = file.readBytes()
+        val proposed = "x=2".toByteArray()
+        assertTrue(runCatching {
+            GamePatchStore.apply(root, file.name, original, proposed, invalid)
+        }.isFailure)
+        assertEquals("preserve", invalid.readText())
+        assertArrayEquals(original, file.readBytes())
+        val storage = temp.newFolder()
+        val alias = temp.root.resolve("backup-alias")
+        java.nio.file.Files.createSymbolicLink(alias.toPath(), storage.toPath())
+        assertTrue(runCatching {
+            GamePatchStore.apply(root, file.name, original, proposed, alias)
+        }.isFailure)
+        assertTrue(storage.listFiles()!!.isEmpty())
+        assertTrue(java.nio.file.Files.isSymbolicLink(alias.toPath()))
+        assertArrayEquals(original, file.readBytes())
+        assertEquals(listOf(file), root.listFiles()!!.toList())
+    }
+
+    @Test fun refusesAnInputStreamThatNeverMakesProgress() {
+        val stalled = object : java.io.InputStream() {
+            override fun read(): Int = 0
+            override fun read(b: ByteArray, off: Int, len: Int): Int = 0
+        }
+        assertThrows(IllegalArgumentException::class.java) { GamePatchStore.readLimited(stalled) }
+    }
+
     @Test fun preservesPosixModeOnApplyAndRestore() {
         val root = temp.newFolder()
         val file = root.resolve("game.ini").apply { writeText("x=1") }
