@@ -45,6 +45,47 @@ class ImageQueueStoreTest {
         assertTrue(runCatching { ImageQueueStore.combine(one, two.copy(root = temp.newFolder())) }.isFailure)
     }
 
+    @Test fun rejectsOverlappingStorageBeforeCreatingAnyFiles() {
+        val root = temp.newFolder("game")
+        val storage = temp.newFolder("storage")
+        val c = ImageAssetDiscovery.Candidate("menu.png", 32, 16, 3, "a".repeat(64))
+        val q = ImageAssetDiscovery.Queue(root, listOf(c))
+        val nested = File(root, "private")
+        for (dir in listOf(root, nested, root.parentFile!!)) {
+            assertTrue(runCatching { ImageQueueStore.save(dir, q) }.isFailure)
+            assertTrue(runCatching { ImageQueueStore.load(dir, root) }.isFailure)
+            assertTrue(runCatching { ImageQueueStore.merge(dir, q) }.isFailure)
+        }
+        assertFalse(nested.exists())
+        assertTrue(root.listFiles()!!.isEmpty())
+        ImageQueueStore.save(storage, q)
+        assertEquals(q.copy(root = root.canonicalFile), ImageQueueStore.load(storage, root))
+        val prior = storage.listFiles()!!.single().readBytes()
+        val invalid = q.copy(candidates = listOf(c.copy(relative = "bad\nname.png")))
+        assertTrue(runCatching { ImageQueueStore.save(storage, invalid) }.isFailure)
+        assertArrayEquals(prior, storage.listFiles()!!.single().readBytes())
+    }
+
+    @Test fun rejectsNonRegularQueueWithoutReplacingIt() {
+        val root = temp.newFolder("game")
+        val storage = temp.newFolder("storage")
+        val c = ImageAssetDiscovery.Candidate("menu.png", 32, 16, 3, "a".repeat(64))
+        val q = ImageAssetDiscovery.Queue(root, listOf(c))
+        ImageQueueStore.save(storage, q)
+        val record = storage.listFiles()!!.single()
+        assertTrue(record.delete())
+        assertTrue(record.mkdir())
+        assertTrue(runCatching { ImageQueueStore.load(storage, root) }.isFailure)
+        assertTrue(runCatching { ImageQueueStore.merge(storage, q) }.isFailure)
+        assertTrue(runCatching { ImageQueueStore.save(storage, q) }.isFailure)
+        assertTrue(record.isDirectory)
+        assertTrue(record.delete())
+        java.nio.file.Files.createSymbolicLink(record.toPath(), File(storage, "missing").toPath())
+        assertTrue(runCatching { ImageQueueStore.load(storage, root) }.isFailure)
+        assertTrue(runCatching { ImageQueueStore.save(storage, q) }.isFailure)
+        assertTrue(java.nio.file.Files.isSymbolicLink(record.toPath()))
+    }
+
     @Test fun continuesWithoutReprobingExaminedFiles() {
         val root = temp.newFolder()
         repeat(13) { File(root, "$it.png").writeBytes(byteArrayOf(1)) }
