@@ -34,7 +34,7 @@ verified() {
 }
 
 prepare() (
-  local version="$1" ext="$2" artifact=android-all-instrumented
+  local artifact="$1" version="$2" ext="$3"
   local relative="org/robolectric/$artifact/$version/$artifact-$version.$ext"
   local file="$HOME/.m2/repository/$relative" tmp
   if verified "$file" "$file.sha512"; then return 0; fi
@@ -54,6 +54,11 @@ prepare() (
 
 for version in 9-robolectric-4913185-2-i7 13-robolectric-9030017-i7 14-robolectric-10818077-i7; do
   for ext in pom jar; do
-    prepare "$version" "$ext"
+    prepare android-all-instrumented "$version" "$ext"
   done
+done
+
+# Gradle also needs the native runtime artifact, which is not part of android-all.
+for ext in pom jar; do
+  prepare nativeruntime-dist-compat 1.0.18 "$ext"
 done
