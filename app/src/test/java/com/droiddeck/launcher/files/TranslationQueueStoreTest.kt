@@ -128,4 +128,52 @@ class TranslationQueueStoreTest {
         assertTrue(runCatching { TranslationQueueStore.load(storage, root) }.isFailure)
         assertTrue(runCatching { TranslationQueueStore.save(storage, queue) }.isFailure)
     }
+
+    @Test fun reviewedReplacementFailsClosedForDamagedRecordAndForeignRoot() {
+        val root = temp.newFolder().canonicalFile
+        val otherRoot = temp.newFolder().canonicalFile
+        val storage = temp.newFolder().canonicalFile
+        File(root, "a.tsv").writeText("id\ttext\na\tStart\n")
+        File(root, "b.tsv").writeText("id\ttext\nb\tExit\n")
+        File(otherRoot, "c.tsv").writeText("id\ttext\nc\tContinue\n")
+        val all = TranslationWorklist.Queue(root, TranslationDiscovery.inspect(root).candidates)
+        val first = all.copy(files = all.files.take(1))
+        val foreign = TranslationWorklist.Queue(otherRoot, TranslationDiscovery.inspect(otherRoot).candidates)
+        assertTrue(TranslationQueueStore.saveIfUnchanged(storage, first, null))
+        val record = storage.listFiles()!!.single()
+        val intact = record.readBytes()
+        assertTrue(runCatching { TranslationQueueStore.saveIfUnchanged(storage, all, foreign) }.isFailure)
+        assertArrayEquals(intact, record.readBytes())
+        record.appendBytes(byteArrayOf(1))
+        val damaged = record.readBytes()
+        assertTrue(runCatching { TranslationQueueStore.saveIfUnchanged(storage, all, first) }.isFailure)
+        assertTrue(runCatching { TranslationQueueStore.saveIfUnchanged(storage, all, null) }.isFailure)
+        assertArrayEquals(damaged, record.readBytes())
+        assertEquals(1, storage.listFiles()!!.size)
+    }
+
+    @Test fun reviewedReplacementCancellationLeavesTheReviewedRecordIntact() {
+        val root = temp.newFolder().canonicalFile
+        val storage = temp.newFolder().canonicalFile
+        File(root, "a.tsv").writeText("id\ttext\na\tStart\n")
+        File(root, "b.tsv").writeText("id\ttext\nb\tExit\n")
+        val all = TranslationWorklist.Queue(root, TranslationDiscovery.inspect(root).candidates)
+        val first = all.copy(files = all.files.take(1))
+        TranslationQueueStore.save(storage, first)
+        val intact = storage.listFiles()!!.single().readBytes()
+        for (stopAt in 1..(all.files.size + 2)) {
+            var checks = 0
+            val error = runCatching {
+                TranslationQueueStore.saveIfUnchanged(storage, all, first) {
+                    if (++checks == stopAt) throw java.util.concurrent.CancellationException()
+                }
+            }.exceptionOrNull()
+            assertTrue(error is java.util.concurrent.CancellationException)
+            assertEquals(first, TranslationQueueStore.load(storage, root))
+            assertArrayEquals(intact, storage.listFiles()!!.single().readBytes())
+        }
+        assertTrue(TranslationQueueStore.saveIfUnchanged(storage, all, first))
+        assertEquals(all, TranslationQueueStore.load(storage, root))
+    }
+
 }
