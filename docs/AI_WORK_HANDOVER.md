@@ -370,3 +370,5 @@
 - 7b85899에서 향후 Cargo.lock 변경 때마다 해당 커밋의 Git blob을 RustSec으로 검사하도록 연결. 기존 기준판과 후보판 보고서는 각 Actions 실행에 보존. 전체 빌드 46138753883의 Rust 호스트·Python/네이티브·Xbox·컴포넌트 준비 통과, Android job 진행 중.
 
 - 전체 빌드 46138753883에서 Rust 171/171, Python 2162 통과/50 skip, 서명 도구 5/5 통과 후 Android mergeReleaseJavaResource 실패. Bouncy Castle 1.85 세 JAR의 META-INF/LICENSE.md 충돌 확인. fc57f72에서 해당 텍스트만 병합해 각 고지 보존. 비강제 빌드 브랜치 통합, 후속 전체 빌드 46139567549. 별도 실제 커밋 lock RustSec 46138989765 취약점 및 경고 0 확인.
+
+- fc57f72의 Gradle 감사 46139564677 및 릴리스 도구 46139564650 성공. 이전 검사와 해석 그래프/파일 해시 동일. 빌드 46139567549 APK 패키징 단계 통과 후 Android 단위 테스트 진행 중. inventory 15260609118에서 라이선스 3513바이트가 원본 JAR 3개의 1171바이트 전문 결합과 일치함을 SHA-256으로 확인. 기존 성공판과 권한 목록 일치.
