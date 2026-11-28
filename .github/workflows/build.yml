@@ -792,17 +792,21 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p app/build
+          # Only generated reports from this invocation are evidence.
+          rm -rf app/build/test-results/testReleaseUnitTest app/build/reports/tests/testReleaseUnitTest
           ./gradlew testReleaseUnitTest --console=plain --info --stacktrace -Drobolectric.logging=stderr -PndkVersion="$NDK_VERSION" 2>&1 | tee app/build/unit-tests.log
 
       - name: Summarize Android test XML
+        id: android-test-summary
         if: always() && steps.unit-tests.outcome != 'skipped' && startsWith(github.ref_name, 'ai-')
         continue-on-error: true
         env:
           UNIT_TEST_OUTCOME: ${{ steps.unit-tests.outcome }}
         run: |
+          set -euo pipefail
           mkdir -p app/build
           python3 tools/ci/android_test_summary.py app/build/test-results/testReleaseUnitTest \
-            tools/ci/compose-idle-baseline.txt "$UNIT_TEST_OUTCOME" > app/build/android-test-summary.json
+            tools/ci/compose-idle-baseline.txt "$UNIT_TEST_OUTCOME" --github-output "$GITHUB_OUTPUT" > app/build/android-test-summary.json
           cat app/build/android-test-summary.json
 
       - name: Upload unit test diagnostics
@@ -832,7 +836,9 @@ jobs:
       # Fresh Gradle test workers distinguish isolated failures from suite interaction.
       - name: Diagnose recurring Compose idle failures
         id: compose-idle-diagnostics
-        if: failure() && steps.unit-tests.outcome == 'failure' && startsWith(github.ref_name, 'ai-')
+        # Missing summary output is conservative: retain diagnostics. Explicit false
+        # indicates no observed known Compose failure (e.g. pre-test download failure).
+        if: failure() && steps.unit-tests.outcome == 'failure' && startsWith(github.ref_name, 'ai-') && steps.android-test-summary.outputs.run_compose_diagnostics != 'false'
         timeout-minutes: 25
         env:
           DROIDDECK_BUILD_LABEL: ${{ steps.build-label.outputs.label }}
