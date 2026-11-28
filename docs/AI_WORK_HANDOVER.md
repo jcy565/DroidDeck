@@ -354,3 +354,7 @@
 - 원본 Cargo.lock/SBOM과 공식 RustSec 권고 직접 대조: rustls 0.23.40 (RUSTSEC-2026-0285/0346/0348/0349, 수정판 0.23.46), rustls-webpki 0.103.13 (RUSTSEC-2026-0382, 수정판 0.103.16), webpki-roots 1.0.7 (RUSTSEC-2026-0381, 수정판 1.0.10), tokio 1.52.3 (RUSTSEC-2026-0386, I/O unsound 경고, 수정판 1.53.3). 출처 https://rustsec.org/advisories/ 의 각 ID. 실제 사용 기능/활성 feature/실행 환경의 영향 및 설치 차단과의 인과관계 미확인. 전체 취약점 검사 결과 아님.
 - Cargo.toml의 reqwest 0.12 rustls-tls/gzip 및 tokio 1 rt/net/time/sync 선언 확인. .github/workflows/ai-rust-security-update-candidate.yml 추가, 커밋 98f9049338573e9d9e07df03397ec33399404ab7, 원격 재조회 일치. 원본 lock blob 고정, CI에서 Cargo 공식 resolver로 네 패키지의 지정 수정판 후보 생성, 선택 버전 및 registry checksum 존재 검증, 후보 diff/해시 기록, 기존 cargo test --locked 및 RustSec 재감사, 실패 포함 artifact 보존. 읽기 전용 토큰, APK 빌드/배포/자동 커밋 없음. Cargo.lock/Cargo.toml 실제 원격 변경 없음. 실행/테스트 및 후보 해결 가능성 미확인.
 - 다음: GitHub Actions에서 세 감사 작업의 실제 실행 URL/ID 및 artifact 확인. 도구에서 push 목록을 얻지 못하면 사용자가 Actions 링크를 제공할 필요가 있다. 후보 lock의 변경 전체/출처/해시/테스트 및 신규 경고 검토 후에만 개발 브랜치에 반영하고 기존 Android/네이티브 회귀 및 보안 검증을 진행. 현재 D01 차단, D02-D08 미검증. 앱 코드/서명/권한/설치 설정 변경, APK 재빌드 없음. 잔여 할당량 조회 불가로 원격 체크포인트 갱신.
+
+### 감사 실행 결과 및 Gradle 정렬 수정
+- 브랜치 push 실행은 GitHub REST `actions/runs?branch=ai-independent-apk-verification-next`로 조회 가능. 원본 Rust 감사 46130601837은 취약점 15건, 수정 후보 46130873495는 호스트 테스트 171/171 통과, 취약점 9건으로 실패. 후보 lock 적용 보류.
+- Gradle 46130511929 실패 원인은 init script 35행의 ArrayList 비교. fd4dc5bd4038083294f0a28fed2c340254da226c에서 의존성 및 파일 정렬을 필드별 비교로 수정. 재실행 결과 확인 중. 할당량 조회 불가. 설치 차단 원인 미확정.
