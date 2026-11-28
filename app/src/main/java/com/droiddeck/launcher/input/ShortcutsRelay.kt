@@ -106,7 +106,6 @@ object SystemKeyCapture {
 
 class ShortcutsRelay : Service(), InputManager.InputDeviceListener {
     private val main = Handler(Looper.getMainLooper())
-    private val trusted = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
     private var bottomScreen: BottomScreenWatch? = null
 
     private val binder = object : Binder() {
@@ -126,10 +125,9 @@ class ShortcutsRelay : Service(), InputManager.InputDeviceListener {
     }
 
     private fun trusts(uid: Int): Boolean {
-        if (uid !in trusted) {
-            if (!packageManager.getPackagesForUid(uid).orEmpty().contains(Relay.PACKAGE)) return false
-            trusted += uid
-        }
+        if (packageName != Relay.HOST_PACKAGE) return false
+        if (!packageManager.getPackagesForUid(uid).orEmpty().contains(Relay.PACKAGE)) return false
+        if (packageManager.checkSignatures(android.os.Process.myUid(), uid) != android.content.pm.PackageManager.SIGNATURE_MATCH) return false
         return com.droiddeck.launcher.core.SteamIntegration.shortcutsEnabled(this)
     }
 
