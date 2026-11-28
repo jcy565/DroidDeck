@@ -240,3 +240,7 @@
 - 이전 APK 15250811269 메타데이터: {"expired":false,"digest":"sha256:9bcb719ddcad35148d90ffed0da6494d4fc9bb2e0339c70d3448a6223b630616"}. 현재 조회는 메타데이터 확인이며 새 다운로드/서명/기기 시험 아님.
 - 현재 연결 도구에서 새 workflow_dispatch 실행 기능을 찾지 못했다. 명시 사용자 빌드 승인 및 통합 CI 성공 이후 GitHub Actions Build APK 수동 실행(브랜치 ai-independent-apk-verification-next, rebuild_preloads=false) 경로를 사용한다. 승인 없이 자동 빌드 트리거를 추가하지 않는다. 최신 source SHA와 실제 run ID를 기록한 뒤 산출물 및 전체 JUnit 결과 검증. 개인 키/실기/배포 없음, D01~D08 0/8.
 - 할당량 조회 불가로 통합 사실 및 다음 행동을 staging 문서에 저장. 통합 CI 실행 중인 원래 브랜치는 변경하지 않음. 다음: 46120105990 결과 확인, 문서 커밋의 비강제 통합, 사용자 명시 빌드 지시/수동 실행. 불필요한 소스 변경 및 반복 빌드 없음.
+
+### 통합 최종 호스트 검증 완료 — 빌드 승인 대기
+- 기존 작업 브랜치 통합 release CI 46120105990 / job 140902531174 실제 로그 5+3+6+3+13=30/30 성공. JVM 136/136 및 Android 기본/실험형 컴파일 성공 기록 유지(앱 소스 변경 없음). 문서만 추가한 staging c2c9616d187bfbe24a39b84eb2be98bbb34d5da9와 통합 기준 405e90afe5c6854d5fca3bc96cde92c61547e961 ancestry 확인, ahead 1/behind 0.
+- 코드 추가 및 재검증 반복 없이 신규 APK 명시 승인 대기. 현재 연결 도구에는 workflow_dispatch 실행 기능 없음. 승인 후 Actions > Build APK > Run workflow에서 ai-independent-apk-verification-next 선택, rebuild_preloads=false. 만약 UI에서 브랜치/실행 버튼이 보이지 않으면 승인 이후 별도 정식 경로를 확인한다. 실제 APK 빌드/실기/개인 키/배포 없음. 이전 APK와 새 소스 구분 유지. D01~D08 0/8. 할당량 조회 불가로 이 단계도 저장.
