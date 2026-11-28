@@ -3,7 +3,7 @@
 
     <queries>
         <intent>
-            <action android:name="com.droiddeck.shortcuts.RELAY" />
+            <action android:name="com.droiddeck.shortcuts.ai.RELAY" />
         </intent>
     </queries>
 
