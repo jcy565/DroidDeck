@@ -22,7 +22,8 @@ internal object OptimizationComparison {
     }
 
     private fun valid(s: Sample) = s.gameId.isNotBlank() && s.deviceId.isNotBlank() &&
-        s.scene.isNotBlank() && s.outputWidth > 0 && s.outputHeight > 0 &&
+        s.scene.isNotBlank() && s.scene.length <= 80 && s.scene.none(Char::isISOControl) &&
+        s.outputWidth > 0 && s.outputHeight > 0 &&
         s.fps.isFinite() && s.fps > 0 && s.p95Ms.isFinite() && s.p95Ms > 0
 
     /** Scene labels are user assertions, not automatic proof of identical workloads. */

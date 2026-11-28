@@ -104,10 +104,13 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     val measuredScene = scene.trim()
                     require(measuredScene.isNotBlank() && latestActiveGame() == game)
                     require(feed.live && !feed.steamFocused && feed.pid > 0) { "게임 프레임 측정값이 필요합니다." }
-                    val pid = feed.pid
-                    val width = feed.outputWidth
-                    val height = feed.outputHeight
-                    require(width > 0 && height > 0) { "게임 출력 해상도를 확인할 수 없습니다." }
+                    fun identity() = TrialFrameSamples.Identity(latestActiveGame(), feed.live,
+                        feed.steamFocused, feed.pid, feed.outputWidth, feed.outputHeight)
+                    val expected = identity()
+                    require(expected.game == game)
+                    TrialFrameSamples.requireSame(expected, identity())
+                    val width = expected.width
+                    val height = expected.height
                     val ring = FloatArray(FrameStats.GRAPH_FRAMES)
                     var seen = feed.stats.graphSnapshot(ring)
                     val samples = ArrayList<Float>()
@@ -115,15 +118,17 @@ internal fun GamePerformanceTrial(game: String?, activeGame: () -> String?, feed
                     val start = SystemClock.elapsedRealtime()
                     while (SystemClock.elapsedRealtime() - start < 10000) {
                         delay(150)
-                        require(latestActiveGame() == game && feed.live && !feed.steamFocused && feed.pid == pid &&
-                            feed.outputWidth == width && feed.outputHeight == height) { "게임 또는 출력이 바뀌어 측정을 중단했습니다." }
+                        TrialFrameSamples.requireSame(expected, identity())
                         val total = feed.stats.graphSnapshot(ring)
+                        TrialFrameSamples.requireSame(expected, identity())
                         val count = total.newFramesSince(seen)
                         require(samples.size + count <= 20_000L) { "프레임 표본 한도를 초과했습니다." }
                         for (i in ring.size - count until ring.size) samples.add(ring[i])
                         seen = total
                     }
+                    TrialFrameSamples.requireSame(expected, identity())
                     val metrics = TrialFrameSamples.summarize(samples, SystemClock.elapsedRealtime() - start)
+                    TrialFrameSamples.requireSame(expected, identity())
                     val values = ContentValues().apply {
                         put("game", game)
                         put("scene", measuredScene)

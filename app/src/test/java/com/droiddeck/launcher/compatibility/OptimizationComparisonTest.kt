@@ -28,5 +28,12 @@ class OptimizationComparisonTest {
             assertEquals(OptimizationComparison.Verdict.INCONCLUSIVE, compare(b * 1.04999, b * 0.95001))
         }
     }
+    @Test fun invalidSceneLabelsAreNotComparable() {
+        for (scene in listOf(" ", "a".repeat(81), "scene\nother")) {
+            val sample = base.copy(scene = scene)
+            assertEquals(OptimizationComparison.Verdict.INCOMPARABLE,
+                OptimizationComparison.compare(sample, sample).verdict)
+        }
+    }
     @Test fun invalidSample() = assertEquals(OptimizationComparison.Verdict.INCOMPARABLE, verdict(base.copy(fps = Double.NaN)))
 }

@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/ai-android-source-check.yml'
       - 'app/src/localAi/java/**'
+      - 'app/src/main/java/com/droiddeck/launcher/compatibility/TrialFrameSamples.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/compatibility/OptimizationComparison.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/ui/GamePerformanceTrial.kt'
       - 'app/src/noLocalAi/java/**'
       - 'app/src/main/java/com/droiddeck/launcher/files/GamePatchDialog.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/GameAgent.kt'

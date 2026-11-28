@@ -33,6 +33,20 @@ class TrialFrameSamplesTest {
         }
     }
 
+    @Test fun trialCannotContinueAfterObservedIdentityChanges() {
+        val identity = TrialFrameSamples.Identity("steam:1", true, false, 100, 1280, 720)
+        TrialFrameSamples.requireSame(identity, identity.copy())
+        for (changed in listOf(identity.copy(game = "steam:2"), identity.copy(game = null),
+            identity.copy(live = false), identity.copy(steamFocused = true), identity.copy(pid = 101),
+            identity.copy(width = 1920), identity.copy(height = 1080))) {
+            assertThrows(IllegalArgumentException::class.java) {
+                TrialFrameSamples.requireSame(identity, changed)
+            }
+        }
+        val invalid = identity.copy(pid = 0)
+        assertThrows(IllegalArgumentException::class.java) { TrialFrameSamples.requireSame(invalid, invalid) }
+    }
+
     @Test fun coverageBoundsAreInclusive() {
         for (interval in listOf(80f, 120f)) {
             assertEquals(100, TrialFrameSamples.summarize(List(100) { interval }, 10000).frames)
