@@ -81,6 +81,11 @@ internal object GamePatchStore {
         require(read(file).contentEquals(original)) { "File changed; preview again" }
         require(Files.notExists(backupDir.toPath(), NOFOLLOW_LINKS) ||
             Files.isDirectory(backupDir.toPath(), NOFOLLOW_LINKS)) { "Invalid backup directory" }
+        val gamePath = root.canonicalFile.toPath()
+        val storagePath = backupDir.canonicalFile.toPath()
+        require(!gamePath.startsWith(storagePath) && !storagePath.startsWith(gamePath)) {
+            "Backup storage must be separate from the game directory"
+        }
         require(backupDir.isDirectory || backupDir.mkdirs())
         require(Files.isDirectory(backupDir.toPath(), NOFOLLOW_LINKS))
         val backup = Files.createTempFile(backupDir.toPath(), "ddpatch-", ".bak").toFile()
