@@ -106,6 +106,15 @@ internal object ExchangeCheckpoint {
         }
     }
 
+    /** Preserve another outstanding request; sharing must not silently replace it. */
+    @Synchronized fun saveForHandoff(file: File, saved: Saved) {
+        val previous = load(file)
+        require(previous == null || previous == saved) {
+            "다른 AI 요청이 저장되어 있습니다. 기존 요청을 재개하거나 명시적으로 교체·삭제하세요."
+        }
+        if (previous == null) save(file, saved)
+    }
+
     /** Explicit user discard only; never used for automatic response cleanup. */
     @Synchronized fun discard(file: File): Boolean {
         directory(file)

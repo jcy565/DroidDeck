@@ -89,6 +89,34 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
         else onDismiss()
     }
     suspend fun original() = withContext(Dispatchers.IO) { LocalGameAdvisor.decode(GamePatchStore.readTarget(file)) }
+    suspend fun sharePreparedRequest(pending: ChatGptExchange.Pending) {
+        val edits = if (translationTable) translations.toMap() else emptyMap()
+        withContext(Dispatchers.IO) {
+            check(GameplayBudget.allowsOptionalAnalysis(context))
+            val source = if (log) LocalGameAdvisor.decode(GamePatchStore.readLog(file)) else original()
+            val target = file.canonicalPath
+            val saved = ChatGptExchange.checkpoint(pending, target, source, edits)
+            if (translationTable) {
+                require(TranslationDraftStore.load(draftDirectory, target, source).orEmpty() == edits) {
+                    "앱 전환 전에 현재 번역 초안을 저장하세요. 저장 후 다시 공유할 수 있습니다."
+                }
+            }
+            check(GameplayBudget.allowsOptionalAnalysis(context))
+            ExchangeCheckpoint.saveForHandoff(exchangeCheckpointFile, saved)
+        }
+        AiHostBridge.requireCompatible()
+        val share = Intent(Intent.ACTION_SEND).setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, pending.prompt)
+        try {
+            try { context.startActivity(Intent(share).setPackage("com.openai.chatgpt")) }
+            catch (_: android.content.ActivityNotFoundException) {
+                context.startActivity(Intent.createChooser(share, "ChatGPT로 공유"))
+            }
+            message = "요청 재개 정보 저장 완료. ChatGPT 응답을 복사한 후 돌아오세요."
+        } catch (_: Exception) {
+            message = "요청은 저장됐지만 공유 화면을 열지 못했습니다. 요청 전문을 직접 복사하세요."
+        }
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runAction {
             preview = null
@@ -307,16 +335,24 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                             message = "요청 전문을 복사했습니다. 직접 붙여넣고 공유하세요."
                         } catch (_: Exception) { message = "요청을 복사하지 못했습니다." }
                     }) { Text("검토한 요청 복사") }
-                    TextButton(enabled = !busy && pendingExport == null, onClick = {
-                        try {
-                            AiHostBridge.requireCompatible()
-                            context.startActivity(Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).setType("text/plain")
-                                    .putExtra(Intent.EXTRA_TEXT, pending.prompt), "ChatGPT로 공유"))
-                        } catch (_: Exception) { message = "공유 화면을 열지 못했습니다. 요청 전문을 직접 복사하세요." }
-                    }) { Text("검토 후 요청 공유") }
+                    TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
+                        sharePreparedRequest(pending)
+                    } }) { Text("검토 후 요청 저장 및 ChatGPT 열기") }
                     OutlinedTextField(exchangeReply, { if (it.length <= GameAgent.MAX_OUTPUT_CHARS) exchangeReply = it },
                         enabled = !busy, label = { Text("ChatGPT의 JSON 응답 붙여넣기") }, maxLines = 8)
+                    TextButton(enabled = !busy, onClick = {
+                        try {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                            val clip = clipboard.primaryClip
+                            val text = if (clip != null && clip.itemCount == 1) clip.getItemAt(0).text else null
+                            require(text != null && text.length in 1..GameAgent.MAX_OUTPUT_CHARS) {
+                                "지원하는 길이의 JSON 텍스트 하나를 복사하세요."
+                            }
+                            exchangeReply = text.toString()
+                            message = "응답을 붙여넣었습니다. 검증 후 초안에 반영하세요."
+                        } catch (e: Exception) { message = e.message ?: "클립보드를 읽지 못했습니다." }
+                    }) { Text("복사한 ChatGPT 응답 붙여넣기") }
                     if (translationTable) Text("아래 버튼은 응답을 검증한 뒤 현재 번역 초안과 다음 작업 위치를 저장합니다. 게임 파일에는 적용하지 않습니다.")
                     TextButton(enabled = !busy && pendingExport == null && exchangeReply.isNotBlank(), onClick = { runAction {
                         val reply = exchangeReply
@@ -835,19 +871,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     Text("ChatGPT에서 응답을 받은 뒤 이 편집기의 JSON 응답 입력란에 붙여넣으세요.")
                 }
             },
-            confirmButton = { TextButton(onClick = {
-                try {
-                    AiHostBridge.requireCompatible()
-                    val share = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, pending.prompt)
-                    try {
-                        context.startActivity(Intent(share).setPackage("com.openai.chatgpt"))
-                    } catch (_: android.content.ActivityNotFoundException) {
-                        context.startActivity(Intent.createChooser(share, "ChatGPT로 공유"))
-                    }
-                    fallbackReview = null
-                } catch (_: Exception) { message = "ChatGPT 공유 화면을 열지 못했습니다. 요청 전문을 복사할 수 있습니다."; fallbackReview = null }
-            }) { Text("검토 후 ChatGPT 열기") } },
+            confirmButton = { TextButton(enabled = !busy, onClick = {
+                fallbackReview = null
+                runAction { sharePreparedRequest(pending) }
+            }) { Text("검토 후 저장 및 ChatGPT 열기") } },
             dismissButton = { TextButton(onClick = { fallbackReview = null }) { Text("나중에 공유") } }
         )
     }

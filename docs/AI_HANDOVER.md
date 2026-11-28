@@ -776,3 +776,7 @@ Adds AI workspace entry in the file manager sort menu (non-picker only), with mo
 
 ## Local-first ChatGPT fallback
 Local runtime can explicitly decline via local-only defer response, or unavailable/timeout/invalid output/exception routes to same bound ChatGptExchange request. Cancellation, changed source, and gameplay/system memory denial do not create an external exchange. Existing pending exchange not overwritten. Explicit review dialog shares via ChatGPT Android package when available or chooser; no automatic transmission/API calls. Response manually pasted and validated by existing exchange workflow. Standard APK without local runtime continues manual ChatGPT flow; experimental flavor and real app handoff not verified. Added fake-model regression tests, unexecuted. Stage while integrated CI runs.
+
+
+## ChatGPT handoff continuity
+Both reviewed manual and local-fallback share actions now validate source/draft binding and persist a resumable checkpoint before opening ChatGPT. Existing different or corrupt checkpoint is never silently replaced. Unsaved translation edits must be saved explicitly before sharing; no automatic file modification. Explicit clipboard paste reads one bounded text item only, never auto-accepts response. Request remains saved if app launch fails. Checkpoint is a single slot; resume requires same file, source and saved edits. Added regression test; not compiled or executed. Active integration CI unchanged.

@@ -26,6 +26,19 @@ class ExchangeCheckpointDiscardTest {
         assertEquals(next, ExchangeCheckpoint.load(file))
     }
 
+    @Test fun handoffPreservesOtherRequestsAndIsIdempotent() {
+        val file = File(temporary.root, "checkpoint.bin")
+        val first = saved()
+        ExchangeCheckpoint.saveForHandoff(file, first)
+        ExchangeCheckpoint.saveForHandoff(file, first)
+        assertTrue(runCatching { ExchangeCheckpoint.saveForHandoff(file, saved()) }.isFailure)
+        assertEquals(first, ExchangeCheckpoint.load(file))
+        assertTrue(ExchangeCheckpoint.clear(file, first.id))
+        val second = saved()
+        ExchangeCheckpoint.saveForHandoff(file, second)
+        assertEquals(second, ExchangeCheckpoint.load(file))
+    }
+
     @Test fun wrongIdDoesNotClearValidCheckpoint() {
         val file = File(temporary.root, "checkpoint.bin")
         val value = saved()
