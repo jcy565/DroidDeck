@@ -49,6 +49,35 @@ class TranslationDraftStoreTest {
         assertEquals(1, dir.listFiles()!!.size)
     }
 
+    @Test fun validatesTheSameEditEntriesThatWillBeSerialized() {
+        val dir = temporary.newFolder()
+        val target = "/game/strings.tsv"
+        val edits = mapOf("hello" to "안녕", "bye" to "잘 가")
+        TranslationDraftStore.save(dir, target, source, edits)
+        val record = dir.listFiles()!!.single()
+        val previous = record.readBytes()
+        // Model an inconsistent caller view: valid keys/values, but different entries.
+        val changed = object : Map<String, String> by edits {
+            override val entries get() = mapOf("unknown" to "invalid", "bye" to "안녕").entries
+        }
+        assertTrue(runCatching { TranslationDraftStore.save(dir, target, source, changed) }.isFailure)
+        assertArrayEquals(previous, record.readBytes())
+        assertEquals(edits, TranslationDraftStore.load(dir, target, source))
+    }
+
+    @Test fun invalidStorageIsNotReportedAsAnAbsentDraft() {
+        val target = "/game/strings.tsv"
+        val edits = mapOf("bye" to "안녕")
+        val invalid = temporary.newFile().apply { writeText("preserve") }
+        assertTrue(runCatching { TranslationDraftStore.load(invalid, target, source) }.isFailure)
+        assertTrue(runCatching { TranslationDraftStore.save(invalid, target, source, edits) }.isFailure)
+        assertEquals("preserve", invalid.readText())
+        val missing = java.io.File(temporary.root, "new-drafts")
+        assertNull(TranslationDraftStore.load(missing, target, source))
+        TranslationDraftStore.save(missing, target, source, edits)
+        assertEquals(edits, TranslationDraftStore.load(missing, target, source))
+    }
+
     @Test fun invalidIdsAndCorruptedDraftsFailClosed() {
         val dir = temporary.newFolder()
         assertTrue(runCatching {
