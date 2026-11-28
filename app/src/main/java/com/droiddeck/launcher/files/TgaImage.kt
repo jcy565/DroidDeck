@@ -36,6 +36,7 @@ internal object TgaImage {
     }
 
     fun inspect(bytes: ByteArray, checkpoint: () -> Unit = {}): Info {
+        checkpoint()
         require(bytes.size in 18..ImageTranslationInput.MAX_BYTES)
         fun u(i: Int) = u(bytes, i)
         fun word(i: Int) = u(i) or (u(i + 1) shl 8)
@@ -64,6 +65,7 @@ internal object TgaImage {
             val signature = "TRUEVISION-XFILE.\u0000".toByteArray(Charsets.US_ASCII)
             require(signature.indices.all { bytes[footer + 8 + it] == signature[it] })
         }
+        checkpoint()
         return info
     }
 
@@ -116,6 +118,7 @@ internal object TgaImage {
         val header = source.copyOfRange(0, 18)
         header[0] = 0
         header[2] = 2
+        checkpoint()
         output.write(header)
         val row = IntArray(width)
         val encoded = ByteArray(width * stride)
@@ -123,12 +126,14 @@ internal object TgaImage {
             if (sy % 16 == 0) checkpoint()
             val y = if (info.topOrigin) sy else height - 1 - sy
             readRow(y, row)
+            checkpoint()
             for (sx in 0 until width) {
                 val x = if (info.rightOrigin) width - 1 - sx else sx
                 val c = row[x]
                 require(stride == 4 || c ushr 24 == 255) { "24비트 TGA에는 투명도를 저장할 수 없습니다." }
                 for (i in 0 until stride) encoded[sx * stride + i] = (c ushr (i * 8)).toByte()
             }
+            checkpoint()
             output.write(encoded)
         }
         checkpoint()

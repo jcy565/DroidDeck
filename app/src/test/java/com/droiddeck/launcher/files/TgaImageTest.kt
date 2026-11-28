@@ -43,6 +43,20 @@ class TgaImageTest {
         assertTrue(runCatching { TgaImage.inspect(run.copyOf().apply { this[18] = 0x84.toByte() }) }.isFailure)
     }
 
+    @Test fun cancellationAfterRowReadDoesNotWriteThatRow() {
+        val source = sample(32, 40)
+        val out = java.io.ByteArrayOutputStream()
+        var cancelled = false
+        assertTrue(runCatching {
+            TgaImage.writeCopy(source, 2, 2, out, { _, _ -> cancelled = true },
+                { if (cancelled) throw java.util.concurrent.CancellationException() })
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+        assertArrayEquals(source.copyOfRange(0, 18), out.toByteArray())
+        assertTrue(runCatching {
+            TgaImage.inspect(source) { throw java.util.concurrent.CancellationException() }
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+    }
+
     @Test fun rejectsUnsupportedOrTruncatedAssets() {
         val bytes = sample(32, 40)
         for (bad in listOf(bytes.copyOf(17), bytes.copyOf(bytes.size - 1),

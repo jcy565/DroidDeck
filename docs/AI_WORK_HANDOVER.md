@@ -179,3 +179,8 @@
 - 이전 Android 46116016835 / job 140889927284 실제 로그: 기본/실험형 Kotlin 컴파일 모두 성공, ARM64 ELF 확인. 이미지 staging 46116294167 / job 140890771803 실제 로그 OK (63 tests). 비교 ahead 1 / behind 0 확인 후 기존 작업 브랜치를 538c344d1ebc97502b35b5fc7c9e574062f5f60d로 비강제 fast-forward 완료.
 - 통합 브랜치에서 재실행 46116423039 진행 중이어서 동일 HEAD의 기존 staging 브랜치에서 후속 개발. PNG tRNS 중복·순서·색상형식·팔레트/샘플 범위를 검증하고 CRC 계산 중 64KiB마다 취소를 확인한다. PNG 및 저장소 검사 JVM 테스트 연결. Android 기본 BitmapFactory 디코딩 완료 후 취소를 재확인하며 취소된 bitmap을 recycle한다. 네이티브 디코딩 자체 강제 중단은 아님.
 - 새 회귀 및 Android 컴파일 결과 미확인. staging CI 종료 및 원래 브랜치 CI 성공, ancestry 확인 후 통합. Android workflow는 통합 뒤 새 이미지 소스를 컴파일한다. 실제 게임 파일 적용 UI는 비활성 유지. 실기 0/8, 신규 APK/개인 키 없음. 할당량 조회 불가로 단계별 저장.
+
+### DDS/TGA 승인 영역 고정 및 출력 취소
+- 통합 46116423039 / job 140891182698 실제 JUnit OK (63 tests). 기준 67c4fbc6eebc5149358fa3ee91842e14e28cd774의 PNG 회귀 46116467883 상태 completed/success; 이전 staging CI 종료 성공 후 동일 staging에서 개발. 원래 작업 브랜치와 모든 staging CI 확인/로그 및 ancestry 확인 후 통합할 것.
+- DDS 인코더/검토기가 승인 영역을 독립 스냅샷으로 유지하고 오버플로 없는 좌표 검증을 사용한다. DDS 블록과 TGA 행을 읽은 후 출력 전 취소를 재확인한다. 중단 시 출력 스트림 자체에 이미 쓰인 바이트는 되돌리지 않으므로 기존 호출자의 임시 파일 정리/원본 보호 정책은 유지해야 한다. TGA 구조 검사 시작/완료 시 취소 확인.
+- DDS/TGA 기존 및 신규 회귀를 전용 JVM CI에 연결. 신규 회귀 결과 및 Android 컴파일 미확인. 실제 적용 UI 비활성, 기기 0/8, 신규 APK/개인 키 없음. 할당량 조회 불가로 코드와 인계 동시 저장.

@@ -57,6 +57,45 @@ class DdsCopyEncoderTest {
         }
     }
 
+    @Test fun mutableApprovalCannotExpandEditedBlocks() {
+        val format = DdsImage.Format.DXT1
+        val source = fixture(format, 8, 4, DdsCopyEncoder.encodeBlock(format, IntArray(16) { 0xff0000ff.toInt() }))
+        val first = DdsCopyEncoder.Rect(0, 0, 4, 4)
+        val regions = mutableListOf(first)
+        val output = ByteArrayOutputStream()
+        DdsCopyEncoder.writeCopy(source, 8, 4, regions, output, { x, _, pixels ->
+            assertEquals(0, x)
+            regions.add(DdsCopyEncoder.Rect(4, 0, 8, 4))
+            pixels.fill(0xffff0000.toInt())
+        })
+        val bytes = output.toByteArray()
+        assertEquals(DdsCopyReview.Stats(2, 1, 1), DdsCopyReview.validate(source, bytes, listOf(first)))
+        val changedOutside = bytes.copyOf().apply { this[136] = (this[136].toInt() xor 1).toByte() }
+        val reviewRegions = mutableListOf(first)
+        assertTrue(runCatching {
+            DdsCopyReview.validate(source, changedOutside, reviewRegions) {
+                reviewRegions.add(DdsCopyEncoder.Rect(4, 0, 8, 4))
+            }
+        }.isFailure)
+        assertTrue(runCatching {
+            DdsCopyEncoder.writeCopy(source, 8, 4, listOf(DdsCopyEncoder.Rect(Int.MAX_VALUE, 0, 4, 4)),
+                ByteArrayOutputStream(), { _, _, _ -> error("invalid region") })
+        }.isFailure)
+    }
+
+    @Test fun cancellationAfterBlockReadDoesNotWriteThatBlock() {
+        val format = DdsImage.Format.DXT1
+        val source = fixture(format, 4, 4, ByteArray(8))
+        val out = ByteArrayOutputStream()
+        var cancelled = false
+        assertTrue(runCatching {
+            DdsCopyEncoder.writeCopy(source, 4, 4, listOf(DdsCopyEncoder.Rect(0, 0, 4, 4)), out,
+                { _, _, _ -> cancelled = true },
+                { if (cancelled) throw java.util.concurrent.CancellationException() })
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+        assertArrayEquals(source.copyOfRange(0, 128), out.toByteArray())
+    }
+
     @Test fun handlesAlphaAndRejectsUnsupportedBc1PartialAlpha() {
         val f = DdsImage.Format.DXT1
         val p = IntArray(16) { if (it % 2 == 0) 0 else 0xffff0000.toInt() }

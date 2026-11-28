@@ -10,6 +10,8 @@ on:
       - 'app/src/main/java/com/droiddeck/launcher/files/GameAgent.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/ImageAssetDecoder.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/ImagePatch*.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/Dds*.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/TgaImage.kt'
 permissions:
   contents: read
   actions: read

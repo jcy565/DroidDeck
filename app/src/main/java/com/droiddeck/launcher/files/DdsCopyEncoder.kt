@@ -89,8 +89,10 @@ internal object DdsCopyEncoder {
         readBlock: (Int, Int, IntArray) -> Unit, checkpoint: () -> Unit = {}) {
         val info = DdsImage.inspect(source)
         require(width == info.width && height == info.height)
-        require(regions.size in 1..100 && regions.all { it.left >= 0 && it.top >= 0 &&
-            it.right in (it.left + 1)..width && it.bottom in (it.top + 1)..height })
+        require(regions.size in 1..100)
+        val approved = regions.toList()
+        require(approved.size in 1..100 && approved.all { it.left >= 0 && it.top >= 0 &&
+            it.left < it.right && it.top < it.bottom && it.right <= width && it.bottom <= height })
         checkpoint()
         output.write(source, 0, 128)
         val pixels = IntArray(16)
@@ -98,9 +100,13 @@ internal object DdsCopyEncoder {
         var blocks = 0
         for (y in 0 until height step 4) for (x in 0 until width step 4) {
             if (blocks++ % 256 == 0) checkpoint()
-            if (regions.any { x < it.right && x + 4 > it.left && y < it.bottom && y + 4 > it.top }) {
+            if (approved.any { x < it.right && x + 4 > it.left && y < it.bottom && y + 4 > it.top }) {
+                checkpoint()
                 readBlock(x, y, pixels)
-                output.write(encodeBlock(info.format, pixels))
+                checkpoint()
+                val encoded = encodeBlock(info.format, pixels)
+                checkpoint()
+                output.write(encoded)
             } else output.write(source, pos, info.format.blockBytes)
             pos += info.format.blockBytes
         }

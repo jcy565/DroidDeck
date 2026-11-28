@@ -9,7 +9,9 @@ internal object DdsCopyReview {
         val info = DdsImage.inspect(source)
         require(DdsImage.inspect(candidate) == info && candidate.size == source.size)
         require((0 until 128).all { source[it] == candidate[it] })
-        require(regions.size in 1..100 && regions.all { it.left >= 0 && it.top >= 0 &&
+        require(regions.size in 1..100)
+        val approved = regions.toList()
+        require(approved.size in 1..100 && approved.all { it.left >= 0 && it.top >= 0 &&
             it.left < it.right && it.top < it.bottom && it.right <= info.width && it.bottom <= info.height })
         var pos = 128
         var total = 0
@@ -18,7 +20,7 @@ internal object DdsCopyReview {
         for (y in 0 until info.height step 4) for (x in 0 until info.width step 4) {
             if (total % 256 == 0) checkpoint()
             total++
-            val allowed = regions.any { x < it.right && x + 4 > it.left && y < it.bottom && y + 4 > it.top }
+            val allowed = approved.any { x < it.right && x + 4 > it.left && y < it.bottom && y + 4 > it.top }
             if (allowed) editable++
             if ((0 until info.format.blockBytes).any { source[pos + it] != candidate[pos + it] }) {
                 require(allowed) { "번역 영역 외 DDS 블록이 변경됐습니다." }
