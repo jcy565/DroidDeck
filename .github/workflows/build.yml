@@ -45,6 +45,11 @@ jobs:
       base-sha: ${{ steps.merge.outputs.base-sha || steps.trusted.outputs.base-sha }}
       tree-sha: ${{ steps.source.outputs.tree-sha }}
     steps:
+      - name: Block APK packaging for the unseparated AI integration branch
+        if: ${{ github.ref_name == 'ai-0711-integration-next' || github.head_ref == 'ai-0711-integration-next' }}
+        run: |
+          echo "::error::Independent app and Shortcuts package/signing review is incomplete. APK packaging is blocked."
+          exit 1
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
