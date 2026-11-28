@@ -34,8 +34,10 @@ internal object OptimizationComparison {
         val fps = (after.fps / before.fps - 1) * 100
         val p95 = (after.p95Ms / before.p95Ms - 1) * 100
         if (!fps.isFinite() || !p95.isFinite()) return Result(Verdict.INCOMPARABLE)
-        val better = fps >= 5 || p95 <= -5
-        val worse = fps <= -5 || p95 >= 5
+        // Tolerate rounding noise at the inclusive 5% boundary only.
+        val threshold = 5.0 - 1e-9
+        val better = fps >= threshold || p95 <= -threshold
+        val worse = fps <= -threshold || p95 >= threshold
         val verdict = when {
             better && worse -> Verdict.MIXED
             better -> Verdict.IMPROVED
