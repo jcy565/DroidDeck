@@ -156,7 +156,7 @@ internal class GameRef(val appId: Int?, val store: Store?, val storeId: String?)
     }
 }
 
-internal enum class GameTab { ABOUT, ACHIEVEMENTS, LAUNCH, SAVES, ADDONS, INSTALL }
+internal enum class GameTab { ABOUT, ACHIEVEMENTS, LAUNCH, SAVES, ADDONS, INSTALL, HISTORY }
 
 @Composable
 internal fun GameDetail(
@@ -202,6 +202,8 @@ internal fun GameDetail(
     val scored = scores != null && (scores.metacritic != Lookup.None || scores.hltb != Lookup.None)
     val prefix = game?.protonPrefix?.takeIf { it.isDirectory }
     val addonTargets = remember(game?.gameId, game?.gameFiles) { game?.let(WowAddons::targets).orEmpty() }
+    // Only verified Steam identities in this integration stage; other stores remain unchanged.
+    val historyId = game?.takeIf { !s.shortcutPicker && it.source == Library.SOURCE_STEAM && it.library != Library.ADDED && it.library != Library.XBOX_CLOUD && com.droiddeck.launcher.frontend.GameLaunchLink.validId(it.gameIdString) }?.let { "steam:${it.gameIdString}" }
     val tabs = buildList {
         if (description.isNotBlank() || developer.isNotBlank() || publisher.isNotBlank() || releaseDate.isNotBlank() || scored || (!s.shortcutPicker && title.isNotBlank() && title != id)) add(GameTab.ABOUT)
         if (achievementState != null) add(GameTab.ACHIEVEMENTS)
@@ -210,6 +212,7 @@ internal fun GameDetail(
         if (game != null && game.library == Library.ADDED && prefix != null) add(GameTab.SAVES)
         if (addonTargets.isNotEmpty()) add(GameTab.ADDONS)
         if ((game != null && !cloud) || installed != null) add(GameTab.INSTALL)
+        if (historyId != null) add(GameTab.HISTORY)
     }
     var picked by remember(key) { mutableStateOf<GameTab?>(null) }
     val tab = picked?.takeIf { it in tabs } ?: tabs.firstOrNull()
@@ -280,6 +283,7 @@ internal fun GameDetail(
                             GameTab.SAVES -> stringResource(if (CloudSaves.supports(Store.byId(source))) R.string.game_tab_saves_cloud else R.string.games_saves)
                             GameTab.ADDONS -> stringResource(R.string.game_tab_addons)
                             GameTab.INSTALL -> stringResource(R.string.game_tab_install)
+                            GameTab.HISTORY -> "AI History"
                         }
                     }
                     GameTabBar(
@@ -297,6 +301,9 @@ internal fun GameDetail(
                                 GameTab.SAVES -> if (game != null && prefix != null) SavesTab(game, prefix, a)
                                 GameTab.ADDONS -> if (game != null) AddonsTab(game, addonTargets, s.sessionRunning, a)
                                 GameTab.INSTALL -> InstallTab(game, installed, item, store)
+                                GameTab.HISTORY -> historyId?.let {
+                                    com.droiddeck.launcher.compatibility.GameCompatibilityPanel(it, null, Modifier.heightIn(max = 420.dp))
+                                }
                             }
                         }
                     }
