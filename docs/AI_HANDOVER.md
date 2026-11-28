@@ -752,3 +752,7 @@ New staging branch ai-history-log-review-next from active integrated 12f1ec0ba54
 
 ## Game performance history review
 Staged game/device-scoped coverage-aware TrialDatabase.recent and read-only GamePerformanceHistoryPanel in the selected game's compatibility panel. Up to 20 recent validated entries with scene, output size, FPS, P95, frame count, time and runtime labels; explicit earlier/later selection and existing comparison rules. No automatic causal inference, settings write or version attribution. Existing DB schema unchanged. Added Robolectric test for game/device scoping and order; compilation and tests not yet executed. Active integration CI 46103956740 is in progress; do not move integration ref until terminal.
+
+
+## Performance retest recommendations
+Adds PerformanceRetestAdvice and the history panel's explicit baseline-relative recent candidates (max 3). Requires comparable game/device/scene/output, observed improvement and neither metric worsening. Shows stored runtime labels and opens chronological comparison; no automatic settings write, no best-configuration or causal claims. Game version and internal render settings are not recorded. Added two pure Kotlin JUnit methods; compilation/tests/device not executed. Active integration run 46103956740 remains in progress; stage on ai-history-log-review-next.

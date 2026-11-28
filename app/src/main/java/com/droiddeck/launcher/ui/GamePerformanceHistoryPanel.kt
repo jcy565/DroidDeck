@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.droiddeck.launcher.compatibility.GameplayBudget
 import com.droiddeck.launcher.compatibility.OptimizationComparison
+import com.droiddeck.launcher.compatibility.PerformanceRetestAdvice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -71,6 +72,27 @@ internal fun GamePerformanceHistoryPanel(gameId: String, enabled: Boolean = true
                 }
             }
             val a = before
+            if (a != null) {
+                val candidates = remember(rows, a) {
+                    PerformanceRetestAdvice.candidates(rows.map {
+                        PerformanceRetestAdvice.Observation(it.id, it.sample, it.runtime)
+                    }, a.id)
+                }
+                Text("선택한 기준 측정 대비 재시험 후보")
+                Text("같은 게임·기기·장면 이름·출력 해상도에서 FPS 또는 P95가 개선되고 다른 지표가 악화되지 않은 최근 기록입니다.")
+                if (candidates.isEmpty()) Text("조건을 충족하는 개선 기록이 없습니다. 같은 장면에서 다시 측정하세요.")
+                candidates.forEach { candidate ->
+                    val item = rows.single { it.id == candidate.observed.id }
+                    Text(formatter.format(Date(item.recordedAt)) + " · " + item.sample.scene)
+                    Text(item.runtime)
+                    Text(OptimizationComparison.describe(candidate.comparison))
+                    TextButton(enabled = enabled, onClick = {
+                        if (item.id > a.id) after = item
+                        else { before = item; after = a }
+                    }) { Text("이 기록과 기준 측정 비교") }
+                }
+                Text("표시된 실행 환경은 재시험 참고용입니다. 이전 게임 설정 전체가 저장된 것은 아니며 자동 적용하지 않습니다.")
+            }
             val b = after
             if (a != null && b != null) {
                 Text("선택한 두 기록의 비교")
