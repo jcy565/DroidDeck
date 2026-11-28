@@ -45,9 +45,11 @@ internal object ImageTranslationInput {
         return sample
     }
 
+    internal fun validUnicode(text: String): Boolean = Charsets.UTF_8.newEncoder().canEncode(text)
+
     fun validateText(text: String): String {
         require(text.isNotBlank() && text.length <= MAX_TEXT &&
-            text.none { it.isISOControl() && it !in "\r\n\t" }) { "빈 텍스트 또는 지원 길이·문자 범위를 초과했습니다." }
+            text.none { it.isISOControl() && it !in "\r\n\t" } && validUnicode(text)) { "빈 텍스트 또는 지원 길이·문자 범위를 초과했습니다." }
         return text
     }
 
