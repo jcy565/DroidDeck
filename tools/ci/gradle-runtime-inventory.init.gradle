@@ -31,7 +31,7 @@ gradle.projectsEvaluated {
             def edges = dependencies.findAll { it instanceof ResolvedDependencyResult }.collect {
                 [from: it.from.id.displayName, to: it.selected.id.displayName,
                  requested: it.requested.displayName, constraint: it.constraint]
-            }.sort { a, b -> [a.from, a.to, a.requested, a.constraint] <=> [b.from, b.to, b.requested, b.constraint] }
+            }.sort { a, b -> (a.from <=> b.from) ?: (a.to <=> b.to) ?: (a.requested <=> b.requested) ?: (a.constraint <=> b.constraint) }
             if (nodes.findAll { it.kind == 'maven' }.isEmpty()) {
                 throw new GradleException('Empty Maven runtime graph')
             }
@@ -53,7 +53,7 @@ gradle.projectsEvaluated {
                 [component: artifact.id.componentIdentifier.displayName,
                  name: artifact.file.name, bytes: artifact.file.length(),
                  sha256: sha256(artifact.file)]
-            }.sort { a, b -> [a.component, a.name, a.sha256] <=> [b.component, b.name, b.sha256] }
+            }.sort { a, b -> (a.component <=> b.component) ?: (a.name <=> b.name) ?: (a.sha256 <=> b.sha256) }
             if (artifacts.isEmpty()) throw new GradleException('Empty external artifact inventory')
             def nodeIds = nodes.collect { it.id } as Set
             if (edges.any { !nodeIds.contains(it.from) || !nodeIds.contains(it.to) } ||
