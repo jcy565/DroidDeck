@@ -123,6 +123,12 @@ class CiChecksTest(unittest.TestCase):
         diag = ids['compose-idle-diagnostics']
         self.assertIn('failure()', diag['if'])
         self.assertIn("steps.unit-tests.outcome == 'failure'", diag['if'])
+        self.assertIn("steps.android-test-summary.outputs.run_compose_diagnostics != 'false'", diag['if'])
+        summary = ids['android-test-summary']
+        self.assertIn('--github-output "$GITHUB_OUTPUT"', summary['run'])
+        self.assertIn('rm -rf app/build/test-results/testReleaseUnitTest', ids['unit-tests']['run'])
+        self.assertLess(steps.index(ids['unit-tests']), steps.index(summary))
+        self.assertLess(steps.index(summary), steps.index(diag))
         self.assertEqual(diag['env'], ids['unit-tests']['env'])
         self.assertNotIn('continue-on-error', ids['unit-tests'])
         self.assertLess(steps.index(ids['unit-test-diagnostics']), steps.index(diag))
