@@ -16,24 +16,10 @@ android {
 
     sourceSets.main.java.srcDir('src/protocol/java')
 
-    signingConfigs {
-        testkey {
-            storeFile file("${rootDir}/keystore/testkey.p12")
-            storeType 'PKCS12'
-            storePassword 'android'
-            keyAlias 'testkey'
-            keyPassword 'android'
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-        }
-    }
-
     buildTypes {
-        debug { signingConfig signingConfigs.testkey }
+        debug { }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.testkey
         }
     }
 
@@ -46,3 +32,5 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+apply from: rootProject.file('gradle/ai-signing.gradle')
