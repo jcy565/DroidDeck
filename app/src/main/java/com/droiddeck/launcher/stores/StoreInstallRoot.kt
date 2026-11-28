@@ -77,6 +77,8 @@ object StoreInstallRoot {
         safeRoot(root) && safeRoot(child) && child.canonicalFile.parentFile == root.canonicalFile
     }.getOrDefault(false)
 
+    private fun externalRoot(parent: File): File? = File(parent, ON_VOLUME).takeIf { safeChild(parent, it) }
+
     private fun storeFolders(root: File, store: Store): List<File> {
         val dir = storeDir(root, store)
         if (!safeChild(root, dir)) return emptyList()
@@ -86,9 +88,9 @@ object StoreInstallRoot {
     fun targets(context: Context): List<Target> {
         val internal = Target(internalRoot(context), context.getString(com.droiddeck.launcher.R.string.games_internal), removable = false)
         val custom = customTarget(context)
-        val cards = GameStorage.options(context).map { Target(File(it.path, ON_VOLUME), it.name, removable = true) }
+        val cards = GameStorage.options(context).mapNotNull { option -> externalRoot(File(option.path))?.let { Target(it, option.name, removable = true) } }
         val library = GameStorage.effective(context)?.let { lib ->
-            val root = File(lib.path, ON_VOLUME)
+            val root = externalRoot(File(lib.path)) ?: return@let null
             if (cards.any { it.root.absolutePath == root.absolutePath }) return@let null
             Target(root, folderLabel(context, File(lib.path)), removable = true, folder = true)
         }
@@ -133,12 +135,12 @@ object StoreInstallRoot {
     private fun internalTarget(context: Context) =
         Target(internalRoot(context), context.getString(com.droiddeck.launcher.R.string.games_internal), removable = false)
 
-    fun libraryRoot(context: Context): File? = GameStorage.effective(context)?.let { File(it.path, ON_VOLUME) }
+    fun libraryRoot(context: Context): File? = GameStorage.effective(context)?.let { externalRoot(File(it.path)) }
 
     fun roots(context: Context): List<File> {
-        val cards = GameStorage.options(context).map { File(it.path, ON_VOLUME) }
-        val custom = defaultStorageFolder(context)?.takeIf { it.isDirectory }?.let { File(it, ON_VOLUME) }
-        val library = GameStorage.effective(context)?.let { File(it.path, ON_VOLUME) }
+        val cards = GameStorage.options(context).mapNotNull { externalRoot(File(it.path)) }
+        val custom = defaultStorageFolder(context)?.takeIf { it.isDirectory }?.let(::externalRoot)
+        val library = libraryRoot(context)
         return (listOf(internalRoot(context)) + cards + listOfNotNull(custom) + listOfNotNull(library))
             .filter(::safeRoot)
             .distinctBy { it.absolutePath }
@@ -180,7 +182,7 @@ object StoreInstallRoot {
 
     fun externalRootsForXodus(context: Context): List<Pair<File, String>> {
         val roots = externalRoots(context)
-        val selectedLibrary = GameStorage.effective(context)?.let { File(it.path, ON_VOLUME) }
+        val selectedLibrary = libraryRoot(context)
             ?.takeIf { safeRoot(it) && !isInternal(context, it) } ?: return roots
         return withSelectedLibrary(roots, selectedLibrary, guestFor(context, selectedLibrary))
     }
