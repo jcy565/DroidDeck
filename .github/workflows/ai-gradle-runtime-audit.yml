@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/ai-gradle-runtime-audit.yml'
       - 'tools/ci/gradle-runtime-inventory.init.gradle'
+      - 'app/build.gradle'
 permissions:
   contents: read
   actions: read
