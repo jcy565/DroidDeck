@@ -341,7 +341,7 @@ jobs:
     needs: [source, components, xbox, build-runner]
     name: Compile APK and Android tests
     env:
-      ORG_GRADLE_PROJECT_experimentalImageOcr: ${{ contains(fromJSON('["ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next"]'), github.ref_name) && 'true' || 'false' }}
+      ORG_GRADLE_PROJECT_experimentalImageOcr: ${{ contains(fromJSON('["ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next","ai-device-validation-next"]'), github.ref_name) && 'true' || 'false' }}
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ${{ fromJSON(needs.build-runner.outputs.labels) }}
     timeout-minutes: 45
@@ -824,7 +824,7 @@ jobs:
           retention-days: 14
 
       - name: Retain checked APK for failed test investigation
-        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next"]'), github.ref_name)
+        if: failure() && steps.unit-tests.outcome == 'failure' && contains(fromJSON('["ai-compatibility-history","ai-recovery-review-next","ai-version-integration-next","ai-chatgpt-exchange-next","ai-png-compose-integration-next","ai-integrated-ci-diagnostic-next","ai-device-validation-next"]'), github.ref_name)
         uses: actions/upload-artifact@v4
         with:
           name: diagnostic-apk-tests-failed
