@@ -1,0 +1,93 @@
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// Standalone dependency audit; never attach to an APK build or alter CI guards.
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    def task = app.tasks.register('auditReleaseRuntimeInventory') {
+        group = 'verification'
+        description = 'Read-only resolved runtime graph and external artifact hashes'
+        doLast {
+            if (app.findProperty('experimentalImageOcr') != 'true' ||
+                app.findProperty('experimentalLocalAi') != 'false') {
+                throw new GradleException('Explicitly select the reviewed OCR-on / local-AI-off profile')
+            }
+            def config = app.configurations.getByName('releaseRuntimeClasspath')
+            def result = config.incoming.resolutionResult
+            def dependencies = result.allDependencies
+            def unresolved = dependencies.findAll { it instanceof UnresolvedDependencyResult }
+            if (!unresolved.isEmpty()) {
+                throw new GradleException("Unresolved runtime dependencies: " +
+                    unresolved.collect { it.attempted.displayName }.sort().join(', '))
+            }
+            def identity = { id ->
+                id instanceof ModuleComponentIdentifier ?
+                    [kind: 'maven', group: id.group, name: id.module, version: id.version,
+                     id: id.displayName] : [kind: 'non-maven', id: id.displayName]
+            }
+            def nodes = result.allComponents.collect { identity(it.id) }.sort { it.id }
+            def edges = dependencies.findAll { it instanceof ResolvedDependencyResult }.collect {
+                [from: it.from.id.displayName, to: it.selected.id.displayName,
+                 requested: it.requested.displayName, constraint: it.constraint]
+            }.sort { a, b -> [a.from, a.to, a.requested, a.constraint] <=> [b.from, b.to, b.requested, b.constraint] }
+            if (nodes.findAll { it.kind == 'maven' }.isEmpty()) {
+                throw new GradleException('Empty Maven runtime graph')
+            }
+
+            def sha256 = { File file ->
+                if (!file.isFile()) throw new GradleException("Non-file artifact: " + file.name)
+                def digest = MessageDigest.getInstance('SHA-256')
+                file.withInputStream { stream ->
+                    byte[] buffer = new byte[65536]
+                    int count
+                    while ((count = stream.read(buffer)) != -1) digest.update(buffer, 0, count)
+                }
+                digest.digest().encodeHex().toString()
+            }
+            def artifactView = config.incoming.artifactView {
+                componentFilter { id -> id instanceof ModuleComponentIdentifier }
+            }
+            def artifacts = artifactView.artifacts.artifacts.collect { artifact ->
+                [component: artifact.id.componentIdentifier.displayName,
+                 name: artifact.file.name, bytes: artifact.file.length(),
+                 sha256: sha256(artifact.file)]
+            }.sort { a, b -> [a.component, a.name, a.sha256] <=> [b.component, b.name, b.sha256] }
+            if (artifacts.isEmpty()) throw new GradleException('Empty external artifact inventory')
+            def nodeIds = nodes.collect { it.id } as Set
+            if (edges.any { !nodeIds.contains(it.from) || !nodeIds.contains(it.to) } ||
+                artifacts.any { !nodeIds.contains(it.component) }) {
+                throw new GradleException('Inventory has an unknown component reference')
+            }
+            def git = { List<String> args ->
+                app.providers.exec {
+                    workingDir app.rootProject.projectDir
+                    commandLine(['git'] + args)
+                }.standardOutput.asText.get().trim()
+            }
+            def report = [
+                schema: 1,
+                sourceCommit: git(['rev-parse', 'HEAD']),
+                trackedTreeClean: git(['status', '--porcelain', '--untracked-files=no']).isEmpty(),
+                configuration: config.name,
+                gradleVersion: gradle.gradleVersion,
+                profile: [experimentalImageOcr: true, experimentalLocalAi: false],
+                scope: 'Resolved Gradle runtime graph and external artifact files; not an APK inventory, repository authenticity attestation or vulnerability scan',
+                components: nodes,
+                dependencies: edges,
+                artifacts: artifacts
+            ]
+            def output = app.layout.buildDirectory.file('reports/security/release-runtime-inventory.json').get().asFile
+            output.parentFile.mkdirs()
+            output.setText(JsonOutput.prettyPrint(JsonOutput.toJson(report)) + '\n', 'UTF-8')
+            logger.lifecycle("Wrote runtime inventory: " + output)
+        }
+    }
+    gradle.taskGraph.whenReady { graph ->
+        if (graph.hasTask(task.get()) && graph.allTasks.any { it.path != task.get().path }) {
+            throw new GradleException('Run the inventory task alone; do not combine it with build or packaging tasks')
+        }
+    }
+}
