@@ -5,7 +5,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ci"))
-from compare_unit_test_results import compare, read_reports
+from compare_unit_test_results import compare, identical_passes, read_reports
 
 
 class CompareReportsTest(unittest.TestCase):
@@ -36,6 +36,18 @@ class CompareReportsTest(unittest.TestCase):
         for category, expected in [('persistent_failures', 'same'), ('recovered', 'fixed'), ('new_failures', 'new'), ('missing', 'gone'), ('newly_skipped', 'skip'), ('added', 'extra')]:
             self.assertEqual([expected], [row['test'] for row in result[category]])
         self.assertEqual({'total': 5, 'passed': 2, 'skipped': 1, 'failed': 1, 'compose_idle': 1}, result['current_counts'])
+
+    def test_strict_passing_set(self):
+        old = read_reports(self.report('strict-old', [('same', 'passed')]))
+        self.assertTrue(identical_passes(compare(old, old)))
+        for rows in ([('different', 'passed')], [('same', 'skipped')],
+                     [('same', 'failure')], [('same', 'passed'), ('extra', 'passed')]):
+            with self.subTest(rows=rows):
+                new = read_reports(self.report('strict-new', rows))
+                self.assertFalse(identical_passes(compare(old, new)))
+        self.assertFalse(identical_passes(compare({}, {})))
+        skipped = read_reports(self.report('strict-skipped', [('same', 'skipped')]))
+        self.assertFalse(identical_passes(compare(skipped, skipped)))
 
     def test_empty_directory_rejected(self):
         with self.assertRaises(ValueError):
