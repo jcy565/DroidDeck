@@ -38,6 +38,7 @@ internal object LocalAgentRuntime {
                 .build()
             val created = LlmInference.createFromOptions(context.applicationContext, options)
             engine = created
+            check(allowed())
             val session = LlmInferenceSession.createFromOptions(created,
                 LlmInferenceSession.LlmInferenceSessionOptions.builder().setTopK(1).build())
             return Model(created, session, allowed)

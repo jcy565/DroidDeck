@@ -103,4 +103,44 @@ class GameAgentTest {
         assertTrue(cancelled.closed)
         assertTrue(job.isCancelled)
     }
+
+    @Test fun cancellationDuringModelVerificationPreventsOpeningModel() = runBlocking {
+        val verifying = CompletableDeferred<Unit>()
+        val resume = java.util.concurrent.CountDownLatch(1)
+        val model = Model { mod }
+        var opened = false
+        val job = launch(Dispatchers.IO) {
+            GameAgent.run(config, { true }, { allowed ->
+                verifying.complete(Unit)
+                check(resume.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                check(allowed())
+                opened = true
+                model
+            })
+        }
+        try {
+            withTimeout(5000) { verifying.await() }
+            job.cancel()
+        } finally {
+            resume.countDown()
+            job.join()
+        }
+        assertFalse(opened)
+        assertEquals("", model.prompt)
+    }
+
+    @Test fun budgetChangeWhileOpeningClosesModelBeforeInference() = runBlocking {
+        var idle = true
+        val model = Model { mod }
+        val failure = runCatching {
+            GameAgent.run(config, { idle }, { allowed ->
+                check(allowed())
+                idle = false
+                model
+            })
+        }.exceptionOrNull()
+        assertTrue(failure is IllegalStateException)
+        assertTrue(model.closed)
+        assertEquals("", model.prompt)
+    }
 }

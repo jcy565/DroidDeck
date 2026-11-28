@@ -10,6 +10,10 @@ on:
       - 'app/src/main/java/com/droiddeck/launcher/files/FolderUsage.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/Translation*.kt'
       - 'app/src/test/java/com/droiddeck/launcher/files/GamePatch*.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/GameAgent.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/AiHostBridge.kt'
+      - 'app/src/test/java/com/droiddeck/launcher/files/GameAgentTest.kt'
+      - 'ai-core/src/main/java/com/droiddeck/ai/core/AiCore.java'
 permissions:
   contents: read
 jobs:
@@ -24,11 +28,14 @@ jobs:
         run: |
           set -euo pipefail
           mvn -B -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=junit:junit:4.13.2
+          mvn -B -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.7.3
           deps="$HOME/.m2/repository"
           cp="$deps/junit/junit/4.13.2/junit-4.13.2.jar:$deps/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar"
+          javac -d "$RUNNER_TEMP/ai-core" ai-core/src/main/java/com/droiddeck/ai/core/AiCore.java
+          cp="$cp:$RUNNER_TEMP/ai-core:$deps/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.7.3/kotlinx-coroutines-core-jvm-1.7.3.jar"
           src=app/src/main/java/com/droiddeck/launcher/files
           tests=app/src/test/java/com/droiddeck/launcher/files
-          kotlinc "$src"/{GameConfigPreview,GamePatchStore,GamePatchAuthor,LocalGameAdvisor,FolderUsage,TranslationJson,TranslationLimits,TranslationTable}.kt \
-            "$tests"/{GamePatchTest,GamePatchAuthorTest}.kt -classpath "$cp" -d "$RUNNER_TEMP/game-files.jar"
+          kotlinc "$src"/{GameConfigPreview,GamePatchStore,GamePatchAuthor,LocalGameAdvisor,FolderUsage,GameAgent,AiHostBridge,TranslationAgentWindow,TranslationJson,TranslationLimits,TranslationTable}.kt \
+            "$tests"/{GamePatchTest,GamePatchAuthorTest,GameAgentTest}.kt -classpath "$cp" -d "$RUNNER_TEMP/game-files.jar"
           kotlin -classpath "$RUNNER_TEMP/game-files.jar:$cp" org.junit.runner.JUnitCore \
-            com.droiddeck.launcher.files.GamePatchTest com.droiddeck.launcher.files.GamePatchAuthorTest
+            com.droiddeck.launcher.files.GamePatchTest com.droiddeck.launcher.files.GamePatchAuthorTest com.droiddeck.launcher.files.GameAgentTest

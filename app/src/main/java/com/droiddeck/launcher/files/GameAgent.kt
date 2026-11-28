@@ -90,15 +90,23 @@ internal object GameAgent {
     }
 
     suspend fun run(request: Request, allowed: () -> Boolean,
-        modelFactory: () -> GameAgentModel, timeoutMillis: Long = 60_000): Result {
+        modelFactory: (allowed: () -> Boolean) -> GameAgentModel, timeoutMillis: Long = 60_000): Result {
         AiHostBridge.requireCompatible()
         require(timeoutMillis in 1..120_000)
         currentCoroutineContext().ensureActive()
         check(allowed()) { "Game or memory budget blocks AI work" }
         val input = prepare(request)
         check(allowed())
-        val output = modelFactory().use { model ->
-            withTimeout(timeoutMillis) { model.complete(input.prompt) }
+        val output = withTimeout(timeoutMillis) {
+            val taskContext = currentCoroutineContext()
+            val canContinue = {
+                taskContext.ensureActive()
+                allowed()
+            }
+            modelFactory(canContinue).use { model ->
+                check(canContinue()) { "Game or memory budget changed" }
+                model.complete(input.prompt)
+            }
         }
         currentCoroutineContext().ensureActive()
         check(allowed()) { "Game or memory budget changed" }

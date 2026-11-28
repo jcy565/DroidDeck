@@ -66,9 +66,10 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
     var agentJob by remember(file) { mutableStateOf<Job?>(null) }
 
     fun allowsAgentWork(): Boolean {
+        if (!aiAvailability.enabled || !GameplayBudget.allows(GameplayBudget.Work.ANALYSIS)) return false
         val memory = GameplayBudget.memory(context)
-        return AiHostBridge.availability().enabled && GameplayBudget.allowsOptionalAnalysis(context) &&
-            memory != null && memory.availableBytes >= 2L * 1024 * 1024 * 1024
+        return memory != null && memory.availableBytes >= 2L * 1024 * 1024 * 1024 &&
+            GameplayBudget.memoryAdvice(memory) == GameplayBudget.MemoryAdvice.NORMAL
     }
 
     fun runAction(action: suspend () -> Unit) {
@@ -429,9 +430,9 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                                         if (translationTable) require(source == expected) { "원본이 변경됐습니다. 다시 추출하세요." }
                                         val request = GameAgent.Request(instruction, file.extension, source, edits, start)
                                         val result = GameAgent.run(request, ::allowsAgentWork,
-                                            { LocalAgentRuntime.openSelected(context, ::allowsAgentWork) {
-                                                if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, ::allowsAgentWork)
-                                                else LocalModelStore.verified(modelDirectory, digest, ::allowsAgentWork)
+                                            { allowed -> LocalAgentRuntime.openSelected(context, allowed) {
+                                                if (managedModels) AiModelUpdates.verifiedActive(managedModelDirectory, allowed)
+                                                else LocalModelStore.verified(modelDirectory, digest, allowed)
                                             } }, 120_000)
                                         check(allowsAgentWork())
                                         if (!log) require(original() == source) { "원본이 변경됐습니다. 결과를 반영하지 않았습니다." }
