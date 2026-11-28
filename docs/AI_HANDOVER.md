@@ -756,3 +756,7 @@ Staged game/device-scoped coverage-aware TrialDatabase.recent and read-only Game
 
 ## Performance retest recommendations
 Adds PerformanceRetestAdvice and the history panel's explicit baseline-relative recent candidates (max 3). Requires comparable game/device/scene/output, observed improvement and neither metric worsening. Shows stored runtime labels and opens chronological comparison; no automatic settings write, no best-configuration or causal claims. Game version and internal render settings are not recorded. Added two pure Kotlin JUnit methods; compilation/tests/device not executed. Active integration run 46103956740 remains in progress; stage on ai-history-log-review-next.
+
+
+## Game-scoped optimization bookmarks
+Add one explicit saved output-resolution/DXVK preview candidate per game, via private preferences. Reopen by capturing current settings and panel dimensions, never reuse an old approval snapshot. No actual setting writes or performance claim; saved choice is a bookmark, not a per-game override. Existing apply UI remains disabled. Added two tests; not compiled or executed. Staged on ai-history-log-review-next while 46103956740 runs.

@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 
 /** User-requested read-only comparisons. No setting is applied or queued. */
 @Composable
-internal fun SettingsExperimentPreviewPanel() {
+internal fun SettingsExperimentPreviewPanel(gameId: String? = null) {
     val uiContext = LocalContext.current
     val context = uiContext.applicationContext
     val scope = rememberCoroutineScope()
@@ -27,9 +27,59 @@ internal fun SettingsExperimentPreviewPanel() {
     var request by remember(context) { mutableStateOf<SettingsApplyApproval.Request?>(null) }
     var busy by remember(context) { mutableStateOf(false) }
     var error by remember(context) { mutableStateOf<String?>(null) }
+    var bookmark by remember(context, gameId) { mutableStateOf<SavedOptimizationChoice.Choice?>(null) }
+    var bookmarkMessage by remember(context, gameId) { mutableStateOf("") }
+
+    LaunchedEffect(context, gameId) {
+        if (gameId != null) {
+            try {
+                bookmark = withContext(Dispatchers.IO) { SavedOptimizationChoice.load(context, gameId) }
+            } catch (e: CancellationException) { throw e }
+              catch (_: Exception) { bookmarkMessage = "저장한 후보를 읽지 못했습니다." }
+        }
+    }
+
+    fun bookmarkTask(action: suspend () -> Unit) {
+        if (busy) return
+        busy = true
+        bookmarkMessage = ""
+        scope.launch {
+            try { action() }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { bookmarkMessage = "저장 후보 처리 실패. 다시 확인하세요." }
+            finally { busy = false }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("출력 해상도·DXVK 설정 미리보기")
+        if (gameId != null) {
+            Text("이 게임의 최적화 후보 북마크 · 실제 설정은 전역 또는 실행 모드 범위입니다.")
+            bookmarkMessage.takeIf { it.isNotBlank() }?.let { Text(it) }
+            bookmark?.let { saved ->
+                Text("저장 후보: " + saved.scope + " · " + saved.proposed)
+                TextButton(enabled = !busy, onClick = {
+                    bookmarkTask {
+                        val panel = SessionDisplay.panelSize(uiContext)
+                        val refreshed = withContext(Dispatchers.IO) {
+                            check(GameplayBudget.allowsOptionalAnalysis(context))
+                            SavedOptimizationChoice.refresh(context, saved, panel)
+                        }
+                        options = null
+                        request = if (DroidDeckSettingsPreview.changed(refreshed))
+                            SettingsApplyApproval.prepare(refreshed, panel) else null
+                        bookmarkMessage = if (request == null) "이미 현재 설정과 같습니다." else "현재 설정 기준으로 다시 검토하세요."
+                    }
+                }) { Text("저장 후보 다시 검토") }
+                TextButton(enabled = !busy, onClick = {
+                    bookmarkTask {
+                        withContext(Dispatchers.IO) { SavedOptimizationChoice.remove(context, gameId) }
+                        bookmark = null
+                        bookmarkMessage = "북마크를 삭제했습니다. 실제 설정은 그대로입니다."
+                    }
+                }) { Text("저장 후보 삭제") }
+            }
+        }
         Text("Steam·데스크톱 또는 전체 게임에 영향을 주는 설정입니다. 게임 내부 렌더링 해상도와는 다릅니다.")
         Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
             if (!busy) {
@@ -118,7 +168,19 @@ internal fun SettingsExperimentPreviewPanel() {
                     Text("게임별 설정이 아닙니다. 적용 기능은 검증 전까지 비활성화되어 있습니다.")
                 }
             },
-            confirmButton = { TextButton(onClick = { request = null }) { Text("닫기") } }
+            confirmButton = {
+                if (gameId != null) TextButton(enabled = !busy, onClick = {
+                    val selected = SavedOptimizationChoice.Choice(change.scope, change.proposed)
+                    bookmarkTask {
+                        withContext(Dispatchers.IO) { SavedOptimizationChoice.save(context, gameId, selected) }
+                        bookmark = selected
+                        request = null
+                        bookmarkMessage = "이 게임의 후보로 저장했습니다. 실제 설정은 변경되지 않았습니다."
+                    }
+                }) { Text("이 게임의 후보로 저장") }
+                else TextButton(onClick = { request = null }) { Text("닫기") }
+            },
+            dismissButton = { TextButton(enabled = !busy, onClick = { request = null }) { Text("닫기") } }
         )
     }
 }
