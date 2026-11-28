@@ -19,19 +19,23 @@ internal object ExchangeCheckpoint {
     private fun canonicalId(id: String): Boolean = runCatching { UUID.fromString(id).toString() == id }.getOrDefault(false)
     private fun validate(saved: Saved) {
         require(canonicalId(saved.id) && saved.instruction.isNotBlank() && saved.instruction.length <= 1000)
+        require(Charsets.UTF_8.newEncoder().canEncode(saved.instruction)) { "Invalid instruction Unicode" }
         require(saved.start in 0..500 && saved.fingerprint.matches(Regex("[a-f0-9]{64}")))
     }
 
     fun fingerprint(target: String, source: String, edits: Map<String, String>, prompt: String): String {
+        val stable = edits.toMap()
         val digest = MessageDigest.getInstance("SHA-256")
+        val encoder = Charsets.UTF_8.newEncoder()
         fun add(value: String) {
+            require(encoder.canEncode(value)) { "Invalid fingerprint Unicode" }
             val bytes = value.toByteArray(Charsets.UTF_8)
             digest.update(java.nio.ByteBuffer.allocate(4).putInt(bytes.size).array())
             digest.update(bytes)
         }
         add("DroidDeck exchange checkpoint 1")
-        add(target); add(source); add(prompt); add(edits.size.toString())
-        edits.toSortedMap().forEach { (key, value) -> add(key); add(value) }
+        add(target); add(source); add(prompt); add(stable.size.toString())
+        stable.toSortedMap().forEach { (key, value) -> add(key); add(value) }
         return digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
     }
 
