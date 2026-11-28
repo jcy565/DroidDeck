@@ -50,6 +50,25 @@ class TranslationWorklistTest {
             .exceptionOrNull() is CancellationException)
     }
 
+    @Test fun reviewUsesOriginalCandidatesEvenWhenCallerMutatesSelection() {
+        val root = temporary.newFolder("game")
+        val drafts = temporary.newFolder("drafts")
+        File(root, "a.json").writeText("""{"a":"Hello"}""")
+        File(root, "b.json").writeText("""{"b":"Bye"}""")
+        val original = TranslationDiscovery.inspect(root).candidates
+        val selected = original.toMutableList()
+        val queue = TranslationWorklist.Queue(root, selected)
+        var checks = 0
+        val report = TranslationWorklist.review(queue, drafts) {
+            if (++checks == 1) selected.clear()
+        }
+        assertTrue(selected.isEmpty())
+        assertEquals(original, report.entries.map { it.candidate })
+        assertEquals(2, report.totalRows)
+        assertTrue(report.entries.all { it.state == TranslationWorklist.State.NOT_STARTED })
+        assertEquals(original.first(), report.next()?.candidate)
+    }
+
     @Test fun queueRejectsEmptyDuplicateOrOversizedSelections() {
         val root = temporary.newFolder("game")
         val candidate = TranslationDiscovery.Candidate("a.json", 1, "0".repeat(64))
