@@ -15,7 +15,7 @@ object StoreInstallRoot {
     const val SPACE_UNKNOWN = -1L
     private const val INTERNAL = "root/Games/Stores"
     const val INTERNAL_GUEST = "/$INTERNAL"
-    private const val ON_VOLUME = "Games"
+    internal const val ON_VOLUME = "DroidDeck AI Games"
     const val GUEST_EXTERNAL = "/mnt/droiddeck-stores"
 
     class Target(val root: File, val label: String, val removable: Boolean, val folder: Boolean = false) {
@@ -70,6 +70,19 @@ object StoreInstallRoot {
 
     fun internalRoot(context: Context): File = File(LinuxRuntime.rootDir(context), INTERNAL)
 
+    private fun safeRoot(root: File): Boolean = !GameStorage.touchesOfficialPackage(root) &&
+        !java.nio.file.Files.isSymbolicLink(root.toPath())
+
+    private fun safeChild(root: File, child: File): Boolean = runCatching {
+        safeRoot(root) && safeRoot(child) && child.canonicalFile.parentFile == root.canonicalFile
+    }.getOrDefault(false)
+
+    private fun storeFolders(root: File, store: Store): List<File> {
+        val dir = storeDir(root, store)
+        if (!safeChild(root, dir)) return emptyList()
+        return dir.listFiles { f -> f.isDirectory && safeChild(dir, f) }?.toList().orEmpty()
+    }
+
     fun targets(context: Context): List<Target> {
         val internal = Target(internalRoot(context), context.getString(com.droiddeck.launcher.R.string.games_internal), removable = false)
         val custom = customTarget(context)
@@ -80,6 +93,7 @@ object StoreInstallRoot {
             Target(root, folderLabel(context, File(lib.path)), removable = true, folder = true)
         }
         return (listOf(internal) + listOfNotNull(custom) + cards + listOfNotNull(library))
+            .filter { safeRoot(it.root) }
             .distinctBy { it.root.absolutePath }
     }
 
@@ -88,7 +102,7 @@ object StoreInstallRoot {
 
     fun customTarget(context: Context): Target? {
         val folder = defaultStorageFolder(context) ?: return null
-        if (!folder.isDirectory) return null
+        if (!folder.isDirectory || !safeRoot(folder) || !safeChild(folder, File(folder, ON_VOLUME))) return null
         val label = SessionPrefs.defaultStorageFolderLabel(context).ifBlank { folderLabel(context, folder) }
         return Target(File(folder, ON_VOLUME), label, removable = true, folder = true)
     }
@@ -126,6 +140,7 @@ object StoreInstallRoot {
         val custom = defaultStorageFolder(context)?.takeIf { it.isDirectory }?.let { File(it, ON_VOLUME) }
         val library = GameStorage.effective(context)?.let { File(it.path, ON_VOLUME) }
         return (listOf(internalRoot(context)) + cards + listOfNotNull(custom) + listOfNotNull(library))
+            .filter(::safeRoot)
             .distinctBy { it.absolutePath }
     }
 
@@ -153,9 +168,10 @@ object StoreInstallRoot {
     fun prepareDefaultFolder(context: Context, folder: File): String? {
         if (!folder.isDirectory) return context.getString(com.droiddeck.launcher.R.string.gstore_cannot_create, folder.path)
         val root = File(folder, ON_VOLUME)
+        if (!safeChild(folder, root)) return context.getString(com.droiddeck.launcher.R.string.gstore_cannot_write, root.path)
         if (!root.isDirectory && !root.mkdirs()) return context.getString(com.droiddeck.launcher.R.string.gstore_cannot_create, folder.path)
         return try {
-            File.createTempFile(".droiddeck-write-probe", null, root).delete()
+            java.nio.file.Files.delete(java.nio.file.Files.createTempFile(root.toPath(), ".droiddeck-ai-probe-", ".tmp"))
             null
         } catch (e: Exception) {
             context.getString(com.droiddeck.launcher.R.string.gstore_cannot_write_detail, root.path, e.message)
@@ -165,7 +181,7 @@ object StoreInstallRoot {
     fun externalRootsForXodus(context: Context): List<Pair<File, String>> {
         val roots = externalRoots(context)
         val selectedLibrary = GameStorage.effective(context)?.let { File(it.path, ON_VOLUME) }
-            ?.takeUnless { isInternal(context, it) } ?: return roots
+            ?.takeIf { safeRoot(it) && !isInternal(context, it) } ?: return roots
         return withSelectedLibrary(roots, selectedLibrary, guestFor(context, selectedLibrary))
     }
 
@@ -202,7 +218,7 @@ object StoreInstallRoot {
 
     internal fun externalBindSpecs(roots: List<Pair<File, String>>, guestRoot: File): List<String> =
         roots.mapNotNull { (host, guest) ->
-            if (!host.isDirectory || !host.canRead()) return@mapNotNull null
+            if (!safeRoot(host) || !host.isDirectory || !host.canRead()) return@mapNotNull null
             val target = File(guestRoot, guest.removePrefix("/"))
             if (target.isDirectory || target.mkdirs()) "${host.path}:$guest" else null
         }
@@ -248,15 +264,19 @@ object StoreInstallRoot {
 
     fun gameFolders(context: Context): List<File> = roots(context).flatMap { root ->
         Store.entries.flatMap { store ->
-            storeDir(root, store).listFiles { f -> f.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
+            storeFolders(root, store).sortedBy { it.name.lowercase() }
         }
     }
 
-    fun folderFor(context: Context, store: Store, id: String, title: String, root: File = installRoot(context)): File =
-        existingFolder(context, store, id, title) ?: File(storeDir(root, store), folderName(title, id))
+    fun folderFor(context: Context, store: Store, id: String, title: String, root: File = installRoot(context)): File {
+        val dir = storeDir(root, store)
+        val target = File(dir, folderName(title, id))
+        require(safeChild(root, dir) && safeChild(dir, target)) { "Unsafe store installation path" }
+        return existingFolder(context, store, id, title) ?: target
+    }
 
     fun existingFolder(context: Context, store: Store, id: String, title: String): File? {
-        val all = roots(context).flatMap { r -> storeDir(r, store).listFiles { f -> f.isDirectory }?.toList().orEmpty() }
+        val all = roots(context).flatMap { r -> storeFolders(r, store) }
         all.firstOrNull { folder -> StoreGameSidecar.read(folder)?.let { it.store == store && it.id == id } == true }?.let { return it }
         val name = folderName(title, id)
         return all.firstOrNull { it.name == name && StoreGameSidecar.read(it)?.isInstalled != true }
@@ -268,7 +288,7 @@ object StoreInstallRoot {
 
     fun unfinished(context: Context): List<Unfinished> = roots(context).flatMap { root ->
         Store.entries.filter { it != Store.BATTLENET }.flatMap { store ->
-            storeDir(root, store).listFiles { f -> f.isDirectory }.orEmpty().mapNotNull { folder ->
+            storeFolders(root, store).mapNotNull { folder ->
                 val sidecar = StoreGameSidecar.read(folder)
                 when {
                     sidecar == null -> Unfinished(store, null, folder)
@@ -286,6 +306,6 @@ object StoreInstallRoot {
     fun folderName(title: String, id: String): String {
         val cleaned = title.replace(Regex("[^A-Za-z0-9 ._'()\\-]"), " ").replace(Regex("\\s+"), " ").trim().trimEnd('.')
         val cut = if (cleaned.length > 60) cleaned.take(60).trimEnd().trimEnd('.') else cleaned
-        return cut.ifEmpty { id.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "game" } }
+        return cut.ifEmpty { id.replace(Regex("[^A-Za-z0-9._-]"), "_").takeUnless { it.isEmpty() || it == "." || it == ".." } ?: "game" }
     }
 }
