@@ -140,6 +140,31 @@ class FrameStatsTest {
         assertEquals(3000f, stats.graphMaxMs(), 0.01f)
     }
 
+    @Test fun trialCursorDetectsResetEvenWhenFrameCountCatchesUp() {
+        val stats = FrameStats()
+        val ring = FloatArray(FrameStats.GRAPH_FRAMES)
+        var now = 1_000_000_000L
+        fun add(n: Int) {
+            repeat(n) { now += 10_000_000L; stats.add(10_000_000L, now) }
+        }
+        add(20)
+        val before = stats.graphSnapshot(ring)
+        add(10)
+        val next = stats.graphSnapshot(ring)
+        assertEquals(10, next.newFramesSince(before))
+        stats.reset()
+        add(40)
+        val after = stats.graphSnapshot(ring)
+        assertTrue(after.frames > next.frames)
+        assertTrue(runCatching { after.newFramesSince(next) }.isFailure)
+        assertEquals(0, after.newFramesSince(after))
+        add(FrameStats.GRAPH_FRAMES + 1)
+        assertTrue(runCatching { stats.graphSnapshot(ring).newFramesSince(after) }.isFailure)
+        val legacy = FloatArray(FrameStats.GRAPH_FRAMES)
+        assertEquals(stats.graph(legacy), stats.graphSnapshot(ring).frames)
+        assertArrayEquals(legacy, ring, 0f)
+    }
+
     @Test fun resetStartsOver() {
         val stats = FrameStats()
         var now = 1_000_000_000L
