@@ -1703,6 +1703,7 @@ class SessionService : Service() {
         pendingSteamGameGeneration = -1
         pendingSteamGameExitWatchToken = -1
         SessionEvents.record("steam.game_launch_requested", mapOf("gameId" to gameId, "generation" to gen))
+        com.droiddeck.launcher.compatibility.GameLaunchRecorder.publishedSteamRequest(this, gameId)
         watchGameExit(gameId, gen, exitWatchToken, pendingSteamPreviousGameId)
         Log.i(TAG, "queued Steam game $gameId for the running client")
     }
