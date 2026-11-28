@@ -11,6 +11,8 @@ on:
       - 'tools/ci/test_ai_upstream_repair.py'
       - 'tools/ci/ai_upstream_apply.py'
       - 'tools/ci/test_ai_upstream_apply.py'
+      - 'tools/ci/ai_upstream_artifact.py'
+      - 'tools/ci/test_ai_upstream_artifact.py'
 permissions:
   contents: read
 jobs:
@@ -48,11 +50,19 @@ jobs:
           test -z "$(git status --porcelain)"
           test "$status" -eq "$(jq 'if .candidate_status == "blocked" then 1 else 0 end' "$RUNNER_TEMP/upstream-preview/report.json")"
           test "$repair_status" -eq "$(jq 'if (.conflicts|length)>0 then 1 else 0 end' "$RUNNER_TEMP/upstream-preview/repairs.json")"
+          test "$apply_status" -eq "$(jq 'if .candidate_status == "blocked" then 1 else 0 end' "$RUNNER_TEMP/upstream-preview/candidate.json")"
+          if [ "$(jq -r .candidate_status "$RUNNER_TEMP/upstream-preview/candidate.json")" = regression_required ]; then
+            out="$RUNNER_TEMP/upstream-preview/verified-candidate"
+            PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_artifact.py export --ai "$ai" --upstream "$upstream" --output "$out"
+            PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_artifact.py verify --ai "$ai" --upstream "$upstream" --output "$out"
+            jq -e --arg tree "$(jq -r .candidate_tree "$RUNNER_TEMP/upstream-preview/candidate.json")" '.candidate_tree == $tree and .release_approved == false' "$out/manifest.json"
+          fi
+          test -z "$(git status --porcelain)"
           exit "$apply_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ai-upstream-preview
-          path: ${{ runner.temp }}/upstream-preview/*.json
+          path: ${{ runner.temp }}/upstream-preview/
           if-no-files-found: error
           retention-days: 30
