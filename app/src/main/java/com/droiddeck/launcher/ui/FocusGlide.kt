@@ -71,15 +71,34 @@ internal class FocusGlide(view: View?) {
     }
 
     var host: LayoutCoordinates? = null
+        set(value) {
+            field = value
+            // Host-only placement changes can change a child's clipped bounds too.
+            current?.let(::moved)
+        }
     val hot = mutableStateListOf<GlideSource>()
     var moves by mutableIntStateOf(0)
     var hidden by mutableStateOf(false)
+    private val movement = FocusMovementGate<GlideSource, Rect>()
 
     val current: GlideSource? get() = hot.lastOrNull()
 
-    fun claim(s: GlideSource) { hot.remove(s); hot.add(s) }
-    fun release(s: GlideSource) { hot.remove(s) }
-    fun moved(s: GlideSource) { if (hot.lastOrNull() === s) moves++ }
+    fun claim(s: GlideSource) {
+        if (current === s) return
+        hot.remove(s)
+        hot.add(s)
+        movement.reset()
+    }
+
+    fun release(s: GlideSource) {
+        val wasCurrent = current === s
+        hot.remove(s)
+        if (wasCurrent) movement.reset()
+    }
+
+    fun moved(s: GlideSource) {
+        if (current === s && movement.changed(s, boundsOf(s))) moves++
+    }
 
     fun boundsOf(s: GlideSource): Rect? {
         val h = host ?: return null
