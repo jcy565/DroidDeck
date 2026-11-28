@@ -67,10 +67,15 @@ internal object TranslationDiscovery {
         return Report(candidates.sortedBy { it.relative }, examined, rejected, partial)
     }
 
+    internal fun validRelative(relative: String): Boolean =
+        relative.length in 1..4096 && relative.split('/').all {
+            it.isNotBlank() && it != "." && it != ".." && it.none { ch -> ch.isISOControl() || ch == '\\' }
+        }
+
     private fun resolve(root: File, relative: String): File {
         require(Files.isDirectory(root.toPath(), NOFOLLOW_LINKS))
+        require(validRelative(relative))
         val parts = relative.split('/')
-        require(parts.isNotEmpty() && parts.none { it.isBlank() || it == "." || it == ".." || '\\' in it })
         var file = root.canonicalFile
         for (part in parts) {
             file = File(file, part)
@@ -88,6 +93,7 @@ internal object TranslationDiscovery {
         val source = LocalGameAdvisor.decode(bytes)
         require(GamePatchAuthor.matchesTranslationExtension(source, file.extension))
         val rows = GamePatchAuthor.extract(source).size
+        require(rows in 1..TranslationLimits.MAX_ROWS)
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
             .joinToString("") { "%02x".format(it.toInt() and 255) }
         return Snapshot(file, source, Candidate(relative, rows, digest))
