@@ -12,7 +12,7 @@ SOURCE = (ROOT / 'app/src/main/java/com/droiddeck/launcher/ui/GamePerformanceTri
 CREATE = re.search(r'db\.execSQL\("""(CREATE TABLE trial .*?)"""\)', SOURCE, re.S).group(1)
 ADD_SCENE = re.search(r'db\.execSQL\("(ALTER TABLE trial ADD COLUMN scene TEXT)"\)', SOURCE).group(1)
 ADD_COVERAGE = re.search(r'db\.execSQL\("(ALTER TABLE trial ADD COLUMN coverage_version [^"]+)"\)', SOURCE).group(1)
-COMPARE = re.search(r'db\.rawQuery\("(SELECT fps, p95 FROM trial [^"]+)"', SOURCE).group(1)
+COMPARE = re.search(r'db\.rawQuery\("(SELECT fps, p95, gpu, driver, proton FROM trial [^"]+)"', SOURCE).group(1)
 PRUNE = re.search(r'db\.execSQL\("(DELETE FROM trial [^"]+)"\)', SOURCE).group(1)
 LEGACY = re.sub(r',\s*coverage_version INTEGER NOT NULL DEFAULT 0', '', CREATE)
 
@@ -42,7 +42,7 @@ class TrialHistorySqlTest(unittest.TestCase):
                 self.assertEqual([(900.0, 0)], db.execute('SELECT fps, coverage_version FROM trial').fetchall())
                 self.assertIsNone(self.compare(db))
                 self.insert(db, coverage_version=1)
-                self.assertEqual((60.0, 20.0), self.compare(db))
+                self.assertEqual((60.0, 20.0, None, None, None), self.compare(db))
                 self.assertEqual(2, db.execute('SELECT COUNT(*) FROM trial').fetchone()[0])
 
     def test_fresh_schema_matches_only_latest_verified_compatible_sample(self):
@@ -56,8 +56,17 @@ class TrialHistorySqlTest(unittest.TestCase):
                 self.insert(db, coverage_version=1, fps=100, **fields)
             self.insert(db, fps=900)
             self.insert(db, fps=120, coverage_version=2)
-            self.assertEqual((50.0, 20.0), self.compare(db))
+            self.assertEqual((50.0, 20.0, None, None, None), self.compare(db))
             self.assertEqual(9, db.execute('SELECT COUNT(*) FROM trial').fetchone()[0])
+
+    def test_comparison_returns_previous_runtime_metadata_even_when_settings_change(self):
+        with sqlite3.connect(':memory:') as db:
+            db.execute(CREATE)
+            self.insert(db, coverage_version=1, fps=40, gpu='Adreno', driver='Turnip A', proton='GE A')
+            self.insert(db, coverage_version=0, fps=900, driver='invalid baseline')
+            self.assertEqual((40.0, 20.0, 'Adreno', 'Turnip A', 'GE A'), self.compare(db))
+            self.insert(db, coverage_version=1, fps=60, gpu='Adreno', driver='Turnip B', proton='GE B')
+            self.assertEqual((60.0, 20.0, 'Adreno', 'Turnip B', 'GE B'), self.compare(db))
 
     def test_existing_retention_limit_remains_500(self):
         with sqlite3.connect(':memory:') as db:
@@ -66,7 +75,7 @@ class TrialHistorySqlTest(unittest.TestCase):
                 self.insert(db, coverage_version=i % 2, fps=i + 1)
             db.execute(PRUNE)
             self.assertEqual((500, 4, 503), db.execute('SELECT COUNT(*), MIN(id), MAX(id) FROM trial').fetchone())
-            self.assertEqual((502.0, 20.0), self.compare(db))
+            self.assertEqual((502.0, 20.0, None, None, None), self.compare(db))
 
 
 if __name__ == '__main__':
