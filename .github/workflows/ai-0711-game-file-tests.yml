@@ -9,6 +9,8 @@ on:
       - 'app/src/main/java/com/droiddeck/launcher/files/LocalGameAdvisor.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/GameFileAnalysis.kt'
       - 'app/src/test/java/com/droiddeck/launcher/files/GameFileAnalysisTest.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/files/GameSettingsApproval.kt'
+      - 'app/src/test/java/com/droiddeck/launcher/files/GameSettingsApprovalTest.kt'
       - 'app/src/main/java/com/droiddeck/launcher/files/Translation*.kt'
       - 'app/src/test/java/com/droiddeck/launcher/files/GamePatch*.kt'
       - 'app/src/test/java/com/droiddeck/launcher/files/TranslationJsonTest.kt'
@@ -39,8 +41,8 @@ jobs:
           javac --release 17 -proc:none -encoding UTF-8 -d "$RUNNER_TEMP/ai-core" ai-core/src/main/java/com/droiddeck/ai/core/{AiCore,ModelRelease,GlossaryStore,SignedGlossary}.java
           src=app/src/main/java/com/droiddeck/launcher/files
           tests=app/src/test/java/com/droiddeck/launcher/files
-          kotlinc "$src"/{TranslationLimits,TranslationJson,TranslationTable,GamePatchStore,GameConfigPreview,LocalGameAdvisor,GamePatchAuthor,TranslationDraftStore,GameFileAnalysis}.kt \
-            "$tests"/{GamePatchTest,GamePatchAuthorTest,TranslationJsonTest,GameFileAnalysisTest}.kt \
+          kotlinc "$src"/{TranslationLimits,TranslationJson,TranslationTable,GamePatchStore,GameConfigPreview,LocalGameAdvisor,GamePatchAuthor,TranslationDraftStore,GameFileAnalysis,GameSettingsApproval}.kt \
+            "$tests"/{GamePatchTest,GamePatchAuthorTest,TranslationJsonTest,GameFileAnalysisTest,GameSettingsApprovalTest}.kt \
             app/src/main/java/com/droiddeck/launcher/compatibility/OptimizationComparison.kt \
             app/src/test/java/com/droiddeck/launcher/compatibility/OptimizationComparisonTest.kt \
             app/src/main/java/com/droiddeck/launcher/compatibility/InstalledGameVersion.kt \
@@ -51,5 +53,6 @@ jobs:
             com.droiddeck.launcher.files.GamePatchAuthorTest \
             com.droiddeck.launcher.files.TranslationJsonTest \
             com.droiddeck.launcher.files.GameFileAnalysisTest \
+            com.droiddeck.launcher.files.GameSettingsApprovalTest \
             com.droiddeck.launcher.compatibility.OptimizationComparisonTest \
             com.droiddeck.launcher.compatibility.InstalledGameVersionTest
