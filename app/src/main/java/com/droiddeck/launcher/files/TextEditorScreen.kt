@@ -243,6 +243,7 @@ internal fun TextEditorScreen(
     var dirty by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var showDiscard by remember { mutableStateOf(false) }
+    var showAiAnalysis by remember(file) { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
@@ -409,6 +410,10 @@ internal fun TextEditorScreen(
 
     BackHandler { tryExit() }
 
+    if (showAiAnalysis) {
+        GameFileAnalysisDialog(file, onDismiss = { showAiAnalysis = false })
+    }
+
     if (showDiscard) {
         OutlinedAlertDialog(
             onDismissRequest = { showDiscard = false },
@@ -477,6 +482,13 @@ internal fun TextEditorScreen(
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 )
                 Spacer(Modifier.width(6.dp))
+            }
+            if (GameFileAnalysis.supportsName(file.name)) {
+                TextButton(
+                    onClick = { showAiAnalysis = true },
+                    enabled = loadState == EditorLoadState.READY && !dirty && !saving && lock != EditorLock.BINARY && lock != EditorLock.LOSSY && charset == EditorCharset.UTF8,
+                    modifier = Modifier.focusGlide(CircleShape),
+                ) { Text("AI") }
             }
             IconButton(
                 onClick = { showSearch = !showSearch },
