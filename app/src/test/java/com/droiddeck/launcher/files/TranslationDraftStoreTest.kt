@@ -78,6 +78,19 @@ class TranslationDraftStoreTest {
         assertEquals(edits, TranslationDraftStore.load(missing, target, source))
     }
 
+    @Test fun malformedUnicodeCannotReplaceExistingDraftOrAliasTarget() {
+        val dir = temporary.newFolder()
+        val target = "/game/strings.tsv"
+        val edits = mapOf("bye" to "안녕")
+        TranslationDraftStore.save(dir, target, source, edits)
+        val previous = dir.listFiles()!!.single().readBytes()
+        val bad = 0xd800.toChar().toString()
+        assertTrue(runCatching { TranslationDraftStore.save(dir, target, source, mapOf("bye" to bad)) }.isFailure)
+        assertTrue(runCatching { TranslationDraftStore.load(dir, target + bad, source) }.isFailure)
+        assertArrayEquals(previous, dir.listFiles()!!.single().readBytes())
+        assertEquals(edits, TranslationDraftStore.load(dir, target, source))
+    }
+
     @Test fun invalidIdsAndCorruptedDraftsFailClosed() {
         val dir = temporary.newFolder()
         assertTrue(runCatching {

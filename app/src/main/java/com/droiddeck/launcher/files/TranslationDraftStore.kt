@@ -24,6 +24,8 @@ internal object TranslationDraftStore {
 
     private fun identity(target: String, source: String): String {
         require(target.isNotBlank())
+        TranslationJson.validUnicode(target)
+        TranslationJson.validUnicode(source)
         return hash(target) + "-" + hash(source)
     }
 
@@ -32,6 +34,7 @@ internal object TranslationDraftStore {
         require(edits.isNotEmpty() && edits.size <= TranslationLimits.MAX_ROWS && edits.keys.all { it in ids })
         // Incomplete translations may be saved; final authoring still validates placeholders.
         require(edits.values.all { it.isNotEmpty() && it.length <= TranslationLimits.MAX_TEXT_CHARS })
+        edits.values.forEach { TranslationJson.validUnicode(it) }
     }
 
     private fun location(directory: File, target: String, source: String): File {
@@ -87,7 +90,7 @@ internal object TranslationDraftStore {
             while (true) {
                 val count = input.read(block)
                 if (count < 0) break
-                require(output.size() + count <= LIMIT)
+                require(count > 0 && output.size() + count <= LIMIT)
                 output.write(block, 0, count)
             }
             output.toByteArray()

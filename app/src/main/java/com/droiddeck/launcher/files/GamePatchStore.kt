@@ -38,18 +38,22 @@ internal object GamePatchStore {
 
     fun readTarget(file: File): ByteArray = read(target(file.parentFile!!, file.name))
 
-    private fun read(file: File): ByteArray = Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { readLimited(it) }
+    private fun read(file: File, checkpoint: () -> Unit = {}): ByteArray =
+        Files.newInputStream(file.toPath(), NOFOLLOW_LINKS).use { readLimited(it, checkpoint) }
 
-    fun readLimited(input: java.io.InputStream): ByteArray {
+    fun readLimited(input: java.io.InputStream, checkpoint: () -> Unit = {}): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         while (true) {
+            checkpoint()
             val n = input.read(buffer)
+            checkpoint()
             if (n < 0) break
             require(n > 0) { "Input stream made no progress" }
             require(out.size() + n <= LIMIT) { "File too large" }
             out.write(buffer, 0, n)
         }
+        checkpoint()
         return out.toByteArray()
     }
 
@@ -138,7 +142,8 @@ internal object GamePatchStore {
                 checkpoint: () -> Unit = {}): History {
         checkpoint()
         val file = target(root, relative)
-        val currentHash = hash(read(file))
+        val currentHash = hash(read(file, checkpoint))
+        checkpoint()
         if (!backupDir.isDirectory || Files.isSymbolicLink(backupDir.toPath())) return History(null, "")
         val candidates = Files.newDirectoryStream(backupDir.toPath()).use { entries ->
             entries.mapNotNull { path ->
@@ -151,28 +156,52 @@ internal object GamePatchStore {
         var status = ""
         for (candidate in candidates) {
             checkpoint()
-            val record = runCatching { readBackup(root, candidate) }.getOrNull() ?: continue
+            // A cancelled or budget-blocked read is not a corrupt backup.
+            var checkpointFailure: Exception? = null
+            val record = try {
+                readBackup(root, candidate) {
+                    try { checkpoint() } catch (e: Exception) {
+                        checkpointFailure = e
+                        throw e
+                    }
+                }
+            } catch (e: Exception) {
+                checkpointFailure?.let { throw it }
+                if (e is java.util.concurrent.CancellationException) throw e
+                continue
+            }
+            checkpoint()
             if (record.relativePath != relative) continue
             if (status.isEmpty()) status = when (currentHash) {
                 record.appliedHash -> "파일 내용이 최근 적용본과 일치합니다."
                 hash(record.original) -> "파일 내용이 최근 변경 전 원본과 일치합니다."
                 else -> "최근 적용 뒤 파일 내용이 바뀌었습니다. 변경 주체와 실행 시 적용값은 확인되지 않았습니다."
             }
-            if (currentHash == record.appliedHash) return History(candidate, status)
+            if (currentHash == record.appliedHash) {
+                checkpoint()
+                // Do not offer restoration against an already changed source snapshot.
+                if (hash(read(file, checkpoint)) != currentHash) return History(null, "파일이 조회 중 변경됐습니다. 다시 확인하세요.")
+                checkpoint()
+                return History(candidate, status)
+            }
         }
+        checkpoint()
         return History(null, status)
     }
 
-    private fun readBackup(root: File, backup: File): Backup {
+    private fun readBackup(root: File, backup: File, checkpoint: () -> Unit = {}): Backup {
+        checkpoint()
         require(Files.isRegularFile(backup.toPath(), NOFOLLOW_LINKS)) { "Invalid backup file" }
         require(backup.length() in 1L..BACKUP_LIMIT.toLong())
         val bytes = Files.newInputStream(backup.toPath(), NOFOLLOW_LINKS).use { input ->
             val buffer = ByteArray(8192)
             val out = java.io.ByteArrayOutputStream()
             while (true) {
+                checkpoint()
                 val count = input.read(buffer)
+                checkpoint()
                 if (count < 0) break
-                require(out.size() + count <= BACKUP_LIMIT)
+                require(count > 0 && out.size() + count <= BACKUP_LIMIT)
                 out.write(buffer, 0, count)
             }
             out.toByteArray()
@@ -202,6 +231,7 @@ internal object GamePatchStore {
             it.readFully(original)
             require(it.read() == -1)
             require(digest == null || digest == hash(original)) { "Damaged backup" }
+            checkpoint()
             Backup(relative, original, applied)
         }
     }

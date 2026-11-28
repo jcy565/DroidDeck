@@ -147,6 +147,39 @@ class GamePatchTest {
         assertEquals(backup, GamePatchStore.history(root, file.name, backups).restorable)
     }
 
+    @Test fun cancellationDuringBackupReadIsNotSwallowedAndKeepsBackup() {
+        val root = temp.newFolder()
+        val backups = temp.newFolder()
+        val file = root.resolve("game.ini").apply { writeText("x=" + "1".repeat(30000)) }
+        val backup = GamePatchStore.apply(root, file.name, file.readBytes(), "x=2".toByteArray(), backups)
+        val record = backup.readBytes()
+        var checks = 0
+        val error = java.util.concurrent.CancellationException("stop")
+        val failure = runCatching {
+            GamePatchStore.history(root, file.name, backups) {
+                if (++checks == 12) throw error
+            }
+        }.exceptionOrNull()
+        assertSame(error, failure)
+        assertArrayEquals(record, backup.readBytes())
+        assertEquals("x=2", file.readText())
+        assertEquals(backup, GamePatchStore.history(root, file.name, backups).restorable)
+    }
+
+    @Test fun cancelledReadAtEofDoesNotReturnPartialSnapshot() {
+        var allowed = true
+        val input = object : java.io.ByteArrayInputStream("x=1".toByteArray()) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = super.read(b, off, len)
+                if (n == -1) allowed = false
+                return n
+            }
+        }
+        assertTrue(runCatching { GamePatchStore.readLimited(input) {
+            if (!allowed) throw java.util.concurrent.CancellationException()
+        } }.exceptionOrNull() is java.util.concurrent.CancellationException)
+    }
+
     @Test fun refusesStalePreviewAndRestore() {
         val root = temp.newFolder()
         val backups = temp.newFolder()
