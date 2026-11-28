@@ -13,6 +13,8 @@ on:
       - 'tools/ci/test_ai_upstream_apply.py'
       - 'tools/ci/ai_upstream_artifact.py'
       - 'tools/ci/test_ai_upstream_artifact.py'
+      - 'tools/ci/ai_upstream_core_check.py'
+      - 'tools/ci/test_ai_upstream_core_check.py'
 permissions:
   contents: read
 jobs:
@@ -24,6 +26,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify Java compiler is available
+        run: javac -version
       - name: Test conservative merge candidate generation
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p 'test_ai_upstream_*.py' -v
       - name: Preview pinned integration inputs
@@ -56,6 +60,8 @@ jobs:
             PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_artifact.py export --ai "$ai" --upstream "$upstream" --output "$out"
             PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_artifact.py verify --ai "$ai" --upstream "$upstream" --output "$out"
             jq -e --arg tree "$(jq -r .candidate_tree "$RUNNER_TEMP/upstream-preview/candidate.json")" '.candidate_tree == $tree and .release_approved == false' "$out/manifest.json"
+            PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ai_upstream_core_check.py --ai "$ai" --upstream "$upstream" --artifact "$out" > "$RUNNER_TEMP/upstream-preview/core-check.json"
+            jq -e --arg tree "$(jq -r .candidate_tree "$out/manifest.json")" '.candidate_tree == $tree and .compile_status == "passed" and .android_build_verified == false and .release_approved == false' "$RUNNER_TEMP/upstream-preview/core-check.json"
           fi
           test -z "$(git status --porcelain)"
           exit "$apply_status"
