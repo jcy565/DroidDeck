@@ -49,6 +49,40 @@ class CompareReportsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             read_reports(self.report('incomplete', [('test', 'passed')], declared=2))
 
+    def test_invalid_report_evidence_rejected(self):
+        for mode in ('counter', 'contradictory', 'blank', 'nested'):
+            with self.subTest(mode=mode):
+                directory = self.report(mode, [('test', 'passed')])
+                path = directory / 'TEST-example.xml'
+                tree = ET.parse(path)
+                root = tree.getroot()
+                row = root.find('testcase')
+                if mode == 'counter':
+                    root.set('failures', '1')
+                elif mode == 'contradictory':
+                    ET.SubElement(row, 'failure')
+                    ET.SubElement(row, 'skipped')
+                elif mode == 'blank':
+                    row.set('classname', ' ')
+                else:
+                    ET.SubElement(row, 'testcase', classname='example.Test', name='nested')
+                tree.write(path)
+                with self.assertRaises(ValueError):
+                    read_reports(directory)
+
+    def test_aggregate_suite_supported(self):
+        directory = self.report('aggregate', [('test', 'passed')])
+        path = directory / 'TEST-example.xml'
+        suite = ET.parse(path).getroot()
+        root = ET.Element('testsuites', tests='1', failures='0')
+        root.append(suite)
+        ET.ElementTree(root).write(path)
+        self.assertEqual('passed', read_reports(directory)[('example.Test', 'test')]['status'])
+        root.set('tests', '2')
+        ET.ElementTree(root).write(path)
+        with self.assertRaises(ValueError):
+            read_reports(directory)
+
     def test_empty_suite_rejected(self):
         with self.assertRaises(ValueError):
             read_reports(self.report('empty', []))
