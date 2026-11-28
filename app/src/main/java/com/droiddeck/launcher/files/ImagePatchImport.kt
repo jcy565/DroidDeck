@@ -73,6 +73,7 @@ internal object ImagePatchImport {
         }
         require(ImagePatchArchive.digest(file, checkpoint) == before) { "패치 파일이 변경됐습니다." }
         require(root.canonicalFile == canonical && Files.isDirectory(root.toPath(), NOFOLLOW_LINKS))
+        checkpoint()
         return Report(canonical.path, file, before, entries.toList())
     }
 
@@ -93,7 +94,9 @@ internal object ImagePatchImport {
                 while (true) {
                     checkpoint()
                     val n = input.read(buffer)
+                    checkpoint()
                     if (n < 0) break
+                    require(n > 0)
                     total += n; require(total <= ImagePatchArchive.MAX_ARCHIVE)
                     out.write(buffer, 0, n)
                 }

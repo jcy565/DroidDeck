@@ -24,6 +24,40 @@ class ImagePatchArchiveTest {
         assertEquals(0, game.listFiles()!!.size)
     }
 
+    @Test fun largePayloadCanBeCancelledBeforeVisitorAndImportCleansCopy() {
+        val game = temp.newFolder()
+        val out = temp.newFolder()
+        val input = ByteArray(512 * 1024) { 7 }
+        val patch = ImagePatchArchive.create(game, out, listOf(source), { input })
+        var checks = 0
+        var visited = false
+        val failure = runCatching {
+            ImagePatchArchive.inspectPayloads(patch.file, {
+                if (++checks == 10) throw java.util.concurrent.CancellationException()
+            }) { _, _ -> visited = true }
+        }.exceptionOrNull()
+        assertTrue(failure is java.util.concurrent.CancellationException)
+        assertFalse(visited)
+        assertEquals(patch.rows, ImagePatchArchive.verify(patch.file))
+
+        val staging = temp.newFolder()
+        var allowed = true
+        val stream = object : java.io.ByteArrayInputStream(patch.file.readBytes()) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = super.read(b, off, len)
+                if (n == -1) allowed = false
+                return n
+            }
+        }
+        assertTrue(runCatching {
+            ImagePatchImport.copyAndInspect(game, staging, stream, { _, _ -> }) {
+                if (!allowed) throw java.util.concurrent.CancellationException()
+            }
+        }.exceptionOrNull() is java.util.concurrent.CancellationException)
+        assertTrue(staging.listFiles()!!.isEmpty())
+        assertTrue(game.listFiles()!!.isEmpty())
+    }
+
     @Test fun rejectsInvalidPathsAndChangedApproval() {
         val game = temp.newFolder()
         val out = temp.newFolder()

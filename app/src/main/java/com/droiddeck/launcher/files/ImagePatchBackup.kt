@@ -48,6 +48,7 @@ internal object ImagePatchBackup {
                         checkpoint()
                         val count = minOf(65536, bytes.size - offset)
                         input.readFully(bytes, offset, count)
+                        checkpoint()
                         offset += count
                     }
                     require(input.read() == -1)
@@ -55,6 +56,7 @@ internal object ImagePatchBackup {
             }
         }
         require(hash(data) == source.originalHash) { "원본 파일이 변경됐습니다." }
+        checkpoint()
         return data
     }
 
@@ -81,7 +83,9 @@ internal object ImagePatchBackup {
             while (size < buffer.size) {
                 checkpoint()
                 val n = input.read(buffer, size, buffer.size - size)
+                checkpoint()
                 if (n < 0) break
+                require(n > 0)
                 size += n
             }
             require(size in 33..(MAX_RECORD + 32))
@@ -108,6 +112,7 @@ internal object ImagePatchBackup {
         val rows = ImagePatchArchive.verify(originals, checkpoint)
         require(rows == backup.rows.map { ImagePatchArchive.Row(it.source, it.source.originalHash, it.source.originalBytes.toInt()) })
         require(ImagePatchArchive.digest(originals, checkpoint) == backup.archiveDigest)
+        checkpoint()
         return backup
     }
 

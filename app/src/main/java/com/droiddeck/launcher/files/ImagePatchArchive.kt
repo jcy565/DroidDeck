@@ -75,12 +75,21 @@ internal object ImagePatchArchive {
         }
         zip.putNextEntry(entry); zip.write(bytes); zip.closeEntry()
     }
-    private fun read(zip: ZipFile, entry: ZipEntry, limit: Int): ByteArray {
+    private fun read(zip: ZipFile, entry: ZipEntry, limit: Int, checkpoint: () -> Unit): ByteArray {
         require(!entry.isDirectory && entry.method == ZipEntry.STORED && entry.size in 1L..limit.toLong() && entry.compressedSize == entry.size)
         return zip.getInputStream(entry).use { raw ->
             DataInputStream(raw).use { input ->
                 ByteArray(entry.size.toInt()).also { bytes ->
-                    input.readFully(bytes); require(input.read() == -1)
+                    var offset = 0
+                    while (offset < bytes.size) {
+                        checkpoint()
+                        val count = minOf(65536, bytes.size - offset)
+                        input.readFully(bytes, offset, count)
+                        checkpoint()
+                        offset += count
+                    }
+                    require(input.read() == -1)
+                    checkpoint()
                     require(CRC32().apply { update(bytes) }.value == entry.crc)
                 }
             }
@@ -99,12 +108,13 @@ internal object ImagePatchArchive {
                 val entry = iterator.nextElement()
                 require(entries.put(entry.name, entry) == null && !entry.isDirectory)
             }
-            val rows = parse(read(zip, requireNotNull(entries[MANIFEST]), MAX_MANIFEST))
+            val rows = parse(read(zip, requireNotNull(entries[MANIFEST]), MAX_MANIFEST, checkpoint))
             require(entries.keys == rows.map { "files/${it.source.relative}" }.toSet() + MANIFEST)
             for (row in rows) {
                 checkpoint()
-                val bytes = read(zip, requireNotNull(entries["files/${row.source.relative}"]), MAX_FILE)
+                val bytes = read(zip, requireNotNull(entries["files/${row.source.relative}"]), MAX_FILE, checkpoint)
                 require(bytes.size == row.outputBytes && hash(bytes) == row.outputHash)
+                checkpoint()
                 visit(row, bytes)
             }
             checkpoint()
@@ -120,11 +130,14 @@ internal object ImagePatchArchive {
             while (true) {
                 checkpoint()
                 val n = input.read(buffer)
+                checkpoint()
                 if (n < 0) break
+                require(n > 0)
                 total += n; require(total <= MAX_ARCHIVE)
                 digest.update(buffer, 0, n)
             }
         }
+        checkpoint()
         return hex(digest.digest())
     }
     fun create(root: File, directory: File, sources: List<Source>, load: (Source) -> ByteArray,
@@ -160,7 +173,9 @@ internal object ImagePatchArchive {
                 val current = load(row.source)
                 require(current.size == row.outputBytes && hash(current) == row.outputHash) { "승인본이 변경됐습니다." }
             }
-            return Package(file, rows.toList(), digest(file, checkpoint))
+            val result = Package(file, rows.toList(), digest(file, checkpoint))
+            checkpoint()
+            return result
         } catch (failure: Throwable) {
             Files.deleteIfExists(file.toPath())
             throw failure

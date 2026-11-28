@@ -29,7 +29,8 @@ internal object ImagePatchTransaction {
             Phase.APPLIED -> j.attempted == b.rows.size
         })
     }
-    private fun readJournal(b: ImagePatchBackup.Backup): Journal {
+    private fun readJournal(b: ImagePatchBackup.Backup, checkpoint: () -> Unit): Journal {
+        checkpoint()
         val file = journalFile(b)
         // An inaccessible journal is not equivalent to a missing journal. Fail closed.
         if (Files.notExists(file.toPath(), NOFOLLOW_LINKS)) return Journal(Phase.PREPARED, 0)
@@ -39,8 +40,11 @@ internal object ImagePatchTransaction {
             val bytes = ByteArray(513)
             var n = 0
             while (n < bytes.size) {
+                checkpoint()
                 val count = input.read(bytes, n, bytes.size - n)
+                checkpoint()
                 if (count < 0) break
+                require(count > 0)
                 n += count
             }
             require(n <= 512)
@@ -50,6 +54,7 @@ internal object ImagePatchTransaction {
         require(parts.size == 5 && parts[0] == "DDIMAGETXN1" && parts[1] == b.patchDigest)
         val body = parts.take(4).joinToString("\n")
         require(hash(body.toByteArray(Charsets.UTF_8)) == parts[4])
+        checkpoint()
         return Journal(Phase.valueOf(parts[2]), parts[3].toInt()).also { valid(it, b) }
     }
     private fun writeJournal(b: ImagePatchBackup.Backup, j: Journal) {
@@ -97,6 +102,7 @@ internal object ImagePatchTransaction {
             while (true) {
                 checkpoint(); buffer.clear()
                 val n = channel.read(buffer)
+                checkpoint()
                 if (n < 0) break
                 total += n; require(total <= ImagePatchArchive.MAX_FILE)
                 digest.update(buffer.array(), 0, n)
@@ -105,6 +111,7 @@ internal object ImagePatchTransaction {
         }
         val after = attrs(dir, name)
         require(before.fileKey() == after.fileKey() && before.size() == after.size() && before.lastModifiedTime() == after.lastModifiedTime())
+        checkpoint()
         return digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
     }
     private fun replace(root: File, row: ImagePatchArchive.Row, expected: String, desired: String,
@@ -144,7 +151,7 @@ internal object ImagePatchTransaction {
     @Synchronized
     fun diagnose(storage: File, root: File, checkpoint: () -> Unit = {}): Diagnostic {
         val backup = requireNotNull(ImagePatchBackup.load(storage, root, checkpoint))
-        val journal = readJournal(backup)
+        val journal = readJournal(backup, checkpoint)
         val assets = backup.rows.map { row ->
             checkpoint()
             val state = try {
@@ -194,13 +201,13 @@ internal object ImagePatchTransaction {
 
     @Synchronized
     fun status(storage: File, root: File, checkpoint: () -> Unit = {}): Journal =
-        readJournal(requireNotNull(ImagePatchBackup.load(storage, root, checkpoint)))
+        readJournal(requireNotNull(ImagePatchBackup.load(storage, root, checkpoint)), checkpoint)
 
     @Synchronized
     fun apply(storage: File, root: File, patch: File, verify: (ByteArray, ImagePatchArchive.Source) -> Unit,
         checkpoint: () -> Unit = {}): Journal {
         val b = requireNotNull(ImagePatchBackup.load(storage, root, checkpoint))
-        val old = readJournal(b)
+        val old = readJournal(b, checkpoint)
         require(old.phase == Phase.PREPARED || old.phase == Phase.RESTORED)
         val report = ImagePatchImport.inspect(root, patch, verify, checkpoint)
         require(report.digest == b.patchDigest && report.entries.map { it.row } == b.rows)
@@ -245,7 +252,7 @@ internal object ImagePatchTransaction {
     @Synchronized
     fun recover(storage: File, root: File, checkpoint: () -> Unit = {}): Recovery {
         val b = requireNotNull(ImagePatchBackup.load(storage, root, checkpoint))
-        val j = readJournal(b)
+        val j = readJournal(b, checkpoint)
         // Even with no attempted writes, report unexpected changes rather than claiming success.
         if (j.attempted == 0) return Recovery(0, 0, originalConflicts(b, root, checkpoint))
         var restored = 0; var unchanged = 0

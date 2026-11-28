@@ -174,6 +174,21 @@ class ImagePatchTransactionTest {
         assertEquals(ImagePatchTransaction.Phase.APPLYING, f.status().phase)
     }
 
+    @Test fun cancelledRecoveryRetainsJournalAndCanResume() {
+        val f = Fixture()
+        f.apply()
+        val before = f.status()
+        assertTrue(runCatching {
+            ImagePatchTransaction.recover(f.storage, f.root) { throw CancellationException() }
+        }.exceptionOrNull() is CancellationException)
+        assertEquals(before, f.status())
+        assertArrayEquals(translated, f.a.readBytes())
+        assertArrayEquals(translated, f.b.readBytes())
+        assertTrue(f.recover().conflicts.isEmpty())
+        assertArrayEquals(original, f.a.readBytes())
+        assertArrayEquals(original, f.b.readBytes())
+    }
+
     @Test fun rollbackAndInterruptedRecovery() {
         val f = Fixture()
         var thrown = false
