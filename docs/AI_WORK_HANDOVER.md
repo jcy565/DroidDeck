@@ -366,3 +366,5 @@
 - Android 전이 경로는 MediaPipe→Guava/Protobuf, commons-compress→commons-lang3, kadb-android→Bouncy Castle로 확인. 8c6356e에서 Android용 Guava 33.7.2-android, protobuf-javalite 4.28.2, commons-lang3 3.18.0, bcpkix 및 bcprov 1.85로 최소 버전 제약 추가. 5개 Maven POM 응답 및 후보 좌표 OSV 결과 빈 목록 확인. 실제 재해석 Gradle 46138493075, 변경 파일 자동 재검사 07cccc1. 릴리스 도구 CI 46138491132 성공. 전체 Android 회귀는 별도.
 
 - Rust 수정 후보 46138338849 성공, artifact 15261255414 및 원본/후보 lock 해시 확인. RustSec 취약점 0 경고 0, 호스트 171/171 통과. registry 출처, 기존 버전 체크섬 보존, diff 검토 후 lock SHA-256 b9de40e2a90f7d02f41a0720850e01cbbe070b85f9342ec200461f7c190732a2를 437c35ea0c89e5f0e4b2a4dc4d26b7d02ad67c6f에 반영. 원격 blob 6ea301ff 일치. Gradle 46138493075 성공, 164 Maven 좌표 및 파일 144개, 대상 5개 버전 일치. 공개 OSV Maven DB ZIP(d55fcc55fda1605f26bdd0a732d0cbb69532e5f8ad35c1721ee4f662e9168ee2)을 로컬에서 Maven ComparableVersion으로 대조해 원본 11건 재현, 수정 후 0건. 기기 보호 차단 원인 미확정. 승인된 개발 빌드 브랜치 d8c84a5에서 437c35e로 비강제 fast-forward. 빌드 46138753883 결과 확인 필요.
+
+- 7b85899에서 향후 Cargo.lock 변경 때마다 해당 커밋의 Git blob을 RustSec으로 검사하도록 연결. 기존 기준판과 후보판 보고서는 각 Actions 실행에 보존. 전체 빌드 46138753883의 Rust 호스트·Python/네이티브·Xbox·컴포넌트 준비 통과, Android job 진행 중.
