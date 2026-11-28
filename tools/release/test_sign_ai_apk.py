@@ -44,6 +44,9 @@ if args[0] == 'verify':
     cert = os.environ['RELEASE_CERT'] if signed else os.environ['TEST_CERT']
     if mode == 'bad-input' and not signed or mode == 'bad-output' and signed:
         cert = '2' * 64
+    v2 = not (mode == 'v2-input' and not signed or mode == 'v2-output' and signed)
+    if mode != 'v2-missing':
+        print('Verified using v2 scheme (APK Signature Scheme v2): ' + str(v2).lower())
     print('Signer #1 certificate SHA-256 digest: ' + cert)
     if mode == 'multiple' or mode == 'multiple-output' and signed:
         print('Signer #2 certificate SHA-256 digest: ' + '3' * 64)
@@ -85,7 +88,8 @@ else:
 
     def test_reject_tool_failures_and_payload_changes(self):
         for mode in ['wrong-package', 'bad-input', 'bad-output', 'multiple', 'multiple-output',
-                     'verify-failure', 'changed', 'duplicate', 'sign-failure']:
+                     'verify-failure', 'v2-input', 'v2-output', 'v2-missing',
+                     'changed', 'duplicate', 'sign-failure']:
             with self.subTest(mode=mode):
                 self.assertNotEqual(self.invoke(mode).returncode, 0)
                 self.assertFalse(self.out.exists())
