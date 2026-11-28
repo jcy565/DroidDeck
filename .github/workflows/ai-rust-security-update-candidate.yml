@@ -1,0 +1,92 @@
+name: AI Rust security update candidate
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-rust-security-update-candidate.yml'
+      - 'app/src/main/rust/stores/Cargo.lock'
+      - 'app/src/main/rust/stores/Cargo.toml'
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Generate targeted candidate lockfile
+        id: generate
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
+          report="$RUNNER_TEMP/rust-security-candidate"
+          mkdir -p "$report"
+          printf '%s\n' "$GITHUB_SHA" > "$report/source-commit.txt"
+          rustc -V > "$report/rustc-version.txt"
+          cd app/src/main/rust/stores
+          test "$(git hash-object Cargo.lock)" = 6a470b3beae093190d06da5b224492083bf641f5
+          cp Cargo.lock "$report/original-Cargo.lock"
+          # Known patched releases, not a blanket upgrade or an advisory exemption.
+          cargo +stable update -p rustls --precise 0.23.46
+          cargo +stable update -p rustls-webpki --precise 0.103.16
+          cargo +stable update -p webpki-roots --precise 1.0.10
+          cargo +stable update -p tokio --precise 1.53.3
+          python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+          packages = tomllib.loads(Path('Cargo.lock').read_text())['package']
+          expected = {'rustls':'0.23.46','rustls-webpki':'0.103.16','webpki-roots':'1.0.10','tokio':'1.53.3'}
+          for name, version in expected.items():
+              selected = [p['version'] for p in packages if p['name'] == name]
+              if selected != [version]:
+                  raise ValueError(f'Unexpected resolved {name}: {selected}')
+          for p in packages:
+              if p.get('source') and (not p['source'].startswith('registry+') or not p.get('checksum')):
+                  raise ValueError(f'Unexpected source or missing checksum: {p["name"]}')
+          PY
+          test "$(git diff --name-only)" = app/src/main/rust/stores/Cargo.lock
+          cp Cargo.lock "$report/candidate-Cargo.lock"
+          git diff -- Cargo.lock > "$report/candidate.patch"
+          sha256sum Cargo.lock > "$report/candidate-sha256.txt"
+      - name: Run existing store engine tests against candidate
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/rust-security-candidate"
+          cd app/src/main/rust/stores
+          status=0
+          cargo +stable test --locked 2>&1 | tee "$report/host-tests.log" || status=$?
+          printf '%s\n' "$status" > "$report/host-test-exit-code.txt"
+          cmp Cargo.lock "$report/candidate-Cargo.lock"
+          exit "$status"
+      - name: Audit candidate lockfile with RustSec
+        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/rust-security-candidate"
+          test -f "$report/candidate-Cargo.lock"
+          cd "$RUNNER_TEMP"
+          cargo +stable install cargo-audit --version '=0.23.0' --locked --root "$RUNNER_TEMP/security-audit-tool"
+          export PATH="$RUNNER_TEMP/security-audit-tool/bin:$PATH"
+          cargo +stable audit --version > "$report/scanner-version.txt"
+          status=0
+          cargo +stable audit --file "$report/candidate-Cargo.lock" --json > "$report/audit.json" || status=$?
+          printf '%s\n' "$status" > "$report/audit-exit-code.txt"
+          python3 - "$report/audit.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          r = json.loads(Path(sys.argv[1]).read_text())
+          assert isinstance(r.get('vulnerabilities'), dict)
+          assert isinstance(r.get('warnings'), dict)
+          print('Vulnerabilities:', r['vulnerabilities'].get('count'))
+          print('Warnings:', sorted(r['warnings']))
+          PY
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-rust-security-update-candidate
+          path: ${{ runner.temp }}/rust-security-candidate/
+          if-no-files-found: error
+          retention-days: 30
