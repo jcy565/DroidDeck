@@ -8,8 +8,9 @@ import java.util.function.BooleanSupplier;
 
 /** Host-private, single-process state. One atomic file contains active and rollback bundles. */
 public final class GlossaryStore {
-    private static final int MAGIC = 0x44445347;
-    private static final int MAX_STATE = 16 + 2 * SignedGlossary.MAX_BUNDLE;
+    private static final int LEGACY_MAGIC = 0x44445347, MAGIC = 0x44445348;
+    private static final int DIGEST_BYTES = 32;
+    private static final int MAX_STATE = 16 + 2 * SignedGlossary.MAX_BUNDLE + DIGEST_BYTES;
     private GlossaryStore() {}
 
     private static final class State {
@@ -30,12 +31,34 @@ public final class GlossaryStore {
     }
 
     private static State read(Path directory, PublicKey key) throws IOException, GeneralSecurityException {
-        if (Files.isSymbolicLink(directory)) throw new IOException("Unsafe directory");
+        if (!Files.notExists(directory, LinkOption.NOFOLLOW_LINKS) &&
+                !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Unsafe directory");
         Path path = directory.resolve("glossary.state");
         if (Files.notExists(path, LinkOption.NOFOLLOW_LINKS)) return null;
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || Files.size(path) > MAX_STATE) throw new IOException("Invalid state file");
-        try (DataInputStream in = new DataInputStream(Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS))) {
-            if (in.readInt() != MAGIC) throw new IOException("State schema");
+        byte[] bytes;
+        try (InputStream in = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS);
+             ByteArrayOutputStream buffer = new ByteArrayOutputStream()) {
+            byte[] block = new byte[8192];
+            int n;
+            while ((n = in.read(block)) != -1) {
+                if (n <= 0 || buffer.size() + n > MAX_STATE) throw new IOException("State size");
+                buffer.write(block, 0, n);
+            }
+            bytes = buffer.toByteArray();
+        }
+        if (bytes.length < 16) throw new IOException("Truncated state");
+        int schema = new DataInputStream(new ByteArrayInputStream(bytes)).readInt();
+        if (schema == MAGIC) {
+            if (bytes.length < 16 + DIGEST_BYTES) throw new IOException("Truncated state checksum");
+            int end = bytes.length - DIGEST_BYTES;
+            byte[] body = java.util.Arrays.copyOf(bytes, end);
+            if (!java.security.MessageDigest.isEqual(digest(body),
+                    java.util.Arrays.copyOfRange(bytes, end, bytes.length))) throw new IOException("State checksum");
+            bytes = body;
+        } else if (schema != LEGACY_MAGIC) throw new IOException("State schema");
+        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes))) {
+            if (in.readInt() != schema) throw new IOException("State schema");
             int highest = in.readInt();
             byte[] active = readBundle(in, false), previous = readBundle(in, true);
             int activeRevision = SignedGlossary.verify(active, key).revision;
@@ -47,12 +70,19 @@ public final class GlossaryStore {
         }
     }
 
+    private static byte[] digest(byte[] bytes) throws IOException {
+        try { return java.security.MessageDigest.getInstance("SHA-256").digest(bytes); }
+        catch (java.security.NoSuchAlgorithmException e) { throw new IOException("SHA-256 unavailable", e); }
+    }
+
     private static void write(Path directory, State state, BooleanSupplier allowed) throws IOException {
+        if (!allowed.getAsBoolean()) throw new IOException("Update blocked");
         Files.createDirectories(directory);
         if (Files.isSymbolicLink(directory) || !allowed.getAsBoolean()) throw new IOException("Update blocked");
         Path temp = Files.createTempFile(directory, ".glossary-", ".tmp");
         try {
-            try (FileOutputStream file = new FileOutputStream(temp.toFile()); DataOutputStream out = new DataOutputStream(file)) {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            try (DataOutputStream out = new DataOutputStream(buffer)) {
                 out.writeInt(MAGIC);
                 out.writeInt(state.highest);
                 out.writeInt(state.active.length);
@@ -60,6 +90,12 @@ public final class GlossaryStore {
                 out.writeInt(state.previous == null ? 0 : state.previous.length);
                 if (state.previous != null) out.write(state.previous);
                 out.flush();
+            }
+            byte[] body = buffer.toByteArray();
+            if (body.length + DIGEST_BYTES > MAX_STATE) throw new IOException("State size");
+            try (FileOutputStream file = new FileOutputStream(temp.toFile())) {
+                file.write(body);
+                file.write(digest(body));
                 file.getFD().sync();
             }
             if (!allowed.getAsBoolean()) throw new IOException("Update blocked");

@@ -34,6 +34,7 @@ internal object AiGlossaryUpdates {
         while (true) {
             check(allowed())
             val n = input.read(buffer)
+            check(allowed())
             if (n < 0) break
             require(n > 0 && output.size() + n <= SignedGlossary.MAX_BUNDLE) { "AI 데이터 크기 초과" }
             output.write(buffer, 0, n)

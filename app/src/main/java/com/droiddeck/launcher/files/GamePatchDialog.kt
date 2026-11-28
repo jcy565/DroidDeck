@@ -212,7 +212,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
             require(uri.scheme == "content")
             val bundle = withContext(Dispatchers.IO) {
                 context.contentResolver.openInputStream(uri)?.use {
-                    AiGlossaryUpdates.install(glossaryDirectory, it) { GameplayBudget.allowsOptionalAnalysis(context) }
+                    AiGlossaryUpdates.install(glossaryDirectory, it) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                 } ?: error("AI 데이터 파일을 읽을 수 없습니다.")
             }
             menuCursor = 0
@@ -539,7 +539,7 @@ internal fun GamePatchDialog(file: File, onDismiss: () -> Unit) {
                     }) { Text("서명된 AI 메뉴 사전 가져오기") }
                     TextButton(enabled = !busy && pendingExport == null, onClick = { runAction {
                         val prior = withContext(Dispatchers.IO) {
-                            AiGlossaryUpdates.rollback(glossaryDirectory) { GameplayBudget.allowsOptionalAnalysis(context) }
+                            AiGlossaryUpdates.rollback(glossaryDirectory) { ensureActive(); GameplayBudget.allowsOptionalAnalysis(context) }
                         }
                         menuCursor = 0
                         message = "메뉴 사전 버전 ${prior.revision}으로 복구했습니다. 기존 번역 초안은 유지됩니다."
