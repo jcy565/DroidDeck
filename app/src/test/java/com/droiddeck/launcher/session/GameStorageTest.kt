@@ -18,6 +18,45 @@ class GameStorageTest {
     private val app get() = RuntimeEnvironment.getApplication()
     @get:Rule val tmp = TemporaryFolder()
 
+    @Test fun writableProbePreservesExistingFileAndCleansOnlyItsOwnProbe() {
+        val root = tmp.newFolder("library")
+        val steamapps = File(root, "steamapps").apply { mkdirs() }
+        val existing = File(steamapps, ".writable").apply { writeText("owned by another app") }
+        assertNull(GameStorage.prepare(app, root.path))
+        assertEquals("owned by another app", existing.readText())
+        assertEquals(listOf(".writable"), steamapps.list()!!.sorted())
+    }
+
+    @Test fun knownOfficialPackagePathsAreNotPreparedOrSelected() {
+        val official = tmp.newFolder("com.droiddeck.launcher")
+        val library = File(official, "steam").apply { mkdir() }
+        assertTrue(GameStorage.touchesOfficialPackage(library))
+        assertNotNull(GameStorage.prepare(app, library.path))
+        assertFalse(File(library, "steamapps").exists())
+        SessionPrefs.setGameStorage(app, library.path, "Official")
+        assertNull(GameStorage.effective(app))
+        val result = SteamLibraries.add(app, library.path)
+        assertTrue(result is SteamLibraries.AddResult.Refused)
+        assertFalse(File(library, "steamapps").exists())
+        val ai = tmp.newFolder("com.droiddeck.launcher.ai")
+        assertFalse(GameStorage.touchesOfficialPackage(ai))
+        assertNull(GameStorage.prepare(app, ai.path))
+    }
+
+    @Test fun officialAliasAndLinkedSteamappsAreRefused() {
+        val official = tmp.newFolder("com.droiddeck.shortcuts")
+        val alias = File(tmp.root, "alias")
+        java.nio.file.Files.createSymbolicLink(alias.toPath(), official.toPath())
+        assertTrue(GameStorage.touchesOfficialPackage(alias))
+        assertNotNull(GameStorage.prepare(app, alias.path))
+        assertFalse(File(official, "steamapps").exists())
+        val root = tmp.newFolder("separate")
+        val other = tmp.newFolder("other")
+        java.nio.file.Files.createSymbolicLink(File(root, "steamapps").toPath(), other.toPath())
+        assertNotNull(GameStorage.prepare(app, root.path))
+        assertTrue(other.list()!!.isEmpty())
+    }
+
     @Test fun onlyAGamesFolderSteamInstalledIntoStaysALibrary() {
         val pc = tmp.newFolder("PC")
         File(pc, "steamapps").mkdirs()
