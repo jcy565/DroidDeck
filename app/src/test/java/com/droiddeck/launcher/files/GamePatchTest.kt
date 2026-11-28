@@ -154,6 +154,30 @@ class GamePatchTest {
         assertEquals(listOf(file), root.listFiles()!!.toList())
     }
 
+    @Test fun backupStorageMustBeSeparateFromGameDirectory() {
+        val root = temp.newFolder("game")
+        val file = root.resolve("game.ini").apply { writeText("x=1") }
+        val original = file.readBytes()
+        val proposed = "x=2".toByteArray()
+        val nested = root.resolve("new-backups")
+        val alias = temp.root.resolve("game-alias")
+        java.nio.file.Files.createSymbolicLink(alias.toPath(), root.toPath())
+        for (invalid in listOf(root, temp.root, nested, alias.resolve("new-backups"))) {
+            val before = root.listFiles()!!.toSet()
+            assertThrows(IllegalArgumentException::class.java) {
+                GamePatchStore.apply(root, file.name, original, proposed, invalid)
+            }
+            assertArrayEquals(original, file.readBytes())
+            assertEquals(before, root.listFiles()!!.toSet())
+            assertFalse(nested.exists())
+        }
+        val sibling = temp.root.resolve("game-backups")
+        val backup = GamePatchStore.apply(root, file.name, original, proposed, sibling)
+        assertEquals(sibling, backup.parentFile)
+        GamePatchStore.restore(root, backup, file.name)
+        assertArrayEquals(original, file.readBytes())
+    }
+
     @Test fun refusesAnInputStreamThatNeverMakesProgress() {
         val stalled = object : java.io.InputStream() {
             override fun read(): Int = 0
