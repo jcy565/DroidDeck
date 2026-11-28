@@ -31,6 +31,30 @@ class TranslationReuseTest {
         }
     }
 
+    @Test fun reviewAndReuseReadOnlyTheValidatedEditSnapshot() {
+        val reviewed = mapOf("a" to "안녕 {name}", "d" to "잘 가")
+        val inconsistent = object : Map<String, String> by reviewed {
+            override fun get(key: String): String? = if (key == "a") "invalid" else reviewed[key]
+        }
+        val review = TranslationReuse.review(source, inconsistent)
+        assertEquals(2, review.count(TranslationReuse.Status.READY))
+        assertEquals(2, review.count(TranslationReuse.Status.MISSING))
+        val result = TranslationReuse.fill(source, inconsistent)
+        assertEquals(2, result.added)
+        assertEquals(0, result.conflicts)
+        assertEquals("안녕 {name}", result.edits["b"])
+        assertEquals("안녕 {name}", result.edits["c"])
+        assertEquals(2, reviewed.size)
+        val unknown = object : Map<String, String> by reviewed {
+            override val entries get() = mapOf("unknown" to "x", "d" to "잘 가").entries
+        }
+        assertTrue(runCatching { TranslationReuse.review(source, unknown) }.isFailure)
+        assertTrue(runCatching { TranslationReuse.fill(source, unknown) }.isFailure)
+        assertTrue(runCatching {
+            review.nextUnfinished(listOf("a", "a", "b", "c", "d"), 0)
+        }.isFailure)
+    }
+
     @Test fun reviewDistinguishesMissingInvalidAndUnchanged() {
         val review = TranslationReuse.review(source,
             mapOf("a" to "안녕 {name}", "b" to "안녕", "c" to "Hello {name}"))
