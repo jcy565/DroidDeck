@@ -97,20 +97,36 @@ def verify_signer(apksigner, apk_path, expected_cert_sha256):
         raise ValueError('APK v2 signature verification required')
 
 
+def read_metadata(archive, name, limit):
+    """Reject missing or oversized metadata before allocating its full contents."""
+    try:
+        entry = archive.getinfo(name)
+    except KeyError as exc:
+        raise ValueError(f'Missing APK metadata: {name}') from exc
+    if entry.is_dir() or entry.file_size > limit:
+        raise ValueError(f'Invalid or oversized APK metadata: {name}')
+    with archive.open(entry) as stream:
+        raw = stream.read(limit + 1)
+    if len(raw) > limit:
+        raise ValueError(f'Oversized APK metadata: {name}')
+    return raw
+
+
 def verify_payload(apk_zip, inventory_zip, expected_commit, pinned,
                    apksigner, expected_cert_sha256):
     with zipfile.ZipFile(inventory_zip) as inv:
         unique_files(inv)
-        if inv.read('source-commit.txt').decode().strip() != expected_commit:
+        if read_metadata(inv, 'source-commit.txt', 4096).decode().strip() != expected_commit:
             raise ValueError('Source commit mismatch')
-        hash_fields = inv.read('apk-sha256.txt').decode().split()
+        hash_fields = read_metadata(inv, 'apk-sha256.txt', 4096).decode().split()
         expected_hash = hash_fields[0] if hash_fields else ''
         if not re.fullmatch(r'[a-f0-9]{64}', expected_hash):
             raise ValueError('Invalid APK SHA-256')
-        entries = inventory_entries(inv.read('app-release.apk.json'))
-        comparison = json.loads(inv.read('official-comparison.json'),
+        entries = inventory_entries(read_metadata(inv, 'app-release.apk.json', 16 * 1024 * 1024))
+        comparison = json.loads(read_metadata(inv, 'official-comparison.json', 4 * 1024 * 1024),
                                 object_pairs_hook=reject_duplicate_keys)
-        if comparison['assistant']['package'] != 'com.droiddeck.launcher.ai':
+        assistant = comparison.get('assistant') if isinstance(comparison, dict) else None
+        if not isinstance(assistant, dict) or assistant.get('package') != 'com.droiddeck.launcher.ai':
             raise ValueError('Unexpected inventory package')
     with zipfile.ZipFile(apk_zip) as outer, tempfile.TemporaryDirectory() as directory:
         apk_path = Path(directory) / 'app-release.apk'
