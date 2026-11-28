@@ -1,0 +1,86 @@
+name: AI 0.7.11 security preflight
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-0711-security-preflight.yml'
+      - 'gradle/wrapper/**'
+      - 'gradle/verification-metadata.xml'
+      - 'app/build.gradle'
+      - 'shortcuts/build.gradle'
+      - 'app/src/main/AndroidManifest.xml'
+      - 'shortcuts/src/main/AndroidManifest.xml'
+      - 'app/src/main/res/xml/network_security_config.xml'
+permissions:
+  contents: read
+jobs:
+  wrapper:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify wrapper before any Gradle execution
+        run: |
+          set -euo pipefail
+          echo '2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046  gradle/wrapper/gradle-wrapper.jar' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('gradle/wrapper/gradle-wrapper.properties')
+          lines = p.read_text().splitlines()
+          assert [x for x in lines if x.startswith('distributionUrl=')] == [
+              r'distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip']
+          assert [x for x in lines if x.startswith('distributionSha256Sum=')] == [
+              'distributionSha256Sum=2ab88d6de2c23e6adae7363ae6e29cbdd2a709e992929b48b6530fd0c7133bd6']
+          PY
+  source-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Report source permission changes and known packaging blockers
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          ns = '{http://schemas.android.com/apk/res/android}'
+          base = 'c6169cba808d82f4d247b00bf01827506c1db54d'
+          def permissions(xml):
+              return sorted({e.attrib[ns+'name'] for e in ET.fromstring(xml)
+                             if e.tag.startswith('uses-permission') and ns+'name' in e.attrib})
+          modules = {}
+          for module in ('app', 'shortcuts'):
+              gradle = Path(module+'/build.gradle').read_text()
+              path = module+'/src/main/AndroidManifest.xml'
+              old = permissions(subprocess.check_output(['git','show',base+':'+path]))
+              now = permissions(Path(path).read_bytes())
+              ids = re.findall(r"(?m)^\s*applicationId\s+['\"]([^'\"]+)['\"]", gradle)
+              modules[module] = {
+                  'declared_application_ids': ids,
+                  'uses_testkey_signing_config': bool(re.search(r'signingConfig\s+signingConfigs\.testkey\b', gradle)),
+                  'source_permissions': now,
+                  'added_source_permissions': sorted(set(now)-set(old)),
+                  'removed_source_permissions': sorted(set(old)-set(now))
+              }
+          report = {'source_sha': os.environ['GITHUB_SHA'], 'comparison_base': base,
+                    'modules': modules,
+                    'dependency_verification_metadata_present': Path('gradle/verification-metadata.xml').is_file(),
+                    'android_binary_verified': False, 'release_approved': False,
+                    'scope': 'Source review only; not merged manifest, signer or malware verification'}
+          out = Path(os.environ['RUNNER_TEMP'])/'ai-security-review.json'
+          out.write_text(json.dumps(report, indent=2)+'\n')
+          print(out.read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-security-source-review
+          path: ${{ runner.temp }}/ai-security-review.json
+          if-no-files-found: error
+          retention-days: 30
