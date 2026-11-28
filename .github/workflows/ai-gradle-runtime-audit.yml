@@ -1,0 +1,57 @@
+name: AI 0.7.11 Gradle runtime audit
+on:
+  push:
+    branches: [ai-0711-integration-next]
+    paths:
+      - '.github/workflows/ai-gradle-runtime-audit.yml'
+      - 'tools/ci/gradle-runtime-inventory.init.gradle'
+      - 'app/build.gradle'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle/**'
+      - 'tools/packs/tracking/release.env'
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify Gradle distribution and wrapper pins
+        run: |
+          set -euo pipefail
+          echo '2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046  gradle/wrapper/gradle-wrapper.jar' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('gradle/wrapper/gradle-wrapper.properties').read_text().splitlines()
+          assert [x for x in lines if x.startswith('distributionUrl=')] == [
+              r'distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip']
+          assert [x for x in lines if x.startswith('distributionSha256Sum=')] == [
+              'distributionSha256Sum=2ab88d6de2c23e6adae7363ae6e29cbdd2a709e992929b48b6530fd0c7133bd6']
+          PY
+      - name: Resolve external artifacts without APK or native build
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_17_X64:?JDK 17 required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test -d "$ANDROID_HOME/platforms/android-34"
+          ./gradlew --no-daemon --no-configuration-cache --console=plain -I tools/ci/gradle-runtime-inventory.init.gradle -PaiRuntimeInventoryOnly=true -PskipRust=true :app:auditReleaseRuntimeInventory
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('app/build/reports/security/release-runtime-inventory.json').read_text())
+          assert report['sourceCommit'] == os.environ['GITHUB_SHA']
+          assert report['trackedTreeClean'] is True
+          assert report['configuration'] == 'releaseRuntimeClasspath'
+          assert report['profile'] == {'inventoryOnly': True, 'nativePacksResolved': False}
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-gradle-runtime-inventory
+          path: app/build/reports/security/release-runtime-inventory.json
+          if-no-files-found: error
+          retention-days: 30
