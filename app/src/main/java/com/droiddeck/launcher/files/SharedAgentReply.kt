@@ -27,7 +27,14 @@ internal object SharedAgentReply {
 
     private fun prefs(context: Context) = context.getSharedPreferences("ai_reply_inbox", Context.MODE_PRIVATE)
 
-    data class Replacement(val checkpoint: ExchangeCheckpoint.Saved, val previous: String, val incoming: String)
+    data class Replacement(val checkpoint: ExchangeCheckpoint.Saved, val previous: String, val incoming: String,
+        internal val previousBinding: String? = null)
+
+    // Bind the inbox to the complete saved request, not just its public UUID.
+    // Legacy entries have no binding: preserve them until explicit re-share/review or discard.
+    private fun binding(saved: ExchangeCheckpoint.Saved): String =
+        ExchangeCheckpoint.fingerprint("DroidDeck shared inbox " + saved.id, saved.instruction,
+            mapOf("start" to saved.start.toString()), saved.fingerprint)
 
     private fun checkpointFile(context: Context) = File(context.noBackupFilesDir, "ai-exchange/checkpoint.bin")
 
@@ -68,8 +75,9 @@ internal object SharedAgentReply {
         if (removed) changes.value++
     }
 
-    private fun publish(context: Context, id: String, response: String) {
-        check(prefs(context).edit().putString("id", id).putString("reply", response).commit())
+    private fun publish(context: Context, saved: ExchangeCheckpoint.Saved, response: String) {
+        check(prefs(context).edit().putString("id", saved.id).putString("binding", binding(saved))
+            .putString("reply", response).commit())
         changes.value++
     }
 
@@ -79,11 +87,12 @@ internal object SharedAgentReply {
         val response = normalize(text, saved.id)
         val store = prefs(context)
         if (store.getString("id", null) == saved.id) {
-            val previous = requireNotNull(store.getString("reply", null))
-            if (previous == response) return@synchronized null
-            return@synchronized Replacement(saved, previous, response)
+            val previous = normalize(requireNotNull(store.getString("reply", null)), saved.id)
+            val previousBinding = store.getString("binding", null)
+            if (previous == response && previousBinding == binding(saved)) return@synchronized null
+            return@synchronized Replacement(saved, previous, response, previousBinding)
         }
-        publish(context, saved.id, response)
+        publish(context, saved, response)
         null
     }
 
@@ -92,28 +101,29 @@ internal object SharedAgentReply {
         require(checkpoint(context) == reviewed.checkpoint) { "저장된 AI 요청이 변경되었습니다." }
         val store = prefs(context)
         require(store.getString("id", null) == reviewed.checkpoint.id &&
-            store.getString("reply", null) == reviewed.previous) { "보관된 응답이 변경되었습니다." }
-        publish(context, reviewed.checkpoint.id, normalize(reviewed.incoming, reviewed.checkpoint.id))
+            store.getString("reply", null) == reviewed.previous &&
+            store.getString("binding", null) == reviewed.previousBinding) { "보관된 응답이 변경되었습니다." }
+        publish(context, reviewed.checkpoint, normalize(reviewed.incoming, reviewed.checkpoint.id))
     }
 
     @Synchronized fun load(context: Context, id: String): String? = synchronized(ExchangeCheckpoint) {
         val store = prefs(context)
         if (store.getString("id", null) != id) return@synchronized null
         val saved = checkpoint(context)
-        if (saved?.id != id) return@synchronized null
+        if (saved?.id != id || store.getString("binding", null) != binding(saved)) return@synchronized null
         requireNotNull(store.getString("reply", null)).let { normalize(it, id) }
     }
 
     /** Explicit discard from the editor also removes the unaccepted response. */
     @Synchronized fun discard(context: Context) {
-        check(prefs(context).edit().remove("id").remove("reply").commit())
+        check(prefs(context).edit().remove("id").remove("reply").remove("binding").commit())
         changes.value++
     }
 
     @Synchronized fun clearOtherRequests(context: Context, retainedId: String) {
         val store = prefs(context)
         if (store.getString("id", null) != null && store.getString("id", null) != retainedId) {
-            check(store.edit().remove("id").remove("reply").commit())
+            check(store.edit().remove("id").remove("reply").remove("binding").commit())
             changes.value++
         }
     }
@@ -121,7 +131,7 @@ internal object SharedAgentReply {
     @Synchronized fun clear(context: Context, id: String) {
         val store = prefs(context)
         if (store.getString("id", null) == id) {
-            check(store.edit().remove("id").remove("reply").commit())
+            check(store.edit().remove("id").remove("reply").remove("binding").commit())
             changes.value++
         }
     }
