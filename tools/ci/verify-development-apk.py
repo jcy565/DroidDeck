@@ -6,6 +6,7 @@ import json
 import re
 import tempfile
 import zipfile
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 
@@ -29,13 +30,32 @@ def verify(apk_zip, inventory_zip, expected_commit, *, apk_zip_sha256=None,
         raise ValueError('Expected full source commit SHA')
     pinned = apk_zip_sha256 is not None or inventory_zip_sha256 is not None
     if pinned:
-        for path, expected, label in ((apk_zip, apk_zip_sha256, 'APK artifact'),
-                                      (inventory_zip, inventory_zip_sha256, 'Inventory artifact')):
+        for expected in (apk_zip_sha256, inventory_zip_sha256):
             if not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected):
                 raise ValueError('Both expected archive SHA-256 values are required')
-            with open(path, 'rb') as stream:
-                if digest(stream) != expected:
-                    raise ValueError(f'{label} SHA-256 mismatch')
+    with ExitStack() as stack:
+        if pinned:
+            apk_zip = stack.enter_context(snapshot_archive(apk_zip, apk_zip_sha256, 'APK artifact'))
+            inventory_zip = stack.enter_context(snapshot_archive(
+                inventory_zip, inventory_zip_sha256, 'Inventory artifact'))
+        return verify_payload(apk_zip, inventory_zip, expected_commit, pinned)
+
+
+@contextmanager
+def snapshot_archive(path, expected, label):
+    """Hash exactly the bytes copied into a private, seekable parsing snapshot."""
+    with tempfile.TemporaryFile() as snapshot, open(path, 'rb') as source:
+        sha = hashlib.sha256()
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            sha.update(block)
+            snapshot.write(block)
+        if sha.hexdigest() != expected:
+            raise ValueError(f'{label} SHA-256 mismatch')
+        snapshot.seek(0)
+        yield snapshot
+
+
+def verify_payload(apk_zip, inventory_zip, expected_commit, pinned):
     with zipfile.ZipFile(inventory_zip) as inv:
         unique_files(inv)
         if inv.read('source-commit.txt').decode().strip() != expected_commit:

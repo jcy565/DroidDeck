@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 import warnings
 import zipfile
 
@@ -73,6 +74,28 @@ class DevelopmentApkAuditTest(unittest.TestCase):
         self.assertTrue(result['archive_hashes_matched'])
         self.assertEqual(2, result['verified_entries'])
         self.assertFalse(result['signature_verified_here'])
+
+    def test_pinned_parse_uses_snapshot_not_reopened_path(self):
+        self.fixture()
+        a = hashlib.sha256(self.apk.read_bytes()).hexdigest()
+        b = hashlib.sha256(self.inv.read_bytes()).hexdigest()
+        original_snapshot = AUDIT.snapshot_archive
+
+        @AUDIT.contextmanager
+        def replace_after_snapshot(path, expected, label):
+            with original_snapshot(path, expected, label) as snapshot:
+                # Replace bytes after validation, before ZIP parsing.
+                path.write_bytes(b'not the verified archive')
+                yield snapshot
+
+        with mock.patch.object(AUDIT, 'snapshot_archive', replace_after_snapshot):
+            result = AUDIT.verify(self.apk, self.inv, COMMIT,
+                                  apk_zip_sha256=a, inventory_zip_sha256=b)
+        self.assertTrue(result['archive_hashes_matched'])
+        self.assertEqual(2, result['verified_entries'])
+        self.assertFalse(result['signature_verified_here'])
+        self.assertEqual(b'not the verified archive', self.apk.read_bytes())
+        self.assertEqual(b'not the verified archive', self.inv.read_bytes())
 
     def test_archive_pins_reject_missing_invalid_or_mismatched_digests(self):
         self.fixture()
