@@ -7,6 +7,7 @@ import re
 import subprocess
 
 from apk_inventory import compare, inventory
+from apk_signer_report import single_certificate
 
 OFFICIAL_HASH = "179ab8b4dc8f9223b70a1e4287c55a090b36ee376242186a60211100158462f1"
 OFFICIAL_ID = "com.droiddeck.launcher"
@@ -15,7 +16,7 @@ ASSISTANT_ID = OFFICIAL_ID + ".ai"
 
 def inspect(apk, aapt, apksigner):
     permissions = subprocess.check_output([aapt, "dump", "permissions", apk], text=True)
-    signer = subprocess.check_output([apksigner, "verify", "--print-certs", apk], text=True)
+    signer = subprocess.check_output([apksigner, "verify", "--verbose", "--print-certs", apk], text=True)
     manifest = subprocess.check_output([aapt, "dump", "xmltree", apk, "AndroidManifest.xml"], text=True)
     application = manifest.split("E: application ", 1)[1]
     names = re.findall(r'android:(authorities|taskAffinity)\([^)]*\)="([^"]+)"', application)
@@ -24,7 +25,7 @@ def inspect(apk, aapt, apksigner):
         "task_affinities": sorted(v for k, v in names if k == "taskAffinity"),
         "package": re.search(r"^package: (\S+)$", permissions, re.M)[1],
         "permissions": sorted(set(re.findall(r"^uses-permission[^:]*: name='([^']+)'", permissions, re.M))),
-        "certificate_sha256": re.findall(r"^Signer #\d+ certificate SHA-256 digest: (\w+)$", signer, re.M),
+        "certificate_sha256": [single_certificate(signer)],
     }
 
 
