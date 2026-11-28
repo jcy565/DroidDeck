@@ -364,7 +364,7 @@ private fun GamePatchContent(file: File, resumeSavedRequest: Boolean, onDismiss:
                     }
                     message = "아래 요청 전문을 검토한 후 공유하세요. 실제 전송은 직접 선택합니다."
                 } }) { Text(if (translationTable) "다음 미입력 문장 AI 요청 생성" else "AI 작업 요청 생성") }
-                Text("앱 전환 후 작업을 재개하려면 요청 정보를 저장하세요. 요청 문구와 식별자·해시만 이 기기의 백업 제외 앱 저장소에 보관합니다. 원본·로그·번역문은 저장하지 않습니다. 번역 초안은 별도로 저장해야 합니다.")
+                Text("앱 전환 후 작업을 재개하려면 요청 정보를 저장하세요. 요청 문구와 식별자·해시만 이 기기의 백업 제외 앱 저장소에 보관합니다. 요청 정보에는 원본·로그·번역문이 저장되지 않습니다. 공유로 받은 응답 본문은 별도 비공개 보관함에 저장되며, 기존 응답을 다시 공유해 확인하거나 직접 삭제할 수 있습니다. 번역 초안은 별도로 저장해야 합니다.")
                 TextButton(enabled = !busy && pendingExport == null && exchange == null,
                     onClick = { runAction { resumeSavedExchange() } }) { Text("저장한 AI 요청 및 공유 응답 재개") }
                 TextButton(enabled = !busy, onClick = { runAction {
