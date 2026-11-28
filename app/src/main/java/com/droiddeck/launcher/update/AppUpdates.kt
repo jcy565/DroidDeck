@@ -118,12 +118,17 @@ object AppUpdates {
         GONE,
     }
 
-    @Volatile private var releaseSigned = BuildConfig.CI_BUILD
+    @Volatile private var releaseSigned = false
 
     fun init(context: Context) {
+        // The AI fork has no independently verified release catalog or signing key yet.
+        if (context.packageName != "com.droiddeck.launcher") {
+            releaseSigned = false
+            return
+        }
         releaseSigned = runCatching {
             signers(context).any { it.equals(BuildConfig.RELEASE_SIGNER, ignoreCase = true) }
-        }.getOrDefault(BuildConfig.CI_BUILD)
+        }.getOrDefault(false)
     }
 
     private fun signers(context: Context): List<String> {
