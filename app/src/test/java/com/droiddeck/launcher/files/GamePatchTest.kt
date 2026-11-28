@@ -244,6 +244,17 @@ class GamePatchTest {
         assertTrue(LocalGameAdvisor.diagnose("black screen").contains("확정하기 어렵"))
     }
 
+    @Test fun memoryLogLinksToSupportedConfigWorkflowWithoutClaimingCause() {
+        val report = LocalGameAdvisor.diagnose("reason: LOW_MEMORY\nVK_ERROR_DEVICE_LOST")
+        assertTrue(report.contains("LOW_MEMORY"))
+        assertTrue(report.contains("현재 설정에서 최적화 후보 찾기"))
+        assertTrue(report.contains("실제 게임 내부 해상도"))
+        assertTrue(report.contains("장치 연결 손실"))
+        assertTrue(report.contains("원인 확정"))
+        assertFalse(LocalGameAdvisor.diagnose("VK_ERROR_DEVICE_LOST").contains("최적화 후보 찾기"))
+        assertTrue(LocalGameAdvisor.diagnose("reason LOW_MEMORY_EXTRA").contains("확정하기 어렵"))
+    }
+
     @Test fun optimizationPresetsShowOnlyActualSupportedReductions() {
         val source = "[Render]\nResolution=1920x1080"
         val options = LocalGameAdvisor.presets(source)

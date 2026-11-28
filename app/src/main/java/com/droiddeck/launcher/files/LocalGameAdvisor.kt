@@ -24,16 +24,40 @@ internal object LocalGameAdvisor {
         }
     }
 
+    private enum class LogSignal(val marker: Regex, val code: String, val evidence: String) {
+        GPU_MEMORY(Regex("\\bVK_ERROR_OUT_OF_DEVICE_MEMORY\\b", RegexOption.IGNORE_CASE),
+            "VK_ERROR_OUT_OF_DEVICE_MEMORY", "GPU 메모리 할당 실패가 기록됐습니다."),
+        SYSTEM_MEMORY(Regex("\\breason\\s*[:=]?\\s+LOW_MEMORY\\b|\\breason\\s*[:=]\\s*LOW_MEMORY\\b", RegexOption.IGNORE_CASE),
+            "LOW_MEMORY", "Android의 메모리 부족 종료 기록입니다."),
+        VULKAN_LOST(Regex("\\bVK_ERROR_DEVICE_LOST\\b", RegexOption.IGNORE_CASE),
+            "VK_ERROR_DEVICE_LOST", "Vulkan 장치 연결 손실이 기록됐습니다."),
+        DIRECTX_LOST(Regex("\\bDXGI_ERROR_DEVICE_REMOVED\\b", RegexOption.IGNORE_CASE),
+            "DXGI_ERROR_DEVICE_REMOVED", "DirectX 장치 손실이 기록됐습니다.")
+    }
+
     fun diagnose(log: String): String {
-        val signals = listOf(
-            "VK_ERROR_OUT_OF_DEVICE_MEMORY" to "GPU 메모리 할당 실패가 기록됐습니다. 같은 장면에서 텍스처 품질을 한 단계 낮춰 비교하세요.",
-            "reason LOW_MEMORY" to "Android의 메모리 부족 종료 기록입니다. 기록 시각과 게임 종료 시각을 비교하세요.",
-            "VK_ERROR_DEVICE_LOST" to "Vulkan 장치 연결 손실이 기록됐습니다. 드라이버 버전과 최초 오류 시각을 확인하세요.",
-            "DXGI_ERROR_DEVICE_REMOVED" to "DirectX 장치 손실이 기록됐습니다. DXVK 또는 VKD3D 로그의 첫 오류를 확인하세요."
-        )
-        return signals.filter { log.contains(it.first, ignoreCase = true) }
-            .joinToString("\n") { (signal, advice) -> "$signal · $advice" }
-            .ifBlank { "알려진 오류 신호가 없습니다. 검은 화면의 원인은 이 로그만으로 확정하기 어렵습니다." }
+        val observed = LogSignal.values().filter { it.marker.containsMatchIn(log) }
+        if (observed.isEmpty()) return "알려진 오류 신호가 없습니다. 검은 화면의 원인은 이 로그만으로 확정하기 어렵습니다."
+        val memory = LogSignal.GPU_MEMORY in observed || LogSignal.SYSTEM_MEMORY in observed
+        val device = LogSignal.VULKAN_LOST in observed || LogSignal.DIRECTX_LOST in observed
+        return buildString {
+            append("관측된 오류 신호\n")
+            observed.forEach { append(it.code).append(" · ").append(it.evidence).append('\n') }
+            append("\n다음 확인 순서 (자동 변경 없음)\n")
+            var step = 1
+            fun next(text: String) { append(step++).append(". ").append(text).append('\n') }
+            next("오류 기록이 이번 게임 종료와 같은 실행 세션인지 확인하세요.")
+            if (memory) {
+                next("게임을 종료하고 메모리 상태를 확인하세요. Android 메모리와 GPU 메모리는 구분합니다.")
+                next("게임의 INI/CFG를 열고 ‘현재 설정에서 최적화 후보 찾기’를 선택하세요. 지원되는 경우 720p 또는 900p 해상도 후보 하나만 미리보기 하세요.")
+                next("원본을 백업한 후 한 가지 설정만 적용하고 재실행하세요. 실제 게임 내부 해상도와 출력 해상도를 따로 확인하세요.")
+            }
+            if (device) {
+                next("드라이버 버전 및 DXVK/VKD3D 사용 여부와 최초 장치 손실 시점을 확인하세요. 장치 손실만으로 해상도나 드라이버가 원인이라고 단정하지 않습니다.")
+            }
+            next("같은 장면에서 실행 성공 여부와 FPS·P95 프레임타임을 비교하세요. 악화되면 기존 백업을 검토하세요.")
+            append("이 기록은 원인 확정이나 성능 향상 보장이 아닙니다.")
+        }
     }
 
     private const val UNREAL = "/Script/Engine.GameUserSettings"
