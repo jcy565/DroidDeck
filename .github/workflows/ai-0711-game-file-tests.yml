@@ -12,6 +12,8 @@ on:
       - 'app/src/test/java/com/droiddeck/launcher/files/TranslationJsonTest.kt'
       - 'app/src/main/java/com/droiddeck/launcher/compatibility/OptimizationComparison.kt'
       - 'app/src/test/java/com/droiddeck/launcher/compatibility/OptimizationComparisonTest.kt'
+      - 'app/src/main/java/com/droiddeck/launcher/compatibility/InstalledGameVersion.kt'
+      - 'app/src/test/java/com/droiddeck/launcher/compatibility/InstalledGameVersionTest.kt'
       - 'ai-core/src/main/java/**'
 permissions:
   contents: read
@@ -39,9 +41,12 @@ jobs:
             "$tests"/{GamePatchTest,GamePatchAuthorTest,TranslationJsonTest}.kt \
             app/src/main/java/com/droiddeck/launcher/compatibility/OptimizationComparison.kt \
             app/src/test/java/com/droiddeck/launcher/compatibility/OptimizationComparisonTest.kt \
+            app/src/main/java/com/droiddeck/launcher/compatibility/InstalledGameVersion.kt \
+            app/src/test/java/com/droiddeck/launcher/compatibility/InstalledGameVersionTest.kt \
             -jvm-target 17 -classpath "$cp:$RUNNER_TEMP/ai-core" -d "$RUNNER_TEMP/game-files.jar"
           kotlin -classpath "$RUNNER_TEMP/game-files.jar:$cp:$RUNNER_TEMP/ai-core" org.junit.runner.JUnitCore \
             com.droiddeck.launcher.files.GamePatchTest \
             com.droiddeck.launcher.files.GamePatchAuthorTest \
             com.droiddeck.launcher.files.TranslationJsonTest \
-            com.droiddeck.launcher.compatibility.OptimizationComparisonTest
+            com.droiddeck.launcher.compatibility.OptimizationComparisonTest \
+            com.droiddeck.launcher.compatibility.InstalledGameVersionTest
