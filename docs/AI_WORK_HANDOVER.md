@@ -327,3 +327,8 @@
 - 로컬 원본 ZIP 및 APK SHA-256/CRC를 재검사하여 직전 기록 재확인. Gradle/OSV scanner/cargo-audit 실행 파일은 PATH에서 확인되지 않았다.
 - 작업 브랜치 커밋 b089f3dc8824ff5f5d9e8daa736f20af80be888a: gradle/wrapper/gradle-wrapper.properties에 기존 8.10.2-all.zip의 공식 SHA-256 2ab88d6de2c23e6adae7363ae6e29cbdd2a709e992929b48b6530fd0c7133bd6 추가. 출처 https://gradle.org/release-checksums/ (8.10.2 Complete ZIP). 기존 URL, 버전 및 CRLF 유지. 원격 내용 재조회 일치. 실제 Gradle 신규 다운로드 및 CI 검증은 미수행. 앱 코드, 서명, 권한, 보안 설정은 변경하지 않았다. 설치 차단 원인과 별개의 일반적인 빌드 공급망 개선이다.
 - 다음: 신뢰된 빌드 환경의 resolved dependency graph 및 SBOM, 공식 출처 대조 후 verification metadata 검토, 공개 취약점 검사 및 결과 검증. 단순 체크섬 추가에 대한 APK 전체 재빌드는 불필요하며 차단된 기존 APK를 실행하지 않는다. D01 차단/D02–D08 미검증. 할당량 조회 불가로 단계별 저장.
+
+### 설치 차단 후속 — Rust 잠금 파일 SBOM 확보
+- 기존 APK 소스 d8c84a5faec188c4c3d2cbf61df8b234495a1668의 app/src/main/rust/stores/Cargo.lock (blob 2fac37c5aa822698617c14fa23f2370249092258)을 실제 읽어 CycloneDX 1.5 JSON 생성. docs/security/rust-lock-d8c84a5.cdx.json, 커밋 520bcad5288a18b545c8f99e6ef6a88e0c998bad. 원격 재조회하여 생성 내용과 동일함 및 JSON 파싱 성공 확인.
+- 외부 crates.io 패키지 188개, 로컬 root 포함 189개 dependency nodes, 407 edges. 이름/버전/외부 체크섬 형식/고유 ID 확인, 모든 edge는 이름 및 필요시 버전으로 정확히 하나의 node에 해석. 모호하거나 누락된 참조 0. Cargo.lock 기재 SHA-256을 사용하였으며 실제 crate 다운로드 및 별도 해시 검증은 하지 않았다. 전체 target 및 build/test 의존성을 포함하는 잠금 파일 기준이며 Android APK에 실제 포함된 패키지 목록과 동일하다는 주장은 하지 않는다. CycloneDX 공식 schema validator 및 공개 CVE 조회 미수행.
+- 이전 Gradle 8.10.2-all checksum 값은 공식 https://gradle.org/release-checksums/ 에서 재확인 일치. 다음: OCR=true/localAI=false 구성의 Gradle releaseRuntimeClasspath 해석 결과 및 아티팩트 해시 확보, Gradle/native SBOM과 공개 취약점 검사, 보안 검토. 현재 설치 차단 원인 미확정, D01 차단/D02–D08 미검증. APK 실행/재서명/권한 변경/전체 빌드 없음. 할당량 수치 조회 불가로 단계별 저장.
