@@ -76,3 +76,11 @@ D01~D03 통과 후 소유한 게임에서만 시험한다. 최초 실행은 설�
 - [이전 성공 실행 46100476853](https://github.com/jcy565/DroidDeck/actions/runs/46100476853), 소스 `680e197d4553003f5ab92fef45619175806c86dd`: GitHub Actions 필수 9개 작업 성공. 실제 unit-test-results ZIP(15246255516)을 내려받아 SHA-256 `63bd8f6ccd8e02b81e6b56b171bcf71886aba1cb9aa6ac66c4faa7a6967f6580` 일치를 확인했다. XML 590개에서 4,271개 통과, 실패/오류/건너뜀 및 중복 테스트 ID 0건.
 - 실제 APK ZIP(15245696763)의 SHA-256 `0ff091121bc94454922278dc728cc8579ed4de5dea0b67bc8f80920855abd2da` 및 인벤토리 ZIP(15246095092)의 SHA-256 `d2dadbc7b9ae9fa84cdd4bd47adf8c491b892e24a51f30ba92e6b4bf1056e62d`를 GitHub 제공 값과 대조해 일치 확인. 추출 APK의 SHA-256 `a269f6265016bf2a148d7d8764be9c42bf5ba349ce032c4a7adc519b77b9535f` 일치, 내부 파일 1,012개 이름/크기/해시 일치 및 중복 없음. 인벤토리 보고 패키지 `com.droiddeck.launcher.ai` 확인. Android SDK apksigner로 독립 서명을 검증하지 않았으므로 실기 설치 승인 또는 정식 배포 승인은 아님.
 - [신규 실행 46108743293](https://github.com/jcy565/DroidDeck/actions/runs/46108743293), ai-device-validation-next / `0a87e1b1935d72dad4718d0e6a9a25e9097b8de3`: push 이벤트 시작 확인. 이 실행의 최종 APK와 테스트 결과는 아직 검증하지 않았다. 이전 4,271건 통과를 신규 커밋의 결과로 사용하지 않는다. D01~D08은 모두 미검증 유지. 새 CI가 끝나면 실제 ZIP 및 XML과 소스 일치 여부를 검증하고 독립 서명 및 실기 시험을 진행한다.
+
+
+## 7. 현재 설치 후보 선정 기준 (2026-11-28)
+
+- 46108743293은 최종 성공(9/9 필수 작업). OCR 비활성 APK이므로 D05의 최종 후보로 사용하지 않는다.
+- 두 성공 실행 46100476853 및 46108743293의 실제 unit-test-results ZIP을 SHA-256 및 CRC 재검증 후 비교했다. 양쪽 모두 590개 XML, 4,271개 통과, 중복 0; (classname, name) 기준 공통 4,271개, 신규/누락 각각 0. OCR 활성 여부가 서로 다른 빌드에서 동일한 테스트 집합이 실행됐다는 증거이며, OCR 런타임 검증을 대신하지 않는다.
+- 현재 최종 후보: [46111306535](https://github.com/jcy565/DroidDeck/actions/runs/46111306535), 소스 `3f3eaab6920c8f149dd5bd9ad34a77962b6baeb8`. 사전 필수 작업 7개 및 모의 서명 테스트 5개 성공, Android 컴파일 진행 중. APK/인벤토리 및 XML 생성 후 소스와 해시, OCR 모델, 테스트 ID 차집합 및 결과를 확인한다. 달라진 테스트 ID가 있다면 코드 변경과 대조한다.
+- D01~D08은 여전히 미검증이다. 실제 독립 서명 도구 및 키는 이 작업 환경에서 확인되지 않았다. 실제 설치 및 게임 데이터 검증 없이 출시 승인하지 않는다.
