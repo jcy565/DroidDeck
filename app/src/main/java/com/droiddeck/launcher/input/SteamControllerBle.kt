@@ -81,8 +81,11 @@ class SteamControllerBle(private val context: Context, router: InputRouter? = nu
         handler.post {
             running = false
             handler.removeCallbacksAndMessages(null)
-            disconnect("session ended")
-            thread.quitSafely()
+            try {
+                disconnect("session ended")
+            } finally {
+                thread.quitSafely()
+            }
         }
     }
 
@@ -129,8 +132,19 @@ class SteamControllerBle(private val context: Context, router: InputRouter? = nu
                 }
             }
         }
-        g.disconnect()
-        g.close()
+        // Permission changes or a detached Bluetooth service may invalidate the GATT.
+        // Attempt both cleanup calls even if the first one throws.
+        try {
+            g.disconnect()
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "GATT disconnect failed", e)
+        } finally {
+            try {
+                g.close()
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "GATT close failed", e)
+            }
+        }
         Log.i(TAG, "disconnected: $why")
         listener?.invoke()
     }
