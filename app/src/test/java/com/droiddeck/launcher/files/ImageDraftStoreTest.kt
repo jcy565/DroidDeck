@@ -152,6 +152,43 @@ class ImageDraftStoreTest {
         assertArrayEquals(byteArrayOf(2), image.readBytes())
     }
 
+    @Test fun nonDirectoryStorageIsNeverTreatedAsMissingDraft() {
+        val image = temporary.newFile("menu-storage.png").apply { writeBytes(byteArrayOf(1)) }
+        val storage = temporary.newFile("not-a-directory").apply { writeText("preserve") }
+        val id = ImageDraftStore.identity(image)
+        assertTrue(runCatching { ImageDraftStore.load(storage, id) }.isFailure)
+        assertTrue(runCatching { ImageDraftStore.save(storage, image, id, draft) }.isFailure)
+        assertTrue(runCatching { ImageDraftStore.saveIfAbsent(storage, image, id, draft) }.isFailure)
+        assertTrue(runCatching { ImageDraftStore.deleteIfUnchanged(storage, image, id, draft) }.isFailure)
+        assertEquals("preserve", storage.readText())
+        val missing = File(temporary.root, "new-drafts")
+        assertNull(ImageDraftStore.load(missing, id))
+        assertTrue(ImageDraftStore.saveIfAbsent(missing, image, id, draft))
+        assertEquals(draft, ImageDraftStore.load(missing, id))
+    }
+
+    @Test fun batchSaveCannotReplaceCorruptOrNonRegularDraft() {
+        val image = temporary.newFile("batch-menu.png").apply { writeBytes(byteArrayOf(1)) }
+        val directory = temporary.newFolder("batch-drafts")
+        val id = ImageDraftStore.identity(image)
+        assertTrue(ImageDraftStore.saveIfAbsent(directory, image, id, draft))
+        val record = directory.listFiles()!!.single()
+        val damaged = byteArrayOf(1, 2, 3)
+        record.writeBytes(damaged)
+        assertFalse(ImageDraftStore.saveIfAbsent(directory, image, id, draft))
+        assertArrayEquals(damaged, record.readBytes())
+        assertTrue(record.delete())
+        assertTrue(record.mkdir())
+        assertFalse(ImageDraftStore.saveIfAbsent(directory, image, id, draft))
+        assertTrue(runCatching { ImageDraftStore.load(directory, id) }.isFailure)
+        assertTrue(record.isDirectory)
+        assertTrue(record.delete())
+        Files.createSymbolicLink(record.toPath(), File(directory, "missing").toPath())
+        assertFalse(ImageDraftStore.saveIfAbsent(directory, image, id, draft))
+        assertTrue(Files.isSymbolicLink(record.toPath()))
+        assertArrayEquals(byteArrayOf(1), image.readBytes())
+    }
+
     @Test fun rejectsSymbolicLinkRecordsAndPreservesTheirTargets() {
         val image = temporary.newFile("menu.png").apply { writeBytes(byteArrayOf(1)) }
         val directory = temporary.newFolder("drafts")
