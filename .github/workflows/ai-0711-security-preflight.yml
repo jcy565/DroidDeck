@@ -67,6 +67,9 @@ jobs:
           def declarations(xml):
               return {(e.tag, tuple(sorted(e.attrib.items()))) for e in ET.fromstring(xml)
                       if e.tag.startswith('uses-permission')}
+          # Narrow reviewed exception: same-signature permission, never a new platform permission.
+          relay_permission = 'com.droiddeck.launcher.ai.permission.SHORTCUTS_RELAY'
+          expected_relay_use = ('uses-permission', ((ns+'name', relay_permission),))
           modules = {}
           for module in ('app', 'shortcuts'):
               gradle = Path(module+'/build.gradle').read_text()
@@ -76,12 +79,28 @@ jobs:
               old = permissions(old_xml)
               now = permissions(now_xml)
               added_declarations = declarations(now_xml) - declarations(old_xml)
+              root = ET.fromstring(now_xml)
+              custom = [e.attrib for e in root.findall('permission')
+                        if e.get(ns+'name') == relay_permission]
+              if module == 'app':
+                  assert custom == [{ns+'name': relay_permission, ns+'protectionLevel': 'signature'}]
+                  relays = [e for e in root.findall('application/service')
+                            if e.get(ns+'name') == '.input.ShortcutsRelay']
+                  assert len(relays) == 1 and relays[0].get(ns+'permission') == relay_permission
+              else:
+                  assert not custom
+              assert expected_relay_use in declarations(now_xml)
+              unreviewed = added_declarations - {expected_relay_use}
               ids = re.findall(r"(?m)^\s*applicationId\s+['\"]([^'\"]+)['\"]", gradle)
               modules[module] = {
                   'declared_application_ids': ids,
                   'uses_testkey_signing_config': bool(re.search(r'signingConfig\s+signingConfigs\.testkey\b', gradle)),
                   'source_permissions': now,
                   'added_source_permissions': sorted(set(now)-set(old)),
+                  'reviewed_signature_relay_permission': relay_permission,
+                  'unreviewed_permission_declarations': [
+                      {'tag': tag, 'attributes': dict(attrs)} for tag, attrs in sorted(unreviewed)
+                  ],
                   'new_or_changed_permission_declarations': [
                       {'tag': tag, 'attributes': dict(attrs)} for tag, attrs in sorted(added_declarations)
                   ],
@@ -95,7 +114,7 @@ jobs:
           out = Path(os.environ['RUNNER_TEMP'])/'ai-security-review.json'
           out.write_text(json.dumps(report, indent=2)+'\n')
           print(out.read_text())
-          if any(m['new_or_changed_permission_declarations'] for m in modules.values()):
+          if any(m['unreviewed_permission_declarations'] for m in modules.values()):
               raise SystemExit('Permission declaration changed: review required before proceeding')
           PY
       - name: Inventory potential shared storage and package references
