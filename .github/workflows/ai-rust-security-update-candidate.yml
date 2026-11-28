@@ -1,112 +1,29 @@
-name: AI Rust security update candidate
+name: AI integrated Rust regression
 on:
   push:
     branches: [ai-0711-integration-next]
     paths:
       - '.github/workflows/ai-rust-security-update-candidate.yml'
-      - 'app/src/main/rust/stores/Cargo.lock'
-      - 'app/src/main/rust/stores/Cargo.toml'
+      - 'app/src/main/rust/stores/**'
 permissions:
   contents: read
 jobs:
-  candidate:
+  regression:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Generate targeted candidate lockfile
-        id: generate
+      - name: Verify exact reviewed lock and manifest
         run: |
           set -euo pipefail
-          test "$GITHUB_REPOSITORY" = jcy565/DroidDeck
-          report="$RUNNER_TEMP/rust-security-candidate"
-          mkdir -p "$report"
-          printf '%s\n' "$GITHUB_SHA" > "$report/source-commit.txt"
-          rustc -V > "$report/rustc-version.txt"
           cd app/src/main/rust/stores
-          test "$(git hash-object Cargo.lock)" = 6a470b3beae093190d06da5b224492083bf641f5
-          test "$(git hash-object Cargo.toml)" = 97a27659a17a4288a8c647245dec92a8ca5f8581
-          cp Cargo.lock "$report/original-Cargo.lock"
-          cp Cargo.toml "$report/original-Cargo.toml"
-          # Known patched releases, not a blanket upgrade or an advisory exemption.
-          cargo +stable update -p rustls --precise 0.23.46
-          cargo +stable update -p rustls-webpki --precise 0.103.16
-          cargo +stable update -p webpki-roots --precise 1.0.10
-          cargo +stable update -p tokio --precise 1.53.3
-          cargo +stable update -p quinn-proto --precise 0.11.19
-          cargo +stable update -p quinn-udp --precise 0.5.16
-          cargo +stable update -p url --precise 2.5.9
-          # ruzstd crosses a semver compatibility boundary; candidate only, never auto-commit.
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("Cargo.toml")
-          text = p.read_text()
-          old = 'ruzstd = "0.8"'
-          assert text.count(old) == 1
-          p.write_text(text.replace(old, 'ruzstd = "=0.9.1"'))
-          PY
-          cargo +stable update -p ruzstd --precise 0.9.1
-          python3 - <<'PY'
-          import tomllib
-          from pathlib import Path
-          packages = tomllib.loads(Path('Cargo.lock').read_text())['package']
-          expected = {'rustls':'0.23.46','rustls-webpki':'0.103.16','webpki-roots':'1.0.10','tokio':'1.53.3',
-                      'quinn-proto':'0.11.19','quinn-udp':'0.5.16','url':'2.5.9','ruzstd':'0.9.1'}
-          for name, version in expected.items():
-              selected = [p['version'] for p in packages if p['name'] == name]
-              if selected != [version]:
-                  raise ValueError(f'Unexpected resolved {name}: {selected}')
-          for p in packages:
-              if p.get('source') and (not p['source'].startswith('registry+') or not p.get('checksum')):
-                  raise ValueError(f'Unexpected source or missing checksum: {p["name"]}')
-          PY
-          test "$(git diff --name-only | sort)" = "$(printf '%s\n' app/src/main/rust/stores/Cargo.lock app/src/main/rust/stores/Cargo.toml | sort)"
-          cp Cargo.lock "$report/candidate-Cargo.lock"
-          cp Cargo.toml "$report/candidate-Cargo.toml"
-          git diff -- Cargo.lock Cargo.toml > "$report/candidate.patch"
-          sha256sum Cargo.lock Cargo.toml > "$report/candidate-sha256.txt"
-      - name: Run existing store engine tests against candidate
+          echo 'c8d0a99d1c143b78c85024ed8a247efafc473d8fdeddbfc6196e022fa3b54cb1  Cargo.lock' | sha256sum -c -
+          echo '25fca5ad92be52449d8b57b0df0a7bd3277e988a89ee403b693d7d2ffbfd3909  Cargo.toml' | sha256sum -c -
+      - name: Test integrated store engine without Android packaging
         run: |
           set -euo pipefail
-          report="$RUNNER_TEMP/rust-security-candidate"
           cd app/src/main/rust/stores
-          status=0
-          cargo +stable test --locked 2>&1 | tee "$report/host-tests.log" || status=$?
-          printf '%s\n' "$status" > "$report/host-test-exit-code.txt"
-          cmp Cargo.lock "$report/candidate-Cargo.lock"
-          cmp Cargo.toml "$report/candidate-Cargo.toml"
-          exit "$status"
-      - name: Audit candidate lockfile with RustSec
-        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
-        run: |
-          set -euo pipefail
-          report="$RUNNER_TEMP/rust-security-candidate"
-          test -f "$report/candidate-Cargo.lock"
-          cd "$RUNNER_TEMP"
-          cargo +stable install cargo-audit --version '=0.23.0' --locked --root "$RUNNER_TEMP/security-audit-tool"
-          export PATH="$RUNNER_TEMP/security-audit-tool/bin:$PATH"
-          cargo +stable audit --version > "$report/scanner-version.txt"
-          status=0
-          cargo +stable audit --file "$report/candidate-Cargo.lock" --json > "$report/audit.json" || status=$?
-          printf '%s\n' "$status" > "$report/audit-exit-code.txt"
-          python3 - "$report/audit.json" <<'PY'
-          import json, sys
-          from pathlib import Path
-          r = json.loads(Path(sys.argv[1]).read_text())
-          assert isinstance(r.get('vulnerabilities'), dict)
-          assert isinstance(r.get('warnings'), dict)
-          print('Vulnerabilities:', r['vulnerabilities'].get('count'))
-          print('Warnings:', sorted(r['warnings']))
-          for item in r['vulnerabilities'].get('list', []):
-              print(item['advisory']['id'], item['package']['name'], item['package']['version'], item.get('versions', {}).get('patched', []))
-          PY
-          exit "$status"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ai-rust-security-update-candidate
-          path: ${{ runner.temp }}/rust-security-candidate/
-          if-no-files-found: error
-          retention-days: 30
+          cargo +stable test --locked
+          git diff --exit-code -- Cargo.lock Cargo.toml
