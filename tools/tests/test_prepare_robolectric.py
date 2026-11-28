@@ -30,7 +30,17 @@ host="${url#https://}"
 host="${host%%/*}"
 relative="${url#*/maven2/}"
 name="${relative%.sha512}"
-[[ "$host" != repo.maven.apache.org ]] || exit 22
+if [[ "$host" == repo.maven.apache.org ]]; then
+    if [[ "${FALLBACK_VALIDATION:-0}" == 1 && "$name" == */nativeruntime-dist-compat-1.0.18.jar ]]; then
+        if [[ "$relative" == *.sha512 ]]; then
+            printf 'not-a-digest' > "$dest"
+        else
+            printf 'corrupt response' > "$dest"
+        fi
+        exit 0
+    fi
+    exit 22
+fi
 if [[ "$relative" == *.sha512 ]]; then
     [[ "$host" == repo1.maven.org ]] || exit 99
     digest="$(printf '%s' "$name" | sha512sum)"
@@ -44,6 +54,9 @@ else
 fi
 ''')
             curl.chmod(0o755)
+            sleep = bin_dir / 'sleep'
+            sleep.write_text('#!/bin/sh\nexit 0\n')
+            sleep.chmod(0o755)
             log = root / 'requests'
             env = dict(os.environ, HOME=str(root / 'home'), HTTP_LOG=str(log),
                        PATH=str(bin_dir) + os.pathsep + os.environ['PATH'])
@@ -96,3 +109,13 @@ fi
                 destination.unlink()
                 destination.write_bytes(original)
             self.assertEqual(run().returncode, 0)
+            # HTTP success alone is insufficient: a bad sidecar/payload on the
+            # primary endpoint must fall through to a valid subsequent response.
+            f.unlink()
+            checksum.unlink()
+            result = run(FALLBACK_VALIDATION='1')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('Invalid SHA-512 response', result.stderr)
+            self.assertIn('SHA-512 verification failed', result.stderr)
+            self.assertEqual(hashlib.sha512(f.read_bytes()).hexdigest(), checksum.read_text())
+            self.assertFalse(list(repo.rglob('.prefetch.*')))
