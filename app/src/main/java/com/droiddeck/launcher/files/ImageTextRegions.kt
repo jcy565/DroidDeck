@@ -26,6 +26,7 @@ internal object ImageTextRegions {
             }
             if (box == null || !validBox(box, width, height) ||
                 line.isBlank() || line.length > 1000 || line.any(Char::isISOControl) ||
+                !ImageTranslationInput.validUnicode(line) ||
                 total + line.length > ImageTranslationInput.MAX_TEXT) {
                 partial = true
                 continue
@@ -38,9 +39,12 @@ internal object ImageTextRegions {
 
     /** Produce a separate reviewed draft, never an instruction to modify the image. */
     fun summary(result: Result, edits: Map<Int, String>): String {
-        require(edits.keys.all { id -> result.regions.any { it.id == id } })
-        val translated = result.regions.mapNotNull { region ->
-            edits[region.id]?.let {
+        require(edits.size <= MAX_REGIONS && result.regions.size <= MAX_REGIONS)
+        val stable = edits.toMap()
+        val regions = result.regions.toList()
+        require(stable.keys.all { id -> regions.any { it.id == id } })
+        val translated = regions.mapNotNull { region ->
+            stable[region.id]?.let {
                 require(it.length <= 1000 && it.none(Char::isISOControl))
                 ImageTranslationInput.validateText(it)
             }
