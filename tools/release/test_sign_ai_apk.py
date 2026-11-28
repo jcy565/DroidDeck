@@ -47,7 +47,11 @@ if args[0] == 'verify':
     v2 = not (mode == 'v2-input' and not signed or mode == 'v2-output' and signed)
     if mode != 'v2-missing':
         print('Verified using v2 scheme (APK Signature Scheme v2): ' + str(v2).lower())
-    print('Signer #1 certificate SHA-256 digest: ' + cert)
+    if mode == 'versioned':
+        print('Number of signers: 1')
+        print('V3.0 Signer: certificate SHA-256 digest: ' + cert)
+    else:
+        print('Signer #1 certificate SHA-256 digest: ' + cert)
     if mode == 'multiple' or mode == 'multiple-output' and signed:
         print('Signer #2 certificate SHA-256 digest: ' + '3' * 64)
     if mode == 'verify-failure': sys.exit(1)
@@ -78,6 +82,10 @@ else:
         self.assertTrue(self.out.is_file())
         with zipfile.ZipFile(self.out) as apk:
             self.assertEqual(apk.read('classes.dex'), b'code')
+
+    def test_versioned_signer_report(self):
+        self.assertEqual(self.invoke('versioned').returncode, 0)
+        self.assertTrue(self.out.is_file())
 
     def test_reject_invalid_inputs(self):
         for sha, cert in [('0' * 64, RELEASE), ('bad', RELEASE), (self.sha, TEST),
