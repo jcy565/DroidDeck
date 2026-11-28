@@ -52,7 +52,7 @@ AI 로컬 모델은 기본 비활성이며 별도의 실험적 빌드, 호환 �
 ## 5. 최신 빌드 확인 및 실기 시험 순서 (2026-11-28)
 
 - 기준 성공판: [46096539410](https://github.com/jcy565/DroidDeck/actions/runs/46096539410), 소스 292e853b11ffc5640e2f77effa0b0430515dc85c, 전체 Android 4,263/4,263 통과. APK SHA-256: `21070a0e138ac0a83cc631d9d590d110e22ce6369fcd0aa13b7505f23578f9cf`. 내부 파일 1,012개 일치 확인.
-- 성능 개선 통합 후보: [46098470596](https://github.com/jcy565/DroidDeck/actions/runs/46098470596), 소스 a44476097f9a64f1f383e5c86e8f02f57ddba83b. CI 인벤토리상 APK SHA-256 `8bb326baf83571552f9d7cdba2d213b7e35a758a3eae3de2265b547138dd8430`. 아직 Android 전체 테스트 진행 중이며 실제 새 APK 본체 검증은 미완료. 성공판과 혼동하지 않는다.
+- 성능 개선 통합 후보: [46098470596](https://github.com/jcy565/DroidDeck/actions/runs/46098470596), 소스 a44476097f9a64f1f383e5c86e8f02f57ddba83b. CI 인벤토리상 APK SHA-256 `8bb326baf83571552f9d7cdba2d213b7e35a758a3eae3de2265b547138dd8430`. Android 전체 테스트 실패로 종료. DB 테스트 2건의 AutoCloseable 형변환 예외와 BLE 작업 스레드의 예외가 실제 로그에 기록됐다. JUnit XML은 생성되지 않았다. 해당 APK는 진단용 아티팩트만 보존됐으며 실기 후보로 승인하지 않는다. 수정판의 전체 CI 성공과 신뢰 가능한 독립 서명이 먼저 필요하다.
 - 두 개발판의 패키지는 `com.droiddeck.launcher.ai`, CI 공개 테스트 인증서 지문은 `a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc`. 테스트 인증서는 배포 신뢰를 제공하지 않는다. 개인 키는 본인이 관리하며 공유하거나 저장소에 올리지 않는다. 신뢰 가능한 독립 서명 및 정상 설치 절차 확인이 선행되어야 한다.
 
 | 시험 ID | 절차 | 합격 기준 | 상태 |
