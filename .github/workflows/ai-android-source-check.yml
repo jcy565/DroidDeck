@@ -1,0 +1,33 @@
+name: Independent AI Android source check
+on:
+  push:
+    branches: [ai-independent-apk-verification-next]
+    paths: ['.github/workflows/ai-android-source-check.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Restore reviewed pack inputs for Gradle configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/jcy565/DroidDeck/actions/artifacts/15250168311/zip > "$RUNNER_TEMP/packs.zip"
+          echo "ebe86c44c92a47a5b25807e22712dd5d14c778b83ff754131e1801e8617c1579  $RUNNER_TEMP/packs.zip" | sha256sum -c -
+          mkdir -p app/build/packs
+          unzip -q "$RUNNER_TEMP/packs.zip" -d app/build/packs
+      - name: Compile standard AI screens and OCR integration
+        run: |
+          ./gradlew :app:compileReleaseKotlin --console=plain --max-workers=2 \
+            -PexperimentalImageOcr=true -PskipRust=true -x :app:buildVkBridgeServer
+      - name: Compile the opt-in local inference adapter
+        run: |
+          ./gradlew :app:compileReleaseKotlin --console=plain --max-workers=2 \
+            -PexperimentalImageOcr=true -PexperimentalLocalAi=true -PskipRust=true -x :app:buildVkBridgeServer
