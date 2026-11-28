@@ -7,6 +7,8 @@
         </intent>
     </queries>
 
+    <uses-permission android:name="com.droiddeck.launcher.ai.permission.SHORTCUTS_RELAY" />
+
     <application
         android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"
