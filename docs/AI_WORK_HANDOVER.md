@@ -358,3 +358,5 @@
 ### 감사 실행 결과 및 Gradle 정렬 수정
 - 브랜치 push 실행은 GitHub REST `actions/runs?branch=ai-independent-apk-verification-next`로 조회 가능. 원본 Rust 감사 46130601837은 취약점 15건, 수정 후보 46130873495는 호스트 테스트 171/171 통과, 취약점 9건으로 실패. 후보 lock 적용 보류.
 - Gradle 46130511929 실패 원인은 init script 35행의 ArrayList 비교. fd4dc5bd4038083294f0a28fed2c340254da226c에서 의존성 및 파일 정렬을 필드별 비교로 수정. 재실행 결과 확인 중. 할당량 조회 불가. 설치 차단 원인 미확정.
+
+- 원본 및 첫 후보 RustSec ZIP을 내려받아 GitHub 게시 SHA-256 일치 확인. 잔여 9건은 quinn-proto 7건, quinn-udp 및 url 각 1건. 감사 JSON의 수정 범위에 맞춰 dd34e1dca978382fb489171ed442ecdb3f8fc59b에서 후보 버전을 각각 0.11.19, 0.5.16, 2.5.9로 확장. Rust 실행 46138338849, Gradle 실행 46138284330 진행 중. 앱 lock 적용 전.
