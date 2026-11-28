@@ -15,6 +15,8 @@ on:
       - 'shortcuts/src/main/AndroidManifest.xml'
       - 'app/src/main/res/xml/network_security_config.xml'
       - 'tools/ci/audit_app_paths.py'
+      - 'tools/ci/audit_native_packs.py'
+      - 'tools/packs/**'
       - 'app/src/main/java/com/droiddeck/launcher/input/ShortcutsRelay.kt'
       - 'shortcuts/src/**'
 permissions:
@@ -99,6 +101,9 @@ jobs:
       - name: Inventory potential shared storage and package references
         if: always()
         run: python3 tools/ci/audit_app_paths.py > "$RUNNER_TEMP/ai-app-path-review.json"
+      - name: Inventory staged native packs without extracting them
+        if: always()
+        run: python3 tools/ci/audit_native_packs.py > "$RUNNER_TEMP/ai-native-pack-review.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -106,5 +111,6 @@ jobs:
           path: |
             ${{ runner.temp }}/ai-security-review.json
             ${{ runner.temp }}/ai-app-path-review.json
+            ${{ runner.temp }}/ai-native-pack-review.json
           if-no-files-found: error
           retention-days: 30
